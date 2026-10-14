@@ -441,6 +441,15 @@ const ITEMS := [
 	{"id": "acc_belt", "name": "束腰皮带", "slot": "accessory", "exposure": 1, "acceptance_req": 4, "contrast": 3, "covers": [], "tags": []},
 
 	# ================= 下装 =================
+	# ★ 第三十一轮（用户口径「丁字裤归在下装」）：这两件从「下内衣」移到了「下装」。
+	#   它们本来就在 AU 图包的 under-lower/ 下，贴图不用换 —— 变的只是**算哪一栏**：
+	#     · 画在哪一层：z 由槽位决定，所以从内衣层(67)挪到了下装层(90)；
+	#     · 不再受内衣曝光门控（它们自己就是外面那层）；
+	#     · 会跟成装(dress)互斥 —— 本来就是「上装+下装」那一组的成员。
+	#   ★ 刻意**不**给它们 see: cutout：丁字裤当外裤穿时，里面的内裤仍按「被盖住」算。
+	#     想改成「露出内裤」的话，给这两件补上 "see": "cutout" 即可。
+	{"id": "panties_thong", "name": "黑色丁字裤", "slot": "bottom", "exposure": 5, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
+	{"id": "panties_janties", "name": "牛仔丁字裤", "slot": "bottom", "exposure": 5, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
 	# ★ 同上：「（不穿下装）」= 下装这一层空着，里面的内裤直接外穿。
 	{"id": "bottom_none", "name": "（不穿下装）", "slot": "bottom", "exposure": 9, "acceptance_req": 11, "contrast": 8, "covers": [], "tags": [], "bare": true},
 	{"id": "bottom_longskirt", "name": "及地长裙", "slot": "bottom", "exposure": 0, "acceptance_req": 0, "contrast": 1, "covers": [], "tags": []},
@@ -518,8 +527,6 @@ const ITEMS := [
 	#   得配「（不穿下装）」或者标了 see 的下装。
 	{"id": "panties_plain", "name": "素色棉质内裤", "slot": "panties", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
 	{"id": "panties_lace", "name": "黑色蕾丝内裤", "slot": "panties", "exposure": 5, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
-	{"id": "panties_thong", "name": "黑色丁字裤", "slot": "panties", "exposure": 5, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
-	{"id": "panties_janties", "name": "牛仔丁字裤", "slot": "panties", "exposure": 5, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
 	{"id": "panties_micro", "name": "微型比基尼内裤", "slot": "panties", "exposure": 6, "acceptance_req": 7, "contrast": 6, "covers": [], "tags": []},
 	{"id": "panties_crotchless", "name": "开裆蕾丝内裤", "slot": "panties", "exposure": 7, "acceptance_req": 8, "contrast": 7, "covers": [], "tags": []},
 	{"id": "panties_none", "name": "（不穿）", "slot": "panties", "exposure": 8, "acceptance_req": 8, "contrast": 7, "covers": [], "tags": []},
@@ -597,8 +604,16 @@ const START_ACCEPTANCE := 6
 # 反差值要求曲线的出厂参数（编辑器「⚙️ 数值规则」里可改）
 #   · base —— 第 1 关的要求（后面留空的关都从它往上加）
 #   · step —— 每关自增多少
-const CONTRAST_REQ_BASE := 20
-const CONTRAST_REQ_STEP := 10
+const CONTRAST_REQ_BASE := 24
+const CONTRAST_REQ_STEP := 3
+
+# 反差值换算系数（第三十一轮）：每一档「暴露度差」算多少反差分。
+#   见 WardrobeModel._contrast_of —— 反差 = |你穿的暴露度 − 原貌那件| × 它。
+const CONTRAST_PER_EXPOSURE := 5
+
+# 反差值换算系数（可在编辑器「⚙️ 数值规则」里改）
+func contrast_per_exposure() -> int:
+	return int(ScenarioData.rule_i("contrast_per_exposure", CONTRAST_PER_EXPOSURE))
 
 # ---------- 关卡开放状态（第二十一轮）----------
 # 「开始游戏」不再直接开局，而是先让玩家在**选关面板**上挑进哪一关。
@@ -755,7 +770,7 @@ const FORCED_MODE_FIXED := "fixed"
 #   所以「自增」不是固定公式，而是一条**以手写值为锚点**的阶梯 ——
 #   你可以在任意一关插一个数，后面整段跟着抬起来。
 const DEFAULT_LEVELS := [
-	{"name": "第一关", "acceptance_gain": 5, "contrast_req": 20, "derived_profile": "一个不起眼的路人"},
+	{"name": "第一关", "acceptance_gain": 5, "contrast_req": 24, "derived_profile": "一个不起眼的路人"},
 	{"name": "第二关", "acceptance_gain": 5, "derived_profile": "有点来头的商贩"},
 	{"name": "第三关", "acceptance_gain": 6, "derived_profile": "被人打过招呼的熟面孔"},
 	{"name": "第四关", "acceptance_gain": 0, "derived_profile": "即将被放行的清白之人"},

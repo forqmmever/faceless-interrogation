@@ -593,7 +593,12 @@ func _make_photo_card(i: int, grid: Node) -> void:
 	vb.add_theme_constant_override("separation", 4)
 
 	var shot := Label.new()
-	shot.text = _tf("album.shot", [str(p.get("shot_slot", ""))], "偷拍 · %s")
+	# ★ 第三十一轮：标题里带上「上半身 / 下半身」—— 明确告诉你这张记的是哪一半
+	var half := str(p.get("half", ""))
+	var shot_what := str(p.get("shot_slot", ""))
+	if half != "":
+		shot_what += " · " + half
+	shot.text = _tf("album.shot", [shot_what], "偷拍 · %s")
 	shot.add_theme_font_size_override("font_size", 10)
 	shot.add_theme_color_override("font_color", Color(0.66, 0.70, 0.78))
 	vb.add_child(shot)

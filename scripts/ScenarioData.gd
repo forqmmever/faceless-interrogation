@@ -1535,6 +1535,16 @@ const PHOTO_SLOTS := [
 	"tattoo", "neckwear", "top", "bottom", "dress", "shoes", "robe",
 ]
 
+# ★ 第三十一轮（用户口径）：「相册记录的是平时的衣服，不一定是一整套 ——
+#   可能只有上半身或下半身」。照片仍然是一个部位的特写（本来就只是局部记录），
+#   这里额外标明它属于哪一半 —— 一眼能看出「手头掌握的是上半身还是下半身的底」。
+const PHOTO_HALF := {
+	"hair": "上半身", "headgear": "上半身", "glasses": "上半身", "earrings": "上半身",
+	"makeup": "上半身", "piercing": "上半身", "tattoo": "上半身", "neckwear": "上半身",
+	"top": "上半身", "dress": "全身", "robe": "全身",
+	"bottom": "下半身", "shoes": "下半身",
+}
+
 const PHOTO_COUNT := 5              # 每局相册里的照片数
 const PHOTO_WIPE_STEP := 0.25       # 每次擦掉反光提升的清晰度
 const PHOTO_CLEAR_AT := 0.70        # 清晰度达到这个值才能认出来
@@ -1924,8 +1934,9 @@ const DEFAULT_RULES := {
 	# --- 盘问流程 ---
 	"questions_per_level": 8,          # 一关问几道
 	# ★ 第二十九轮：反差值要求曲线 —— 留空的关卡 = 上一关 + step（见 OutfitData._resolve_contrast_req）
-	"contrast_req_base": 20,           # 第 1 关的反差要求基线
-	"contrast_req_step": 10,           # 之后每关自增多少
+	"contrast_req_base": 24,           # 第 1 关的反差要求基线
+	"contrast_req_step": 3,           # 之后每关自增多少
+	"contrast_per_exposure": 5,        # 反差值：每一档暴露度差算多少分（第三十一轮新算法）
 	"pass_suspicion": 60.0,            # 怀疑度低于它才算过
 	"contradiction_limit": 2,          # 累计几次「前后矛盾」当场识破
 	"contradiction_penalty": 35.0,     # 一次前后矛盾涨多少怀疑度

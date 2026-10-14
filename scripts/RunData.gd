@@ -343,6 +343,8 @@ func _roll_photos() -> void:
 			# 只存槽位名 —— 「偷拍 · 」那个前缀属于界面文案，由手机从
 			# ScenarioData.PHONE["album"]["shot"] 里取，这样才改得动。
 			"shot_slot": str(OutfitData.SLOT_NAMES.get(slot, slot)),
+			# ★ 第三十一轮：这张照片属于上半身还是下半身（界面会把两段拼起来）
+			"half": str(ScenarioData.PHOTO_HALF.get(slot, "")),
 		})
 
 # ============================================================

@@ -501,13 +501,40 @@ func _sum_now(field: String) -> int:
 		t += _contrib(slot, str(equipped[slot]), field)
 	return t
 
-# 单件的贡献（门控之外的部分：与原貌一致的反差记 0）
+# 单件的贡献（门控之外的部分）。
+#
+# ★★ 第三十一轮：反差值换算法（用户口径）。
+#
+#   改之前：逐槽位累加物品自己那个手填的 `contrast`（与原貌相同则记 0）。
+#   改之后：**只算上衣与下装**，数值 = |你穿的暴露度 − 相册里记的那件的暴露度| × 系数。
+#     · 相册记录的就是原貌（那几张「偷拍」拍的就是 A 平时的样子），
+#       所以基线取 `true_appearance` —— 穿了与它相同的件，差为 0、自然不计反差，
+#       正好对上「装备与相册记录相同则不记录反差值」这条口径。
+#     · 暴露度差越大 = 你比他记得的样子露/捂得越多 = 越不像他。
+#     · 只有上衣与下装参与：这两处是「一眼扫过去」最先看到的轮廓。
+#
+#   ★ 系数在 rules.contrast_per_exposure 里（默认 5）：暴露度差最大 9（下装「不穿」9 档），
+#     两件加起来上限约 90，覆盖得住四关的 20/30/40/50。
 func _contrib(slot: String, id: String, field: String) -> int:
 	if id == "":
 		return 0
-	if field == "contrast" and id == str(true_appearance.get(slot, "")):
-		return 0
+	if field == "contrast":
+		return _contrast_of(slot, id)
 	return int(data.get_item(id).get(field, 0))
+
+# 参与反差的槽位（用户口径：只影响上衣与下装）
+const CONTRAST_SLOTS := ["top", "bottom"]
+
+# 某槽位这件衣服贡献多少反差。不参与反差的槽位一律 0。
+func _contrast_of(slot: String, id: String) -> int:
+	if not CONTRAST_SLOTS.has(slot):
+		return 0
+	var base_id := str(true_appearance.get(slot, ""))
+	var base_exp := 0
+	if base_id != "":
+		base_exp = int(data.get_item(base_id).get("exposure", 0))
+	var now_exp := int(data.get_item(id).get("exposure", 0))
+	return absi(now_exp - base_exp) * data.contrast_per_exposure()
 
 # ============================================================
 #  单槽位增量 —— 换一件衣服会让总和变多少
@@ -991,10 +1018,10 @@ func _defect_mask_of(it: Dictionary) -> int:
 
 # 某槽位换上这件衣物能贡献多少反差 —— 口径与 total_contrast() 一致：
 # 与 A 的原貌相同的那一件贡献 0（穿成他记忆里的样子 = 没有反差）。
+# ★ 第三十一轮：口径换成 `_contrast_of` —— DP / 贪心 / 界面三处必须同口径，
+#   否则一键达标求出来的解和右侧量表显示的反差对不上。
 func _contrast_in_slot(slot: String, it: Dictionary) -> int:
-	if str(it.get("id", "")) == str(true_appearance.get(slot, "")):
-		return 0
-	return int(it.get("contrast", 0))
+	return _contrast_of(slot, str(it.get("id", "")))
 
 # DP 里用的每槽位得分：高 8 位放反差，最低位放「已经不是原貌」的加分。
 # 这样求解会**先**把反差顶到最高，再在同分下尽量少留「与原貌一致」的槽位 ——

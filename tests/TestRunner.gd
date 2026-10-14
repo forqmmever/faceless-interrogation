@@ -2205,7 +2205,9 @@ func _test_intro_and_help() -> void:
 	_check("★ 讲了「换装区域」", wtxt.contains("换装区域"))
 	_check("★ 不再讲「判定栏」（该栏已撤掉）", not wtxt.contains("判定栏"))
 	_check("★ 讲了「手机」", wtxt.contains("手机"))
-	_check("★ 讲了两行点阵 E./C.", wtxt.contains("E. 暴露值") and wtxt.contains("C. 反差值"))
+	# ★ 第三十一轮：卡片上只剩一行点阵（C. 反差值那行按用户口径撤掉了）
+	_check("★ 讲了一行点阵 E.（暴露值）", wtxt.contains("E. 暴露值"))
+	_check("★ 玩法说明里不再提 C. 反差值点阵", not wtxt.contains("C. 反差值"))
 	_check("★ 不再讲第三行 A. 接受度（已撤掉）", not wtxt.contains("A. 接受度"))
 	_check("★ 不再讲接受度门槛的斜标签（已撤掉）", not wtxt.contains("斜标签"))
 	_check("★ 讲了卡片的边框含义（已装备 / 强制装备）",
@@ -2916,8 +2918,9 @@ func _test_story_config() -> void:
 
 	# ---- 1. 三个新段落都在，而且和出厂兜底同构 ----
 	# ★ 第二十九轮加了 contrast_req_base / contrast_req_step（反差值要求自增曲线）
-	_check("ScenarioData.RULES 有 33 项（含反差值曲线的 base / step）", sd.RULES.size() == 33)
-	_check("ScenarioData.DEFAULT_RULES 有 33 项", sd.DEFAULT_RULES.size() == 33)
+	# ★ 第三十一轮又加了 contrast_per_exposure（反差新算法的换算系数）
+	_check("ScenarioData.RULES 有 34 项（含反差曲线的 base / step 与换算系数）", sd.RULES.size() == 34)
+	_check("ScenarioData.DEFAULT_RULES 有 34 项", sd.DEFAULT_RULES.size() == 34)
 	_check("反差值曲线参数在 rules 里，且都是正数",
 		int(sd.RULES.get("contrast_req_base", -1)) > 0 and int(sd.RULES.get("contrast_req_step", -1)) > 0)
 	var rule_same := true

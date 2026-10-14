@@ -158,8 +158,11 @@ func _test_underwear_gate() -> void:
 	_check("②透明外衣：门控原因是 sheer", m.underwear_visibility("bra") == "sheer")
 	_check("②透明外衣：暴露值 = 原值 + 上衣 6 + 内衣 4",
 		m.total_exposure() == e_hidden + 6 + 4)
-	_check("②透明外衣：反差值也确实多了 bra 的 5 点",
-		m.total_contrast() == c_hidden + int(OutfitData.get_item("top_lace")["contrast"])
+	# ★ 第三十一轮：反差只算上衣与下装 —— 内衣**一个点都不贡献**（老算法里 bra 的 5 点没了）。
+	_check("②透明外衣：反差只随上衣变（内衣不再贡献反差）",
+		m.total_contrast() == _expect_contrast(m))
+	_check("②透明外衣：bra 那 5 点**没有**进反差",
+		m.total_contrast() != c_hidden + int(OutfitData.get_item("top_lace")["contrast"])
 			+ int(OutfitData.get_item("bra_lace")["contrast"]))
 	_check("②透明外衣：panties 仍不计入（下装没换）", not m.counts_toward_totals("panties"))
 
@@ -179,7 +182,8 @@ func _test_underwear_gate() -> void:
 	m.equipped["top"] = "top_highneck"      # 盖回去
 	m.equipped["bra"] = "bra_none"          # 暴露 6 / 反差 6，比 bra_lace 更贵
 	_check("盖得严实：换成「（不穿内衣）」也不改变暴露值", m.total_exposure() == e_hidden)
-	_check("盖得严实：换成「（不穿内衣）」也不改变反差值", m.total_contrast() == c_hidden)
+	# ★ 第三十一轮：内衣本来就不参与反差了，所以这条现在恒成立（保留它是为了防止回归）
+	_check("换成「（不穿内衣）」不改变反差（内衣不参与反差）", m.total_contrast() == c_hidden)
 	m.equipped["bottom"] = "bottom_mini"    # see = cutout → 连带 panties 一起点亮
 	_check("换上镂空下装 → 内裤立刻计入（门控是连动的）",
 		m.counts_toward_totals("panties"))
@@ -743,6 +747,35 @@ func _test_model_basics() -> void:
 	print("\n-- 反差值方向 --")
 	_check("反差值越高越安全（当前设定）", OutfitData.CONTRAST_HIGHER_IS_SAFER == true)
 
+	# ---- ★ 第三十一轮：新算法的三条不变量 ----
+	var mm := WardrobeModel.new(OutfitData)
+	# ★ 注意：新模型的接受度是 0，而待会儿要装的 top_lace 需要接受度 6 ——
+	#   不放开的话 equip() 会直接拒绝，反差永远是 0（第一次就踩了）。
+	mm.acceptance = 20
+	_check("新算法：只有上衣与下装参与反差",
+		WardrobeModel.CONTRAST_SLOTS.size() == 2
+		and WardrobeModel.CONTRAST_SLOTS.has("top")
+		and WardrobeModel.CONTRAST_SLOTS.has("bottom"))
+	_check("新算法：开场（穿着原貌）反差 = 0", mm.total_contrast() == 0)
+	_check("新算法：反差的量纲 = |暴露度差| × 系数",
+		mm.total_contrast() == _expect_contrast(mm))
+	# 改一件**不参与反差**的部位（发型）→ 反差不动
+	mm.equip(OutfitData.get_item("hair_short"))
+	_check("新算法：改发型不影响反差",
+		mm.total_contrast() == 0 and mm.total_contrast() == _expect_contrast(mm))
+	# 改上衣 → 按暴露度差给分
+	var top_id := "top_lace"
+	mm.equip(OutfitData.get_item(top_id))
+	var base_e := int(OutfitData.get_item(str(mm.true_appearance.get("top", "")))["exposure"])
+	var want: int = absi(int(OutfitData.get_item(top_id)["exposure"]) - base_e) \
+		* OutfitData.contrast_per_exposure()
+	_check("新算法：换上衣后反差 = |暴露度差| × %d = %d（实测 %d）"
+		% [OutfitData.contrast_per_exposure(), want, mm.total_contrast()],
+		mm.total_contrast() == want)
+	# 系数必须 > 0，否则整条曲线无从谈起
+	_check("反差系数 > 0（在 rules.contrast_per_exposure 里）",
+		OutfitData.contrast_per_exposure() > 0)
+
 # ------------------------------------------------------------
 #  缺陷遮挡：与原貌相反的代价
 # ------------------------------------------------------------
@@ -768,7 +801,11 @@ func _test_defect_tradeoff() -> void:
 	_check("颈饰+长袖上衣可补回遮挡", m.exposed_defects().is_empty())
 	_check("补遮用的颈饰/长袖上衣与原貌不同",
 		m.changed_slots().has("neckwear") and m.changed_slots().has("top"))
-	_check("颈饰/长袖上衣的反差计入总和", m.total_contrast() > 0)
+	# ★ 第三十一轮：颈饰**不再**参与反差（只有上衣与下装算）—— 长袖上衣在算
+	_check("长袖上衣的反差计入总和", m.total_contrast() > 0)
+	_check("颈饰不再计入反差（口径：只算上衣与下装）",
+		m.total_contrast() == _expect_contrast(m)
+		and OutfitData.get_item("neck_scarf")["contrast"] > 0)
 
 	var before_true := m.total_contrast()
 	m.equipped["hair"] = "hair_short"   # 原貌就是 hair_short
@@ -1781,6 +1818,26 @@ func _has_defect(arr: Array, id: String) -> bool:
 		if d["id"] == id:
 			return true
 	return false
+
+# ★ 第三十一轮新算法：独立地从**数据**重算一遍反差，与被测的 total_contrast() 对照。
+#
+#   口径（用户口径）：只算上衣与下装；数值 = |你穿的暴露度 − 原貌那件的暴露度| × 系数。
+#   这里刻意不走模型内部函数，而是直接用 ITEMS 里的 exposure 现推 ——
+#   否则就是「拿实现验证实现」，改了算法也照样通过。
+func _expect_contrast(m: WardrobeModel) -> int:
+	var w := OutfitData.contrast_per_exposure()
+	var t := 0
+	for slot in ["top", "bottom"]:
+		var ss := str(slot)
+		if not m.counts_toward_totals(ss):
+			continue
+		var base_id := str(m.true_appearance.get(ss, ""))
+		var base_e := 0
+		if base_id != "":
+			base_e = int(OutfitData.get_item(base_id).get("exposure", 0))
+		var now_e := int(m.item_at(ss).get("exposure", 0))
+		t += absi(now_e - base_e) * w
+	return t
 
 func _sum_exposure(m: WardrobeModel) -> int:
 	# 与 total_exposure() 同一口径：受门控的内衣内裤，露不出来就不计

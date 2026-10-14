@@ -407,7 +407,8 @@ try {
   {
     const R = P.story.rules || {};
     // ★ 第二十九轮加了 contrast_req_base / contrast_req_step（反差值要求曲线）
-    ok(Object.keys(R).length === 33, "story.rules 有 33 项，实际 " + Object.keys(R).length);
+    ok(Object.keys(R).length === 34, "story.rules 有 34 项，实际 " + Object.keys(R).length);
+    ok(typeof R.contrast_per_exposure === "number", "反差换算系数在（" + R.contrast_per_exposure + "）");
     ok(typeof R.contrast_req_base === "number" && typeof R.contrast_req_step === "number",
       "反差值曲线的 base / step 都在（" + R.contrast_req_base + " / " + R.contrast_req_step + "）");
     ok(P.uiLeafCount() === 79, "story.ui 共 79 条文案，实际 " + P.uiLeafCount());
@@ -525,7 +526,8 @@ try {
       });
       return out;
     })();
-    ok(autoSeq.join("/") === "20/30/40/50", "留空的关按 base+step 自增：" + autoSeq.join("/"));
+    // ★ 第三十一轮：反差换成新算法后重标过曲线（只算上衣+下装，可达范围变小）
+    ok(autoSeq.join("/") === "24/27/30/33", "留空的关按 base+step 自增：" + autoSeq.join("/"));
     // 在中间手写一个值 → 它成为后面自增的新起点
     S.levels[1].contrast_req = 45;
     P.validateNow();

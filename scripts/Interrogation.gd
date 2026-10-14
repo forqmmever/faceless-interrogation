@@ -59,7 +59,10 @@ const EXPR_QTE_FAIL := 24.0          # 表情没绷住 → 怀疑度 +24（调�
 # 而不是题刚蹦出来就被迫按住空格。
 const EXPR_QTE_DELAY := 2.5
 # 暴露值到这儿，连寻常答话他都盯着你的脸看 —— 本来只有 A 类题 / 盲区题才压表情
-const EXPOSURE_QTE_THRESHOLD := 30
+# ★ 第三十三轮：暴露值换成「线性斜坡」——
+#   ≤ EXPOSURE_QTE_MIN 一次都不出；≥ EXPOSURE_QTE_FULL 每题必出；中间线性。
+const EXPOSURE_QTE_MIN := 10
+const EXPOSURE_QTE_FULL := 60
 
 # --- 档案题的第 4 个选项：沉默 ---
 #  选项数量是**可变**的（2 ~ 4 个）：档案题 4 个、说法题 / 同行者题 3 个、
@@ -81,8 +84,6 @@ const SHAKE_HIT := 18.0
 #  那就不是在考判断，是在考手速。现在留出「看清 → 反应 → 敲下去」的余量。
 const INTERFERENCE_WINDOW := 2.6
 const INTERFERENCE_BASE := 14.0
-const INTERFERENCE_MIN := 6.0
-const INTERFERENCE_PER_EXPOSURE := 0.18
 
 # --- 组合干扰（按顺序敲 3 个键）---
 #  每 COMBO_EVERY 次干扰里有 1 次是组合：他递的不是半句话，是一整句要紧的，
@@ -119,6 +120,8 @@ var qte_progress: float = 0.0
 var qte_timer: float = 0.0
 var qte_needed: bool = false             # 这一题需不需要压表情（在 _load_question 里算好）
 var qte_delay_left: float = 0.0          # 延迟倒计时（EXPR_QTE_DELAY 起数到 0 才弹出来）
+# ★ 第三十三轮：这一题的 QTE 提示文字。题目自带（qte.prompt）优先，留空则用全局那句。
+var qte_prompt_used: String = ""
 var qte_done: bool = false               # 本题的 QTE 已经做完 / 已取消（答完一题只做一次）
 
 # ---- 每题的 QTE 计划（第二十三轮，编辑器可改）----
@@ -763,10 +766,14 @@ func _on_result_pressed() -> void:
 		return
 	interrogation_finished.emit(_success)
 
+# 递话干扰的间隔。
+#
+# ★★ 第三十三轮（用户口径）：「暴露值现在**只会**影响按住空格的 QTE 即表情管理的 QTE」。
+#    既然暴露值只该管表情 QTE，这里就不能再跟着它变密 ——
+#    改成一个固定间隔（interference_base）。
+#    （旧公式是 `base − 暴露值 × per_exposure`，下限 6 秒；想恢复就照这个加回来。）
 func interference_interval() -> float:
-	var expo := float(GameData.outfit_exposure)
-	return maxf(_rf("interference_min", INTERFERENCE_MIN),
-		_rf("interference_base", INTERFERENCE_BASE) - expo * _rf("interference_per_exposure", INTERFERENCE_PER_EXPOSURE))
+	return _rf("interference_base", INTERFERENCE_BASE)
 
 # ---------------- 视角晃动 ----------------
 #  有冲击的时刻抖一下：QTE 失败、被识破、掏手机被发现。
@@ -1318,11 +1325,16 @@ func _apply_qte_plan(index: int, kind: String, opts: Array) -> void:
 	# ★ 第二十九轮：**题目自带的 qte 优先**于「按题号」的全局计划表 ——
 	#   每道题现在自己说了算（编辑器里逐题填类型与延迟）。
 	#   支持两种写法：`"qte": "none"` 或 `"qte": {"kind": "...", "delay": 3.0}`。
+	#   对象写法现在多认一个 `prompt` —— 这一道题专用的「QTE 上方提示文字」。
 	var own: Variant = _current_question().get("qte", null)
+	qte_prompt_used = ""
 	if typeof(own) == TYPE_DICTIONARY:
 		var od := own as Dictionary
 		plan = {"qte": str(od.get("kind", OutfitData.QTE_AUTO)),
 			"delay": float(od.get("delay", -1.0))}
+		# ★ 第三十三轮（用户口径）：「QTE 上方显示的提示文字可以编辑」。
+		#   题目自己写了就用它，留空则回落到全局那句（interrogation.qte_prompt）。
+		qte_prompt_used = str(od.get("prompt", ""))
 	elif typeof(own) == TYPE_STRING and str(own) != "":
 		plan = {"qte": str(own), "delay": -1.0}
 	var pk := str(plan.get("qte", OutfitData.QTE_AUTO))
@@ -1358,22 +1370,53 @@ func _apply_qte_plan(index: int, kind: String, opts: Array) -> void:
 			qte_done = not qte_needed
 			qte_delay_left = _rf("expr_qte_delay", EXPR_QTE_DELAY) if qte_needed else 0.0
 
-# 这一题要不要压表情？（只有 "auto" 计划走这条老路）
-#   · 第 1 道题恒为不需要（开场先让你把第一句话说完）；
-#   · 题里有「说漏嘴」的正面回应（A 类卡）或「当场硬答」选项 —— 他正盯着你的脸；
-#   · 暴露值 ≥ EXPOSURE_QTE_THRESHOLD 时 —— 连寻常答话他也盯着你看。
-#  ★ 第十三轮把「一题做几次」砍成了「一题一次」：QTE 只有一个阶段，
-#    本题回答完毕就结束，不再按额度连做好几轮。
+# 这一题要不要压表情？（只有 "auto" 计划走这条路）
+#
+# ★★ 第三十三轮（用户口径）：「暴露值越高现在只会影响按住空格的 QTE 即表情管理的 QTE，
+#    越高触发次数越多；表情管理 QTE 现在不会因为别的原因触发」。
+#
+#   于是触发条件**只剩两条**：
+#     · 第 1 题恒不出 —— 开场先让你把第一句话说完（第十三轮定的，保留）；
+#     · 其余看暴露值给出的概率（见 expression_qte_chance）。
+#
+#   ★ 本轮**删掉**的旧触发条件（就是那句「别的原因」）：
+#     · 题目本身是盲区题（gap）/ 当场硬答（made_up）；
+#     · 选项里有「说漏嘴」（leak）或「当场硬答」（made_up）。
+#   ★ 「一个问题只会出现一次」是第十三轮定的设计，本轮**没动** ——
+#     这里只决定「这一题出不出」，出与不出都由 qte_done 把这一题锁死。
+#
+#   ★ 题目**显式**写了 `qte: expression` 的仍然照出 —— 那是作者的手动安排，
+#     不属于「自动触发」，见 _apply_qte_plan。
 func needs_expression_for(index: int, kind: String, opts: Array) -> bool:
 	if index <= 0:
 		return false
-	if kind == "gap" or kind == "made_up":
+	return _expr_qte_roll(index)
+
+# 暴露值换算出的触发概率（0~1）：
+#   p = (暴露值 − exposure_qte_min) / (exposure_qte_full − exposure_qte_min)
+#   暴露 ≤ min → 一次都不出；≥ full → 每题必出；中间线性。
+#   ★ 按当前接受度推算，四关穿到满暴露时大致是 24% / 44% / 64% / 88% ——
+#     越往后越常被盯，同一关里穿得越露也越频繁。
+func expression_qte_chance() -> float:
+	var e := float(GameData.outfit_exposure)
+	var lo := _rf("exposure_qte_min", EXPOSURE_QTE_MIN)
+	var hi := _rf("exposure_qte_full", EXPOSURE_QTE_FULL)
+	if hi <= lo:
+		return 1.0 if e >= hi else 0.0
+	return clampf((e - lo) / (hi - lo), 0.0, 1.0)
+
+# 稳定摇一次：同一局 / 同一关 / 同一道题 → 结果固定。
+#   ★ 不能用运行时 RNG：同一道题可能被反复装载（来回切题、重来本轮、测试里多次 _load），
+#     每次现摇会变成「同一题有时出有时不出」，玩家莫名其妙、测试也没法断言。
+func _expr_qte_roll(index: int) -> bool:
+	var p := expression_qte_chance()
+	if p <= 0.0:
+		return false
+	if p >= 1.0:
 		return true
-	for o in opts:
-		var od: Dictionary = o
-		if str(od.get("kind", "")) == "leak" or str(od.get("kind", "")) == "made_up":
-			return true
-	return GameData.outfit_exposure >= _rf("exposure_qte_threshold", EXPOSURE_QTE_THRESHOLD)
+	var key := "%d|%d|%d|expr" % [RunData.seed_value, RunData.level_index, index]
+	var roll := float(absi(hash(key)) % 10000) / 10000.0
+	return roll < p
 
 # 把 current_options 刷到按钮池上 —— 数量可变（2 ~ 4），按需补齐、多余的藏起来。
 func _refresh_option_buttons() -> void:
@@ -1727,9 +1770,13 @@ func _begin_qte() -> void:
 	is_qte_active = true
 	qte_progress = 50.0
 	qte_timer = _rf("expr_qte_time", EXPR_QTE_TIME)
-	qte_label.text = _ut("interrogation.qte_prompt",
-		"按住 [空格 / 鼠标左键] 压制心跳 —— "
-		+ "把表情维持在绿色区间！（照常答题，手机得先收起来）")
+	# ★ 第三十三轮：题目自带 `qte.prompt` 优先，否则用全局那句（两者在编辑器里都能改）。
+	if qte_prompt_used.strip_edges() != "":
+		qte_label.text = qte_prompt_used
+	else:
+		qte_label.text = _ut("interrogation.qte_prompt",
+			"按住 [空格 / 鼠标左键] 压制心跳 —— "
+			+ "把表情维持在绿色区间！（照常答题，手机得先收起来）")
 	qte_bar.value = qte_progress
 	qte_container.show()
 	# 手机锁上：收回来 + 按钮变灰

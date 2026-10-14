@@ -528,13 +528,10 @@ func _test_fact_consistency() -> void:
 	interro.is_qte_active = false
 	interro._ended = false
 	interro._running = true
-	# ★ 第二十六轮：这一条原本写死「排上 QTE」，其实是在赌构建结果 —— 说法题的选项里
-	#   没有 leak / made_up，`needs_expression_for()` 只能靠「暴露值 ≥ 阈值」这一条路出 QTE。
-	#   新增 dress 槽位后构建器能用更低的暴露值凑够反差，本关暴露值掉到了阈值以下，
-	#   于是这一题按规则**本来就不该**排 QTE —— 与「改口」无关。
-	#   所以这里把前置条件显式顶到阈值再验（规则本身另有 _test_qte_budget 专项覆盖）。
+	# ★ 第三十三轮：表情 QTE 已改成「只由暴露值决定」的线性斜坡 ——
+	#   所以这里把暴露值顶到**必出点**再验（斜坡本身另有 _test_qte_budget 专项覆盖）。
 	var exp_keep: float = gd.outfit_exposure
-	gd.outfit_exposure = Interrogation.EXPOSURE_QTE_THRESHOLD
+	gd.outfit_exposure = Interrogation.EXPOSURE_QTE_FULL
 	interro._load_question(f1)
 	var other_idx := _option_index_of_value_not(r_canonical)
 	_check("复问的选项里有一个跟前面几关不同的版本", other_idx >= 0)
@@ -545,7 +542,7 @@ func _test_fact_consistency() -> void:
 		gd.suspicion_level >= s1 + Interrogation.CONTRADICTION_PENALTY - 0.01)
 	_check("复问改口 → 口径仍保留第一次的说法（改不回来）",
 		str(gd.stated_facts.get(rid, "")) == r_canonical)
-	_check("复问改口 → 暴露值到阈值时排上压表情的 QTE（延迟几秒后弹）",
+	_check("复问改口 → 暴露值到必出点时排上压表情的 QTE（延迟几秒后弹）",
 		interro.qte_needed == true)
 	_check("复问改口 → 矛盾文案写明跟哪条对不上",
 		interro.feedback_label.text.contains("对不上的是："))
@@ -1670,17 +1667,18 @@ func _test_phone_in_interrogation() -> void:
 # 同行者干扰
 # ------------------------------------------------------------
 func _test_interference() -> void:
-	print("\n-- 同行者干扰：暴露值越高，递话越密 --")
+	# ★ 第三十三轮（用户口径）：「暴露值现在**只会**影响表情 QTE」——
+	#   递话干扰的间隔不再跟着暴露值变密，改成固定值。
+	print("\n-- 同行者干扰：固定间隔（第 33 轮起不再随暴露值变密）--")
 	_check("干扰台词库非空", DossierData.interference_lines().size() >= 4)
 
 	gd.outfit_exposure = 0
-	_check("暴露值 0 时干扰间隔 = 14.0 秒", is_equal_approx(interro.interference_interval(), 14.0))
+	_check("暴露值 0 时间隔 = 14.0 秒", is_equal_approx(interro.interference_interval(), 14.0))
 	gd.outfit_exposure = 20
-	_check("暴露值 20 时干扰间隔 = 10.4 秒",
-		is_equal_approx(interro.interference_interval(), 14.0 - 20.0 * 0.18))
+	_check("★ 暴露值 20 时间隔**不变**（暴露值只管表情 QTE）",
+		is_equal_approx(interro.interference_interval(), 14.0))
 	gd.outfit_exposure = 45
-	_check("暴露值 45 时触发下限钳制 = 6.0 秒",
-		is_equal_approx(interro.interference_interval(), 6.0))
+	_check("★ 暴露值 45 时间隔也不变", is_equal_approx(interro.interference_interval(), 14.0))
 	gd.outfit_exposure = 20
 	_check("反应窗口加长到 2.6 秒", is_equal_approx(Interrogation.INTERFERENCE_WINDOW, 2.6))
 
@@ -1815,8 +1813,10 @@ func _test_expression_qte() -> void:
 	interro._running = true
 	interro.interference_active = false
 	interro.interference_timer = 999.0
+	# ★ 第三十三轮：表情 QTE 只由暴露值触发 —— 顶到必出点，任何题都会排上
+	gd.outfit_exposure = Interrogation.EXPOSURE_QTE_FULL
 	interro._load_question(a_idx)
-	_check("A 类题排上了 QTE", interro.qte_needed == true)
+	_check("暴露值到必出点时排上了 QTE", interro.qte_needed == true)
 	_check("延迟还没走完时不弹面板", interro.is_qte_active == false)
 	_check("延迟倒计时 = EXPR_QTE_DELAY",
 		is_equal_approx(interro.qte_delay_left, Interrogation.EXPR_QTE_DELAY))
@@ -1923,9 +1923,10 @@ func _test_qte_live_loop() -> void:
 	interro.set_process(false)
 	var keep_li: int = RunData.level_index
 	var keep_exp: float = float(gd.outfit_exposure)
-	gd.outfit_exposure = 0
+	# ★ 第三十三轮：表情 QTE 只由暴露值触发 —— 顶到必出点来保证一定有 QTE
+	gd.outfit_exposure = Interrogation.EXPOSURE_QTE_FULL
 
-	# 找一道会触发 QTE 的题（A 类题，且不是第 1 题）
+	# 找一道会触发 QTE 的题（不是第 1 题 —— 第 1 题恒不出）
 	var a_idx := _find_question_index("A", 1)
 	if a_idx < 0:
 		a_idx = _goto_level_with_card_owner("A")
@@ -2129,39 +2130,102 @@ func _cancel_qte_quiet() -> void:
 # 表情 QTE 的「起手条件」—— 谁需要压表情、谁不需要
 # ------------------------------------------------------------
 func _test_qte_budget() -> void:
-	print("\n-- 表情 QTE 起手条件：第 1 题不出，A 类题 / 硬答出，暴露值高也出 --")
+	# ★★ 第三十三轮重写（用户口径）：
+	#    「暴露值越高现在只会影响按住空格的 QTE 即表情管理的 QTE，越高触发次数越多；
+	#     表情管理 QTE 现在不会因为别的原因触发」。
+	#   所以这里验的是：**唯一**的触发来源是暴露值，而且是线性斜坡。
+	print("\n-- 表情 QTE 起手条件：只由暴露值决定（第 33 轮重写）--")
 	_check("延迟常量 = 2.5 秒", is_equal_approx(Interrogation.EXPR_QTE_DELAY, 2.5))
 	_check("失败代价 = 24", is_equal_approx(Interrogation.EXPR_QTE_FAIL, 24.0))
+	_check("斜坡两端：起效点 10 / 必出点 60",
+		Interrogation.EXPOSURE_QTE_MIN < Interrogation.EXPOSURE_QTE_FULL)
 
 	var keep_li: int = RunData.level_index
 	var keep_exp: float = float(gd.outfit_exposure)
 	interro.set_process(false)
-	gd.outfit_exposure = 0
 
-	# 第 1 题：无论什么题型都不出
-	_check("第 1 题恒不出（哪怕选项里有说漏嘴）",
+	# ---- 第 1 题：恒不出（哪怕暴露值拉满）----
+	gd.outfit_exposure = Interrogation.EXPOSURE_QTE_FULL + 200
+	_check("第 1 题恒不出（哪怕暴露值拉满）",
 		interro.needs_expression_for(0, "card", [{"kind": "leak"}]) == false)
 
-	# 第 2 题起
-	_check("第 2 题 · 普通 B 卡题 · 暴露 0 → 不出",
+	# ---- 滑到最低：一次都不出 ----
+	gd.outfit_exposure = Interrogation.EXPOSURE_QTE_MIN
+	_check("暴露值 = 起效点 → 概率 0",
+		is_equal_approx(interro.expression_qte_chance(), 0.0))
+	_check("暴露值 = 起效点 → 寻常题不出",
 		interro.needs_expression_for(1, "card", [{"kind": "ok"}]) == false)
-	_check("第 2 题 · A 类题（选项里有 leak）→ 出",
-		interro.needs_expression_for(1, "card", [{"kind": "ok"}, {"kind": "leak"}]) == true)
-	_check("第 2 题 · 盲区题的硬答 → 出",
-		interro.needs_expression_for(1, "blind", [{"kind": "made_up"}]) == true)
-	gd.outfit_exposure = Interrogation.EXPOSURE_QTE_THRESHOLD
-	_check("暴露值到达阈值 → 连寻常题也要压",
-		interro.needs_expression_for(1, "card", [{"kind": "ok"}]) == true)
-	gd.outfit_exposure = 0
+	# ★ 本轮删掉的旧触发原因（就是那句「别的原因」）
+	_check("★ 选项里有「说漏嘴」也不再触发（旧原因已删）",
+		interro.needs_expression_for(1, "card", [{"kind": "ok"}, {"kind": "leak"}]) == false)
+	_check("★ 盲区题的「当场硬答」也不再触发（旧原因已删）",
+		interro.needs_expression_for(1, "blind", [{"kind": "made_up"}]) == false)
+	_check("★ 题面类型是「盲区 / 硬答」也不再触发（旧原因已删）",
+		interro.needs_expression_for(1, "made_up", []) == false
+		and interro.needs_expression_for(1, "gap", []) == false)
 
-	# 装到界面上
+	# ---- 滑到最高：每题必出 ----
+	gd.outfit_exposure = Interrogation.EXPOSURE_QTE_FULL
+	_check("暴露值 = 必出点 → 概率 1",
+		is_equal_approx(interro.expression_qte_chance(), 1.0))
+	_check("暴露值 = 必出点 → 寻常题也出",
+		interro.needs_expression_for(1, "card", [{"kind": "ok"}]) == true)
+	gd.outfit_exposure = Interrogation.EXPOSURE_QTE_FULL + 80
+	_check("超过必出点概率仍夹在 1",
+		is_equal_approx(interro.expression_qte_chance(), 1.0))
+
+	# ---- 中间：线性，且越高越大 ----
+	var mid_e := (Interrogation.EXPOSURE_QTE_MIN + Interrogation.EXPOSURE_QTE_FULL) / 2.0
+	gd.outfit_exposure = mid_e
+	var ch_mid: float = interro.expression_qte_chance()
+	_check("斜坡中点概率 = 0.5（实测 %.2f）" % ch_mid, is_equal_approx(ch_mid, 0.5))
+	#   三个递增的取样点：起效点 + 5 / 中点 / 必出点 − 5
+	gd.outfit_exposure = Interrogation.EXPOSURE_QTE_MIN + 5.0
+	var ch_low: float = interro.expression_qte_chance()
+	gd.outfit_exposure = Interrogation.EXPOSURE_QTE_FULL - 5.0
+	var ch_high: float = interro.expression_qte_chance()
+	_check("★ 暴露值越高，触发概率越大（%.2f < %.2f < %.2f）" % [ch_low, ch_mid, ch_high],
+		ch_low < ch_mid and ch_mid < ch_high)
+
+	# ---- 稳定：同一道题反复判，结果必须一致 ----
+	#   不能每次现摇 —— 同一题可能被反复装载（来回切题 / 重来本轮 / 测试里多次 _load），
+	#   否则会变成「同一题一会儿出一会儿不出」。
+	gd.outfit_exposure = mid_e
+	var first: bool = interro.needs_expression_for(3, "card", [])
+	var stable := true
+	for i in 16:
+		if interro.needs_expression_for(3, "card", []) != first:
+			stable = false
+	_check("★ 同一道题反复判 → 结果稳定（不会一会儿出一会儿不出）", stable)
+
+	# ---- 题目自带的 QTE 提示文字（第 33 轮：可以编辑）----
+	#   题目写了 `qte.prompt` 就用它；没写就回落全局那句。
+	var qs: Array = interro.level_questions()
+	if qs.size() > 1:
+		var q1: Dictionary = qs[1]
+		var saved: Variant = q1.get("qte", null)
+		q1["qte"] = {"kind": "expression", "delay": 0.5, "prompt": "测试专用提示"}
+		interro._load_question(1)
+		_check("★ 题目自带 qte.prompt → 提示条用它",
+			interro.qte_prompt_used == "测试专用提示")
+		# 没写 prompt 的题 → 回落（留空，由 _begin_qte 取全局那句）
+		q1["qte"] = {"kind": "expression", "delay": 0.5}
+		interro._load_question(1)
+		_check("题目没写 prompt → 留空（弹出时回落到全局那句）",
+			interro.qte_prompt_used == "")
+		# 还原
+		if saved == null:
+			q1.erase("qte")
+		else:
+			q1["qte"] = saved
+	_check("全局那句提示文字存在且非空（编辑器可改）",
+		ScenarioData.ui_t_d("interrogation.qte_prompt").length() > 10)
+
+	# 装回界面
 	RunData.level_index = keep_li
 	gd.level_index = keep_li
 	gd.outfit_exposure = keep_exp
 
-# ------------------------------------------------------------
-# 本轮新增：开场介绍浮窗 + 两阶段玩法说明
-# ------------------------------------------------------------
 func _test_intro_and_help() -> void:
 	print("\n-- 开场介绍浮窗：开局弹一次，关掉后能再打开 --")
 	main._start_new_run(20261011)
@@ -2919,8 +2983,13 @@ func _test_story_config() -> void:
 	# ---- 1. 三个新段落都在，而且和出厂兜底同构 ----
 	# ★ 第二十九轮加了 contrast_req_base / contrast_req_step（反差值要求自增曲线）
 	# ★ 第三十一轮又加了 contrast_per_exposure（反差新算法的换算系数）
-	_check("ScenarioData.RULES 有 34 项（含反差曲线的 base / step 与换算系数）", sd.RULES.size() == 34)
-	_check("ScenarioData.DEFAULT_RULES 有 34 项", sd.DEFAULT_RULES.size() == 34)
+	# ★ 第三十三轮：阈值拆成「起效点 / 必出点」，并删掉干扰的暴露值耦合两项 → 34 − 1 + 2 − 2 = 33
+	_check("ScenarioData.RULES 有 33 项", sd.RULES.size() == 33)
+	_check("ScenarioData.DEFAULT_RULES 有 33 项", sd.DEFAULT_RULES.size() == 33)
+	_check("表情 QTE 的斜坡两端都在 rules 里（起效点 / 必出点）",
+		sd.RULES.has("exposure_qte_min") and sd.RULES.has("exposure_qte_full"))
+	_check("干扰不再受暴露值影响（两个耦合项已删）",
+		not sd.RULES.has("interference_min") and not sd.RULES.has("interference_per_exposure"))
 	_check("反差值曲线参数在 rules 里，且都是正数",
 		int(sd.RULES.get("contrast_req_base", -1)) > 0 and int(sd.RULES.get("contrast_req_step", -1)) > 0)
 	var rule_same := true

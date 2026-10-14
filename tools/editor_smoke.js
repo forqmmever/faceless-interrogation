@@ -407,13 +407,29 @@ try {
   {
     const R = P.story.rules || {};
     // ★ 第二十九轮加了 contrast_req_base / contrast_req_step（反差值要求曲线）
-    ok(Object.keys(R).length === 34, "story.rules 有 34 项，实际 " + Object.keys(R).length);
+    // ★ 第三十三轮：暴露值阈值拆成「起效点 / 必出点」，干扰的暴露值耦合两项被删 → 33
+    ok(Object.keys(R).length === 33, "story.rules 有 33 项，实际 " + Object.keys(R).length);
+    ok(typeof R.exposure_qte_min === "number" && typeof R.exposure_qte_full === "number",
+      "表情 QTE 的斜坡两端都在（" + R.exposure_qte_min + " → " + R.exposure_qte_full + "）");
+    ok(R.interference_min === undefined && R.interference_per_exposure === undefined,
+      "干扰的两个暴露值耦合项已删");
     ok(typeof R.contrast_per_exposure === "number", "反差换算系数在（" + R.contrast_per_exposure + "）");
     ok(typeof R.contrast_req_base === "number" && typeof R.contrast_req_step === "number",
       "反差值曲线的 base / step 都在（" + R.contrast_req_base + " / " + R.contrast_req_step + "）");
     ok(P.uiLeafCount() === 79, "story.ui 共 79 条文案，实际 " + P.uiLeafCount());
     const rs = P.rulesSections(), us = P.uiSections(), es = P.endingsSections();
-    ok(rs.reduce((a, s) => a + (s.fields || []).length, 0) === 31, "数值页覆盖 31 项");
+    // ★ 第三十三轮：删 3 项（exposure_qte_threshold / interference_min / interference_per_exposure）
+    //   加 2 项（exposure_qte_min / exposure_qte_full）→ 31 − 3 + 2 = 30
+    ok(rs.reduce((a, s) => a + (s.fields || []).length, 0) === 30, "数值页覆盖 30 项");
+
+    // ---- ★ 第三十三轮：QTE 上方的提示文字可以编辑 ----
+    //   两处都要有：① 题库页的「每题」字段；② 全局 QTE 计划页。
+    const qFieldKeys = P.questionFields().map(f => f.k);
+    ok(qFieldKeys.includes("prompt"), "题库页每题有「QTE 上方的提示文字」字段（实际：" + qFieldKeys.join(",") + "）");
+    const qteFieldKeys = P.qteFields().map(f => f.k);
+    ok(qteFieldKeys.includes("prompt"), "全局 QTE 页也有该字段（实际：" + qteFieldKeys.join(",") + "）");
+    ok(qFieldKeys.includes("qte") && qFieldKeys.includes("delay"),
+      "每题仍能改 QTE 类型与出现时间");
     ok(us.reduce((a, s) => a + (s.fields || []).length, 0) === 79, "文案页覆盖 79 条");
     ok(es.reduce((a, s) => a + (s.fields || []).length, 0) === 27, "结局页覆盖 27 条");
     ok(rs.every(s => s.host && s.host() === P.story.rules), "全部数值区块都写在 story.rules 上（全局一套）");

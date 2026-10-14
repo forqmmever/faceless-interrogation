@@ -856,8 +856,9 @@ func _run() -> void:
 	await _wait(6)
 
 	_plog("--- 19: 表情控制 QTE（贴在屏幕最下方；延迟 2.5 秒才出现，答完即结束）---")
-	_plog("     规则：第 1 题固定不出；A 类题 / 硬答 / 暴露值 ≥ %d 才需要压"
-		% Interrogation.EXPOSURE_QTE_THRESHOLD)
+	_plog("     规则：第 1 题固定不出；其余**只看暴露值**（≥ %d 每题必出，"
+		% Interrogation.EXPOSURE_QTE_FULL
+		+ "≤ %d 一次不出）" % Interrogation.EXPOSURE_QTE_MIN)
 	# ⚠ 拍这张之前必须先把**挂起的切题**等完：
 	#   前面每次答题都会排一个「1.8 秒后进下一题」，那个计时器在拍图这一刻到期，
 	#   就会顺手把 QTE 面板收掉 —— 拍出来是「面板已收起」的空图（踩过）。

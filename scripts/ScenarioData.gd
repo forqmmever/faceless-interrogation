@@ -1952,12 +1952,12 @@ const DEFAULT_RULES := {
 	"expr_qte_pass": 60.0,             # 通过线
 	"expr_qte_fail": 24.0,             # 没压住涨多少怀疑度
 	"expr_qte_delay": 2.5,             # 切题后延迟多久才弹
-	"exposure_qte_threshold": 30.0,    # 暴露值到这儿，连寻常题也要压
+	# ★ 第三十三轮：表情 QTE 改成「只由暴露值决定的线性斜坡」（见 Interrogation.expression_qte_chance）
+	"exposure_qte_min": 10.0,          # 暴露值低于它 → 一次都不出
+	"exposure_qte_full": 60.0,         # 暴露值到它 → 每题必出
 	# --- 同行者干扰 ---
 	"interference_window": 2.6,        # 反应窗口（秒）
 	"interference_base": 14.0,         # 间隔基数（秒）
-	"interference_min": 6.0,           # 间隔下限（秒）
-	"interference_per_exposure": 0.18, # 每点暴露值让间隔缩短多少秒
 	"interference_fail_penalty": 18.0, # 没拦住涨多少怀疑度
 	"combo_len": 3,                    # 组合干扰要敲几个键
 	"combo_every": 3,                  # 每几次干扰出一次组合

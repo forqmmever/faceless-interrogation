@@ -2322,7 +2322,7 @@ func _test_phone_text() -> void:
 
 	# 占位符个数必须和 PhoneDesk 里 _tf 传的参数个数一致
 	var expect := {
-		"messages.hint": 2, "messages.hint_locked": 1, "messages.thread_title": 1,
+		"messages.hint": 2, "messages.thread_title": 1,
 		"messages.interrogator_row": 2,
 		"memo.head_interrogator": 2, "memo.trait_line": 2,
 		"memo.like_line": 1, "memo.hate_line": 1,

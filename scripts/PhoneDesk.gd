@@ -186,6 +186,20 @@ func _build_shell() -> void:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sv.add_child(scroll)
 
+	# ★ 第三十一轮（用户口径「修复切换到相册界面大小会变」）：
+	#   症状：手机外框一直是 336 宽不变，但**屏幕内容区的实际宽度会变** ——
+	#     消息页 296 / 相册页 299（实测），切过去整块内容会横向跳 3px。
+	#   根因：纵向滚动条一出现就占掉 3px 宽。谁需要滚动条取决于内容长度，
+	#     于是「切 App」变成了「内容区变宽变窄」。
+	#   修法：把纵向滚动条的宽度压到 0 —— 真机上的滚动条本来也是浮在内容上的、
+	#     不占布局。滚轮 / 拖拽照常可用，只是不再挤压内容。
+	var vbar := scroll.get_v_scroll_bar()
+	vbar.custom_minimum_size = Vector2(0, 0)
+	vbar.add_theme_stylebox_override("scroll", StyleBoxEmpty.new())
+	vbar.add_theme_stylebox_override("grabber", StyleBoxEmpty.new())
+	vbar.add_theme_stylebox_override("grabber_highlight", StyleBoxEmpty.new())
+	vbar.add_theme_stylebox_override("grabber_pressed", StyleBoxEmpty.new())
+
 	screen_box = VBoxContainer.new()
 	screen_box.add_theme_constant_override("separation", 7)
 	screen_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -295,12 +309,13 @@ func _build_thread_list() -> void:
 	var friends: Array = DossierData.sms_threads()
 	var read := _read_count(friends)
 	var total := DossierData.sms_total()
-	var locked := DossierData.sms_locked_count()
-	var hint := _tf("messages.hint", [read, total], "（%d/%d 已读）读完短信，你才知道「B」该怎么说话。")
-	if locked > 0:
-		hint += _tf("messages.hint_locked", [locked],
-			"\n还有 %d 条没到手 —— 往后每过一关，手机会再收到一条。")
-	_hint(hint, Color(0.55, 0.60, 0.68))
+	# ★ 第三十一轮（用户口径）：去掉「还有 N 条没到手 —— 往后每过一关…」那行小字。
+	#   短信逐关解锁这件事，过一关自然就发现了；而那行字比正文还长，
+	#   只会把消息列表挤得更难扫。（DossierData.sms_locked_count() 留着没删 ——
+	#   它只在这里用过，但语义上是个正经查询，将来别处要用不必再写一遍。）
+	_hint(_tf("messages.hint", [read, total],
+		"（%d/%d 已读）读完短信，你才知道「B」该怎么说话。"),
+		Color(0.55, 0.60, 0.68))
 
 	# 列表顺序仍是「审问官 → 同行的人 → 朋友」：
 	#  从最危险的那个开始，到唯一真正帮你的那个结束。

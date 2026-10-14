@@ -6,13 +6,15 @@ extends Control
 #  换装与情报整理在同一个界面里同时进行：
 #    · 左：纸娃娃实时预览 + 原貌对照 + DoL 式量表（两条：暴露 / 反差）
 #    · 右：换装槽位（OutfitData.active_slots()，当前 17 个 —— 外袍暂时下架），
-#      每槽一组**卡片**（缩略图 + 名称 + 两行七点色阶）
+#      每槽一组**卡片**（缩略图 + 名称 + 一行七点色阶：暴露值）
 #    · 左下角：「手机」按钮 —— 点开浮层（短信 / 相册 / 备忘录 / 备注）
 #
 #  ★ 表现方式参照 Degrees of Lewdity 的换装系统（见 DolStyle.gd 的说明）：
 #    · 衣物是**卡片**：1px 实线边框、悬停换底色。
 #    · 数值是**7 颗小圆点**：点亮几颗＝量级，颜色＝档位。
-#      每行前面一个字母（E. 暴露 / C. 反差），对应 DoL 的 I. / R. / W.。
+#      行前一个字母 E.（暴露值），对应 DoL 的 I. / R. / W. 那套读数。
+#      ★ 第三十一轮（用户口径）：C. 反差值那一行撤掉了 —— 反差值现在由整套搭配算，
+#        不是单件衣服的固有属性，印在卡上会误导（详见文档里「反差值」一节）。
 #    · 连续量另有一条**渐变刻度条 + 指针**，并多画一条**阈值刻线**：
 #      暴露值 → 上限；反差值 → 本关要求。跨没跨过去，看刻线左右就知道。
 #
@@ -28,7 +30,7 @@ signal wardrobe_confirmed
 # 用哪一套见 DolDoll.PACK），取图与分层都交给 DolDoll.gd。
 
 const ICON_SIZE := 60                  # 卡片里的缩略图边长（= DoL 的 30×30 图标放 2 倍）
-const CARD_H := 68                     # 卡片高度（缩略图 60 + 上下留白；文字区两行点阵）
+const CARD_H := 68                     # 卡片高度（缩略图 60 + 上下留白；文字区一行点阵 + 名称）
 # 预览区的**上限盒子** —— DoL 的 41×92 取景框放 3 倍正好是这么大。
 # 实际尺寸按当前图包的取景框等比缩进去（DolDoll.fit_size），
 # 换 AU 那套（68×203，人物更高）时这里不用动。
@@ -437,7 +439,7 @@ func _add_slot_section(slot: String, parent: VBoxContainer) -> void:
 
 # 一张衣物卡片（对应 DoL 的 .clothing-item）：
 #   左侧缩略图（由 Button 自己的 icon 画，未解锁时是「?」）
-#   右侧：名称 + E./C. 两行七点色阶
+#   右侧：名称 + E. 一行七点色阶
 func _make_card(it: Dictionary) -> Dictionary:
 	var b := Button.new()
 	b.focus_mode = Control.FOCUS_NONE
@@ -461,8 +463,8 @@ func _make_card(it: Dictionary) -> Dictionary:
 	box.offset_top = 4.0
 	box.offset_bottom = -4.0
 	box.add_theme_constant_override("separation", 0)
-	# 点阵从三行减到两行之后，文字块比卡片矮了一截 —— 垂直居中，
-	# 好让名称 + 两行点阵跟左侧缩略图（按钮自己居中画的）对齐。
+	# 点阵从三行减到一行之后，文字块比卡片矮了一截 —— 垂直居中，
+	# 好让名称 + 点阵跟左侧缩略图（按钮自己居中画的）对齐。
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	b.add_child(box)
 
@@ -473,13 +475,13 @@ func _make_card(it: Dictionary) -> Dictionary:
 	name_lab.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(name_lab)
 
-	# ★ 用户口径（第十七轮）：卡上只留两行点阵 —— E. 暴露值 / C. 反差值。
-	#   A.（接受度需求）撤掉，右上角那枚「需 N」斜标签也撤掉：
-	#   够不够得着，看「只显示问号」+ 悬停提示就够了，不必在卡上再堆两个数。
+	# ★ 第三十一轮（用户口径）：卡上**只留一行** E. 暴露值 —— 「C. 反差值」整行去掉。
+	#   反差值不再是「单件衣服的固有属性」（第二十九轮起它由整套搭配算出来），
+	#   印在卡上反而误导：玩家会以为挑几件高反差的零件就能凑够本关要求。
+	#   本关还差多少，看左侧那条量表。
 	var e := _add_pip_line(box, "E.", DolStyle.RAMP_EXPOSE, OutfitData.stat_max_of("exposure"))
-	var c := _add_pip_line(box, "C.", DolStyle.RAMP_CONTRAST, OutfitData.stat_max_of("contrast"))
 
-	return {"btn": b, "name": name_lab, "e": e, "c": c,
+	return {"btn": b, "name": name_lab, "e": e,
 		"icon": null, "slot": str(it.get("slot", ""))}
 
 func _add_pip_line(parent: VBoxContainer, letter: String, ramp: Array, mx: int) -> DolStyle.Pips:
@@ -630,13 +632,14 @@ func _tip_for(it: Dictionary, locked: bool, affordable: bool) -> String:
 		return "？ 未解锁的装扮\n需要接受度 %d（当前 %d）" % [
 			int(it.get("acceptance_req", 0)), model.acceptance]
 	# DoL 的悬停会另给一行精确读数（数字自身染色），这里照办
-	var tip := "%s\n暴露值 %d ｜ 反差值 %d ｜ 需接受度 %d" % [
-		it["name"], it["exposure"], it["contrast"], it["acceptance_req"]]
+	# ★ 第三十一轮（用户口径）：悬停里**不再报反差值** —— 只留暴露值与接受度门槛。
+	var tip := "%s\n暴露值 %d ｜ 需接受度 %d" % [
+		it["name"], it["exposure"], it["acceptance_req"]]
 	var slot: String = it["slot"]
 	# ★ 第二十二轮：受门控的内衣内裤 —— 只有「看得见」时这两项才算（见下文表格）。
 	#   不写出来的话，读数跟量表对不上，玩家会以为出 bug 了。
 	if OutfitData.is_gated_slot(slot) and not model.underwear_shown(slot):
-		tip += "\n外衣盖得严实 —— 这一件不计入暴露值与反差值"
+		tip += "\n外衣盖得严实 —— 这一件不计入暴露值"
 		tip += "\n（透出来才算：透明外衣 / 镂空开档 / 直接外穿）"
 	# ★ 刻意**不**在悬停里提示「这件与原貌一致 / 不同」——
 	#   那等于把答案直接写在卡片上，搭配的乐趣全没了。玩家得自己去情报台比对。
@@ -655,7 +658,7 @@ func _tip_for(it: Dictionary, locked: bool, affordable: bool) -> String:
 		tip += "\n装上后会超出暴露值上限"
 	return tip
 
-# 卡片的视觉状态：普通 / 已装备 / 强制 / 未解锁，另外把两行点阵刷新
+# 卡片的视觉状态：普通 / 已装备 / 强制 / 未解锁，另外把暴露值点阵刷新
 func _card_state(it: Dictionary, is_equipped: bool, locked: bool, affordable: bool) -> String:
 	if is_equipped:
 		return "forced" if model.is_forced_id(str(it["id"])) else "equipped"
@@ -736,18 +739,14 @@ func _refresh_buttons() -> void:
 				name_lab.text = str(it["name"])
 				name_lab.add_theme_color_override("font_color", Color(0.88, 0.91, 0.96))
 
-			# 两行七点色阶（DoL 的 I. / R. / W. → 这里的 E. / C.）
+			# ★ 第三十一轮：卡上只剩一行 E. 暴露值（反差值那行已按用户口径去掉）。
 			(pair["e"] as DolStyle.Pips).setup(float(it.get("exposure", 0)),
 				float(OutfitData.stat_max_of("exposure")), DolStyle.RAMP_EXPOSE)
-			(pair["c"] as DolStyle.Pips).setup(float(it.get("contrast", 0)),
-				float(OutfitData.stat_max_of("contrast")), DolStyle.RAMP_CONTRAST)
 
-			# ★ 第二十二轮：受门控的内衣内裤，外衣不够露时把两行点阵压暗 ——
-			#   卡片上照旧印着它自己的数值（那是这件东西的固有属性），
-			#   但一眼就能看出「这两项目前不算数」。悬停里还有一行文字说明。
+			# ★ 第二十二轮：受门控的内衣内裤，外衣不够露时把点阵压暗 ——
+			#   卡片上照旧印着它自己的数值，但一眼就能看出「目前不算数」。
 			var gate_alpha := 1.0 if model.counts_toward_totals(slot) else 0.32
 			(pair["e"] as DolStyle.Pips).modulate = Color(1, 1, 1, gate_alpha)
-			(pair["c"] as DolStyle.Pips).modulate = Color(1, 1, 1, gate_alpha)
 
 			# 边框：强制装备（橙）优先于「已装备」（绿）
 			for st in ["normal", "hover", "pressed", "focus", "disabled", "hover_pressed"]:

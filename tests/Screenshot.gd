@@ -471,7 +471,7 @@ func _run() -> void:
 	#  同一身内衣，只换一件外衣：左边（藏起来）两行点阵压暗、总和不算它；
 	#  右边（透出来）一切恢复正常。这两张就是把这条规则拍给人看。
 	_plog("--- 1c: 门控 · 藏起来 —— 高领衬衫 + 蕾丝内衣：内衣的两行点阵压暗、不计入总和 ---")
-	_plog("     悬停会多写一行「外衣盖得严实 —— 这一件不计入暴露值与反差值」")
+	_plog("     悬停会多写一行「外衣盖得严实 —— 这一件不计入暴露值」")
 	var gm: WardrobeModel = wardrobe.model
 	gm.equipped["top"] = "top_highneck"
 	gm.equipped["bottom"] = "bottom_longskirt"

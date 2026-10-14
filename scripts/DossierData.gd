@@ -99,7 +99,7 @@ func sms_count() -> int:
 func sms_total() -> int:
 	return RunData.sms_total()
 
-# 还没解锁的条数 —— 给页签提示「还有 N 条没到手」
+# 还没解锁的条数（第三十一轮起界面上不再显示，留着是个正经查询）
 func sms_locked_count() -> int:
 	return maxi(0, sms_total() - sms_count())
 

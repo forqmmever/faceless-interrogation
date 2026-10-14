@@ -2507,19 +2507,20 @@ func _test_dol_style() -> void:
 			var pair: Dictionary = refs[i]
 			var it: Dictionary = items[i]
 			var pe: DolStyle.Pips = pair["e"]
-			var pc: DolStyle.Pips = pair["c"]
-			if not (is_equal_approx(pe.value, float(it["exposure"]))
-				and is_equal_approx(pc.value, float(it["contrast"]))):
+			if not (is_equal_approx(pe.value, float(it["exposure"]))):
 				wrong += 1
-			if not (is_equal_approx(pe.max_value, float(exp_mx))
-				and is_equal_approx(pc.max_value, float(con_mx))):
+			if not (is_equal_approx(pe.max_value, float(exp_mx))):
 				wrong += 1
 			if pair.has("a") or pair.has("tag"):
 				wrong += 1   # ★ A. 点阵行与右上角斜标签都已撤掉
-	_check("每个槽位的候选衣物都有一张卡（共 %d 张），两行点阵的读数与量程都对"
+			# ★ 第三十一轮（用户口径）：卡上不再有「C. 反差值」那一行
+			if pair.has("c"):
+				wrong += 1
+	_check("每个槽位的候选衣物都有一张卡（共 %d 张），暴露值点阵的读数与量程都对"
 		% n_cards, wrong == 0 and n_cards == _active_item_count())
-	_check("★ 卡上只有两行点阵（E./C.），不再有 A. 行与右上角斜标签",
-		not (wardrobe.card_refs["hair"][0] as Dictionary).has("a")
+	_check("★ 卡上只剩一行点阵（E. 暴露值）—— C. 反差值那行已按用户口径去掉",
+		not (wardrobe.card_refs["hair"][0] as Dictionary).has("c")
+		and not (wardrobe.card_refs["hair"][0] as Dictionary).has("a")
 		and not (wardrobe.card_refs["hair"][0] as Dictionary).has("tag"))
 
 	# ---- 悬停文案不再泄露「这件与原貌一致 / 不同」（本轮口径）----
@@ -2527,9 +2528,9 @@ func _test_dol_style() -> void:
 	# 搭配的乐趣全没了 —— 所以那两行被撤掉，只留三项精确读数。
 	var tip_known: String = wardrobe._tip_for(OutfitData.get_item("hair_short"), false, true)
 	_check("悬停不再提示「与他记忆里的一致 / 不同」", not tip_known.contains("记忆"))
-	_check("悬停仍然给出三项精确读数",
-		tip_known.contains("暴露值") and tip_known.contains("反差值")
-		and tip_known.contains("需接受度"))
+	_check("悬停只给两项读数（暴露值 / 需接受度）—— 反差值已按用户口径去掉",
+		tip_known.contains("暴露值") and tip_known.contains("需接受度")
+		and not tip_known.contains("反差"))
 	_check("悬停对「未解锁」的装扮只说还差多少接受度",
 		wardrobe._tip_for(OutfitData.get_item("hair_up"), true, true).contains("需要接受度"))
 	_check("悬停对「超上限」的装扮仍然给出警告",
@@ -3300,17 +3301,17 @@ func _test_underwear_gate_ui() -> void:
 
 	var bra_card: Dictionary = wardrobe.card_refs["bra"][1]   # bra_lace 那张卡
 	var tip_hidden: String = (bra_card["btn"] as Button).tooltip_text
-	_check("藏着时：悬停写明「不计入暴露值与反差值」", tip_hidden.contains("不计入暴露值与反差值"))
+	# ★ 第三十一轮：反差值那行点阵已去掉，文案也跟着只说暴露值
+	_check("藏着时：悬停写明「不计入暴露值」", tip_hidden.contains("不计入暴露值"))
 	_check("藏着时：悬停还写清三条看得见的路", tip_hidden.contains("直接外穿"))
-	_check("藏着时：两行点阵压暗了",
-		(bra_card["e"] as Control).modulate.a < 0.5
-		and (bra_card["c"] as Control).modulate.a < 0.5)
+	_check("藏着时：暴露值点阵压暗了",
+		(bra_card["e"] as Control).modulate.a < 0.5)
 	var e_hidden: int = m.total_exposure()
 
 	m.equipped["top"] = "top_lace"           # 半透 → 透出来
 	wardrobe._refresh()
 	var tip_shown: String = (wardrobe.card_refs["bra"][1]["btn"] as Button).tooltip_text
-	_check("透出来时：悬停不再提「不计入」", not tip_shown.contains("不计入暴露值与反差值"))
+	_check("透出来时：悬停不再提「不计入」", not tip_shown.contains("不计入暴露值"))
 	_check("透出来时：两行点阵恢复正常不透明度",
 		is_equal_approx((wardrobe.card_refs["bra"][1]["e"] as Control).modulate.a, 1.0))
 	_check("透出来时：暴露值把内衣那 4 点算进去了",

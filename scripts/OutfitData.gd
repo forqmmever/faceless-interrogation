@@ -1,0 +1,1080 @@
+extends Node
+
+# ============================================================
+#  服装数据库 + 换装规则
+#
+#  槽位体系移植自 WTS 的 Doll.clothing_layers（18 个槽位），
+#  按 zorder 从内到外排列；本项目额外加入 shoes（WTS 无鞋履槽）。
+#
+#  三值机制（原创，WTS 无此设计）：
+#    - 暴露值 (exposure)      : 每件衣服一个数值，总和有上限
+#    - 接受度 (acceptance)    : 每关后提升，决定能否装备高门槛物品
+#    - 反差值 (contrast)      : 与「推导形象」的差距，决定质问环节是否被直接识破
+# ============================================================
+
+# ---------- 槽位 ----------
+# UI 显示顺序（自上而下，符合穿衣直觉）
+# ★ 第二十六轮新增 `dress`（整件式）——
+#   用户口径：「如果是一整件衣服 如晚礼服 不能分开成下装和上装 应该单开一个栏目」。
+#   它排在 bottom 后面：上身 → 下装 → 整件式，一层层往外。
+# ★ 第二十七轮改名为「成装」，并按用户口径「装备时应和上装和下装互斥」加了互斥
+#   （见 EXCLUSIVE_GROUPS —— 成装 / 上装 / 下装三者只能穿其一）。
+const SLOT_ORDER := [
+	"hair", "headgear", "glasses", "earrings", "makeup",
+	"piercing", "tattoo", "neckwear", "top", "bra",
+	"gloves", "accessory", "bottom", "dress", "garterbelt", "panties",
+	"stockings", "shoes", "robe",
+]
+
+# 图层绘制顺序（底 → 顶），严格对应 WTS 的 zorder 编号
+const PREVIEW_ORDER := [
+	"makeup", "accessory", "piercing", "tattoo",
+	"stockings", "panties", "garterbelt", "bottom",
+	"bra", "top", "dress", "gloves", "shoes",
+	"robe", "neckwear", "hair", "earrings",
+	"glasses", "headgear",
+]
+
+# WTS 的 zorder 原值，保留用于对齐参考
+const SLOT_ZORDER := {
+	"makeup": 111, "accessory": 121, "piercing": 131, "tattoo": 141,
+	"stockings": 161, "panties": 171, "garterbelt": 181, "bottom": 191,
+	"bra": 201, "top": 211, "dress": 216, "gloves": 221, "shoes": 225,
+	"robe": 231, "neckwear": 241, "hair": 251, "earrings": 261,
+	"glasses": 271, "headgear": 281,
+}
+
+const SLOT_NAMES := {
+	"hair": "发型",
+	"headgear": "头饰",
+	"glasses": "眼镜",
+	"earrings": "耳饰",
+	"makeup": "妆容",
+	"piercing": "穿环",
+	"tattoo": "纹身",
+	"neckwear": "颈饰",
+	"top": "上衣",
+	"bra": "上内衣",
+	"gloves": "手套",
+	"accessory": "配饰",
+	"bottom": "下装",
+	"dress": "成装",
+	"garterbelt": "吊袜带",
+	"panties": "下内衣",
+	"stockings": "袜类",
+	"shoes": "鞋履",
+	"robe": "外袍",
+}
+
+# ---------- 暂时下架的槽位 ----------
+# 外袍（robe）的贴图还没跟上 AU 人物，先整体下架：
+#   · 换装界面不再出现这一区（分区标题、卡片、当前装备都不画）
+#   · A 的原貌不再抽外袍，情报台也不再问这一处（情报条数随之少一条）
+#   · 强制装备池里不会出现外袍
+# 槽位定义、4 件物品、贴图**全部保留** —— 以后把 "robe" 从这张表里删掉即可恢复。
+#
+# ★ 第二十五轮：耳饰（earrings）按用户口径「去掉耳饰这一栏」一并下架。
+#   走的是同一套机制，所以换装界面 / 原貌 / 情报 / 相册 / 强制池都会自动跳过它；
+#   4 件物品与贴图同样一件没删，把 "earrings" 从表里删掉即可恢复。
+#
+# ★ 第二十七轮：手套（gloves）与头饰（headgear）按用户口径「手套一栏去掉」「头饰一栏去掉」
+#   一并下架。同样只是槽位级下架 —— 4 件手套与 4 件头饰的定义、贴图、目击描述一件没删，
+#   把 "gloves" / "headgear" 从这张表里删掉即可原样恢复。
+const DISABLED_SLOTS := ["robe", "earrings", "gloves", "headgear"]
+
+# 玩家能看到的槽位（SLOT_ORDER 去掉下架的）。
+# ★ 界面 / 原貌 / 情报 / 统计一律用它；SLOT_ORDER 只在需要完整数据表时用。
+static func active_slots() -> Array:
+	var out := []
+	for s in SLOT_ORDER:
+		if not DISABLED_SLOTS.has(s):
+			out.append(s)
+	return out
+
+static func slot_enabled(slot: String) -> bool:
+	return not DISABLED_SLOTS.has(slot)
+
+# ---------- 内衣内裤的「曝光门控」（第二十二轮）----------
+# 用户口径：「内裤内衣的反差值和暴露值只有在**能够显示在人物身上**时才会计算，
+#            如透明外衣能计算、直接外穿能计算、镂空开档能计算」
+#
+# 也就是说判定的不是「穿没穿外衣」，而是**这件内衣到底看不看得见**：
+#   ① 透明外衣   —— 半透 / 薄纱 / 蕾丝，能透过去看见        → "sheer"
+#   ② 镂空开档   —— 开衩 / 超短 / 露腰，从开口处直接看见    → "cutout"
+#   ③ 直接外穿   —— 同侧外衣干脆没穿，内衣就是最外层        → 见 is_bare()
+# 三条路都不成立（盖得严严实实），这件内衣就既不算暴露值、也不算反差值。
+#
+# ★ 值是「谁能把这件内衣露出来」——按**从内到外**排（判定时从后往前找最外层）：
+#   上半身有三层（上衣 / 连衣裙 / 外袍），所以 bra 有三个开门人；
+#   下半身两层（下装 / 连衣裙）。
+#   ★ 第二十六轮加了 `dress`：连衣裙是一整件，上半截盖住 bra、下半截盖住 panties，
+#     所以两边的开门人表里都要有它，否则穿着连衣裙时内衣会被当成「直接外穿」，
+#     白白算进暴露值与反差值。
+#   外袍目前下架（DISABLED_SLOTS），写在这里是为了将来恢复时不用再动判定逻辑
+#   （外袍没穿时 item_at("robe") 是空字典，is_bare 自然为 true）。
+const UNDER_GATE := {
+	"bra": ["top", "dress", "robe"],
+	"panties": ["bottom", "dress"],
+}
+
+# ---------- 互斥槽位（第二十七轮）----------
+# 用户口径：「连衣裙那一栏改名为，成装并且装备时应和上装和下装互斥」。
+#
+# ★ 每一条是一条**二分互斥**：`[[左边一组], [右边一组]]` ——
+#   左边任一槽位穿了实体衣物，右边那一组就全部脱下，反之亦然。
+#   **同一组内部不互斥**（上装与下装本来就要一起穿）。
+#
+# 为什么不是「组内只能有一个」：`dress` / `top` / `bottom` 三者放一个组里做「只留一个」，
+# 会把「上衣 + 下装」这套**完全正常**的搭配也拆掉（第二轮实测：开局原貌的上装下装
+# 被归零，反差值不再是 0、一键达标求解器整片挂掉）。三者里真正的互斥关系只有
+# 「成装 ↔ 上装 / 下装」这一对。
+#
+# ★ 成装（dress）本来就是「一整件」，它的上半截等于上装、下半截等于下装 ——
+#   要么穿成装，要么穿「上装 + 下装」，二者取其一才是自洽的搭配。
+const EXCLUSIVE_GROUPS := [
+	[["dress"], ["top", "bottom"]],
+]
+
+static var _excl_peer_cache: Dictionary = {}
+
+# 与这一槽位互斥的槽位（**对面那一组**；同组内部不互斥）。不在任何互斥关系里就返回空数组。
+#
+# ★ 带缓存：`_counts_with` 是热路径（DP / 贪心 / 界面每次刷新都要问上百遍），
+#   每次都新建数组会把整个流程拖慢一倍以上（实测 WardrobeTest 从 1m30s 涨到 3m20s）。
+static func exclusive_peers(slot: String) -> Array:
+	if _excl_peer_cache.has(slot):
+		return _excl_peer_cache[slot]
+	var out := []
+	for g in EXCLUSIVE_GROUPS:
+		var pair := g as Array
+		var left := pair[0] as Array
+		var right := pair[1] as Array
+		if left.has(slot):
+			for s in right:
+				out.append(str(s))
+			break
+		if right.has(slot):
+			for s in left:
+				out.append(str(s))
+			break
+	_excl_peer_cache[slot] = out
+	return out
+
+# 这一槽位的「空件」id（「（不穿上衣）」这类）。找不到就返回 ""。
+# 空件由 ITEMS 里的 "bare": true 标注。
+static func bare_id_of(slot: String) -> String:
+	for it in ITEMS:
+		if str(it.get("slot", "")) != slot:
+			continue
+		if bool(it.get("bare", false)):
+			return str(it["id"])
+	return ""
+
+# 外衣能透出内衣的两种方式（写在 ITEMS 的 "see" 字段上）
+const SEE_SHEER := "sheer"      # 透明 / 半透
+const SEE_CUTOUT := "cutout"    # 镂空 / 开档 / 超短
+
+# 这一件外衣怎么把里面的内衣露出来 —— 返回 "" 表示露不出来。
+# **逐件显式标注**：只有 ITEMS 里带 "see" 的那几件算。
+static func see_through_kind(item: Dictionary) -> String:
+	return str(item.get("see", ""))
+
+# 这一件外衣够不够「露」—— 会不会把里面的内衣内裤露出来
+static func is_sheer(item: Dictionary) -> bool:
+	return see_through_kind(item) != ""
+
+# 这一件是不是「（不穿）」那一类空件 —— 穿上它等于这一层没有东西，
+# 里面的内衣就是**最外层**（用户口径里的「直接外穿」）。
+# 同样逐件显式标注（ITEMS 里的 "bare": true）。
+static func is_bare(item: Dictionary) -> bool:
+	return bool(item.get("bare", false))
+
+# 这一槽位是不是受门控的内衣 / 内裤
+static func is_gated_slot(slot: String) -> bool:
+	return UNDER_GATE.has(slot)
+
+# 能把这一槽位露出来的外衣槽位（不受门控的槽位返回空数组）
+static func outer_slots_of(slot: String) -> Array:
+	return UNDER_GATE.get(slot, [])
+
+# 受门控的全部槽位
+static func gated_slots() -> Array:
+	return UNDER_GATE.keys()
+
+# 够「露」的全部外衣（含下架的）—— 界面文案 / 测试用
+static func sheer_items() -> Array:
+	var out := []
+	for it in ITEMS:
+		if is_sheer(it):
+			out.append(it)
+	return out
+
+# 够「露」、而且玩家看得见的那些
+static func sheer_items_visible() -> Array:
+	var out := []
+	for it in sheer_items():
+		if slot_enabled(str(it.get("slot", ""))):
+			out.append(it)
+	return out
+
+# 反差值方向开关：
+#   true  = 反差值越高越安全（与推导形象差距越大，越难被识别）
+#   false = 反差值越低越安全（越贴合推导形象，越不容易引起注意）
+const CONTRAST_HIGHER_IS_SAFER := true
+
+# 暴露值上限公式：上限 = EXPOSURE_BASE + 接受度 * EXPOSURE_PER_ACCEPTANCE
+# 槽位由 8 个扩到 18 个后，基础衣物本身就会占掉若干暴露值，故基数上调
+const EXPOSURE_BASE := 10
+const EXPOSURE_PER_ACCEPTANCE := 2
+
+# ---------- 身体缺陷 ----------
+# 每项缺陷有：部位、是否已被遮挡、需要哪些衣物标签才能遮住
+# 注意：刻意不设"必须穿外袍"的缺陷，否则斗篷会挡住整套搭配，换装失去意义
+#
+# ★ 第二十三轮：这张表也外置了（story.json 的 "defects" 段，编辑器可增删改）。
+#   `slot_hint` 是写给玩家看的位置提示（「手套 / 长袖」这种），
+#   `cover_tags` 是判定用的标签 —— 只要身上有**任意一个**这些标签就算遮住。
+#   标签本身来自 ITEMS 里每件衣服的 "tags"（见下），所以改标签要两处一起动。
+const DEFAULT_DEFECTS := [
+	{"id": "hand_tattoo", "name": "右手背黑帮血蛇刺青", "slot_hint": "手套 / 长袖", "cover_tags": ["glove", "long_sleeve"]},
+	{"id": "neck_brand", "name": "颈侧奴隶烙印", "slot_hint": "颈饰 / 高领", "cover_tags": ["high_collar", "scarf"]},
+]
+
+# 运行时表（惰性从 story.json 读；出厂兜底 = DEFAULT_DEFECTS）
+var DEFECTS: Array = []
+
+func _ensure_defects() -> void:
+	if not DEFECTS.is_empty():
+		return
+	var ov: Array = ScenarioData.defects_override()
+	var src: Array = ov if not ov.is_empty() else DEFAULT_DEFECTS
+	DEFECTS = []
+	for d in src:
+		var dd: Dictionary = (d as Dictionary).duplicate()
+		var did := str(dd.get("id", ""))
+		if did == "":
+			continue
+		if str(dd.get("name", "")) == "":
+			dd["name"] = did
+		if typeof(dd.get("cover_tags", null)) != TYPE_ARRAY:
+			dd["cover_tags"] = []
+		if str(dd.get("slot_hint", "")) == "":
+			dd["slot_hint"] = ""
+		DEFECTS.append(dd)
+	if DEFECTS.is_empty():
+		# 编辑器把每一项都写坏了 → 退回出厂，不能让「缺陷遮挡」整个失效
+		for d in DEFAULT_DEFECTS:
+			DEFECTS.append((d as Dictionary).duplicate())
+
+func reload_defects() -> void:
+	DEFECTS = []
+	_ensure_defects()
+
+# 玩家能看到的缺陷（下架槽位不参与 —— 目前没有槽位级缺陷，留着做扩展位）
+func defects() -> Array:
+	_ensure_defects()
+	return DEFECTS
+
+# ---------- 服装库（102 件）----------
+# exposure      : 暴露值
+# acceptance_req: 装备所需接受度
+# contrast      : 反差值
+# covers        : 可遮挡的缺陷 id 列表
+# tags          : 用于判定遮挡是否成立的标签
+# see           : ★ 第二十二轮 —— 这件外衣**怎么把里面的内衣内裤露出来**
+#                 （见 UNDER_GATE / see_through_kind）：
+#                   "sheer"  = 透明 / 半透（薄纱、蕾丝），透过去就能看见
+#                   "cutout" = 镂空 / 开档 / 超短，从开口处直接看见
+#                 不标 = 盖得严实，穿在它底下的内衣既不算暴露值也不算反差值。
+# bare          : ★ 「（不穿）」那一类空件 —— 穿上它等于这一层没有东西，
+#                 里面的内衣就是最外层（用户口径里的「直接外穿」），照算。
+const ITEMS := [
+	# ================= 发型（无「不戴」选项，始终有头发）=================
+	{"id": "hair_short", "name": "利落短发", "slot": "hair", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
+	{"id": "hair_braid", "name": "侧编辫", "slot": "hair", "exposure": 0, "acceptance_req": 1, "contrast": 1, "covers": [], "tags": []},
+	{"id": "hair_long", "name": "垂肩长发", "slot": "hair", "exposure": 0, "acceptance_req": 2, "contrast": 1, "covers": [], "tags": []},
+	{"id": "hair_up", "name": "高盘发髻", "slot": "hair", "exposure": 0, "acceptance_req": 5, "contrast": 3, "covers": [], "tags": []},
+
+	# ================= 头饰 =================
+	{"id": "head_none", "name": "（不戴）", "slot": "headgear", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
+	{"id": "head_hat", "name": "宽檐旅行帽", "slot": "headgear", "exposure": 0, "acceptance_req": 0, "contrast": 2, "covers": [], "tags": []},
+	{"id": "head_hood", "name": "深色兜帽", "slot": "headgear", "exposure": 0, "acceptance_req": 3, "contrast": 4, "covers": [], "tags": []},
+	{"id": "head_veil", "name": "半面黑纱（遮面但极惹眼）", "slot": "headgear", "exposure": 1, "acceptance_req": 9, "contrast": 7, "covers": [], "tags": []},
+
+	# ================= 眼镜 =================
+	{"id": "glasses_none", "name": "（不戴）", "slot": "glasses", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
+	# ★ 第二十七轮换血：删掉「单片金链眼镜」与「黑色墨镜」，从 AU 图包补两副新框
+	#   （`cateye` 猫眼 / `square` 方框 —— 都是 512×256 的 AU 几何、纯灰度可染色）。
+	#   用户口径：「单片金链眼睛和黑色墨镜去掉增加两副眼镜，两副眼镜已经现在的圆框眼镜
+	#             反差值设定均设定为3」→ 三副眼镜的反差值统一 = 3。
+	#   三副的门槛拉开一档，保留一点「越惹眼越难穿」的梯度（戴不戴都不影响可解性，
+	#   因为 `glasses_none` 始终是 0 门槛）。
+	{"id": "glasses_round", "name": "圆框眼镜", "slot": "glasses", "exposure": 0, "acceptance_req": 0, "contrast": 3, "covers": [], "tags": []},
+	{"id": "glasses_cateye", "name": "猫眼眼镜", "slot": "glasses", "exposure": 0, "acceptance_req": 3, "contrast": 3, "covers": [], "tags": []},
+	{"id": "glasses_square", "name": "方框眼镜", "slot": "glasses", "exposure": 0, "acceptance_req": 5, "contrast": 3, "covers": [], "tags": []},
+
+	# ================= 耳饰 =================
+	{"id": "ear_none", "name": "（不戴）", "slot": "earrings", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
+	{"id": "ear_stud", "name": "素银耳钉", "slot": "earrings", "exposure": 0, "acceptance_req": 0, "contrast": 1, "covers": [], "tags": []},
+	{"id": "ear_hoop", "name": "大圆环耳饰", "slot": "earrings", "exposure": 1, "acceptance_req": 4, "contrast": 3, "covers": [], "tags": []},
+	{"id": "ear_diamond", "name": "钻石吊坠耳饰", "slot": "earrings", "exposure": 1, "acceptance_req": 8, "contrast": 5, "covers": [], "tags": []},
+
+	# ================= 妆容 =================
+	{"id": "makeup_none", "name": "（素颜）", "slot": "makeup", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
+	{"id": "makeup_light", "name": "淡妆", "slot": "makeup", "exposure": 0, "acceptance_req": 1, "contrast": 1, "covers": [], "tags": []},
+	{"id": "makeup_heavy", "name": "浓艳烟熏妆", "slot": "makeup", "exposure": 1, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
+
+	# ================= 穿环 =================
+	{"id": "piercing_none", "name": "（不穿）", "slot": "piercing", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
+	{"id": "piercing_multi", "name": "多孔耳钉组", "slot": "piercing", "exposure": 1, "acceptance_req": 2, "contrast": 2, "covers": [], "tags": []},
+	# ★ 第二十七轮：用户口径「眉钉去掉」→ 删掉 piercing_brow。
+	#   连带影响：`dol_map.PACK_OVERRIDE['au']['piercing_brow']` 那条覆盖也一并删掉
+	#   （它是唯一换源成 goldhairpin 的一件，其余三件继续借用头部小件顶替）。
+	{"id": "piercing_lip", "name": "哥特风黑色唇环", "slot": "piercing", "exposure": 2, "acceptance_req": 7, "contrast": 5, "covers": [], "tags": []},
+	{"id": "piercing_nose", "name": "鼻中隔银环", "slot": "piercing", "exposure": 3, "acceptance_req": 10, "contrast": 7, "covers": [], "tags": []},
+
+	# ================= 纹身 =================
+	# ★ 第二十六轮：贴图从「借用头部小件 + 位置搬移」换成 AU 图包自己的
+	#   bodywriting 图案（真正画在身上的纹样，见 tools/dol_map.py 的 PACK_OVERRIDE）。
+	#   可用位置只有 forehead / 左·右 cheek / 左·右 shoulder / 左·右 thigh /
+	#   breasts / pubic —— **没有前臂**，所以原来那件「前臂藤蔓纹身」改名成大腿，
+	#   否则名字和贴图对不上。
+	{"id": "tattoo_none", "name": "（无）", "slot": "tattoo", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
+	{"id": "tattoo_neck", "name": "颈侧暗纹", "slot": "tattoo", "exposure": 0, "acceptance_req": 3, "contrast": 2, "covers": [], "tags": []},
+	{"id": "tattoo_cheek", "name": "面颊刺青", "slot": "tattoo", "exposure": 1, "acceptance_req": 6, "contrast": 4, "covers": [], "tags": []},
+	{"id": "tattoo_thigh", "name": "大腿藤蔓纹身", "slot": "tattoo", "exposure": 1, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": []},
+
+	# ================= 颈饰 =================
+	# ★ 第二十六轮按用户口径「增加几款项圈」补了 5 件（spiked / ringed / lace /
+	#   bell / chain），全部取 AU 图包自己的 clothes/neck/* 贴图。
+	#   neck_collar / neck_scarf 本来就取自 AU，本轮只是核查确认，没有换源。
+	#   覆盖缺陷（covers）的口径不变：只有「高领」与「围巾」两类标签能挡住颈侧烙印。
+	{"id": "neck_none", "name": "（不戴）", "slot": "neckwear", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
+	{"id": "neck_collar", "name": "硬挺立领", "slot": "neckwear", "exposure": 0, "acceptance_req": 1, "contrast": 1, "covers": ["neck_brand"], "tags": ["high_collar"]},
+	{"id": "neck_scarf", "name": "暗红羊毛围巾", "slot": "neckwear", "exposure": 0, "acceptance_req": 2, "contrast": 3, "covers": ["neck_brand"], "tags": ["scarf"]},
+	{"id": "neck_choker", "name": "黑色皮革颈圈", "slot": "neckwear", "exposure": 1, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
+	{"id": "neck_spiked", "name": "尖刺项圈", "slot": "neckwear", "exposure": 2, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": []},
+	{"id": "neck_ringed", "name": "金属环扣项圈", "slot": "neckwear", "exposure": 1, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
+	{"id": "neck_lace", "name": "蕾丝颈圈", "slot": "neckwear", "exposure": 1, "acceptance_req": 4, "contrast": 4, "covers": [], "tags": []},
+	{"id": "neck_chain", "name": "金色锁链项圈", "slot": "neckwear", "exposure": 2, "acceptance_req": 7, "contrast": 6, "covers": [], "tags": []},
+	{"id": "neck_freeuse", "name": "刻字颈圈", "slot": "neckwear", "exposure": 2, "acceptance_req": 7, "contrast": 6, "covers": [], "tags": []},
+
+	# ================= 上衣 =================
+	# ★ 「（不穿上衣）」—— 用户口径里的「直接外穿」：这一层没有东西，
+	#   里面的内衣就是最外层，于是它的暴露值 / 反差值照算（见 UNDER_GATE）。
+	#   暴露值给到 9：上半身真的露着，这是全表最贵的一件。
+	{"id": "top_none", "name": "（不穿上衣）", "slot": "top", "exposure": 9, "acceptance_req": 11, "contrast": 8, "covers": [], "tags": [], "bare": true},
+	{"id": "top_highneck", "name": "高领长袖衬衫", "slot": "top", "exposure": 0, "acceptance_req": 0, "contrast": 1, "covers": ["neck_brand", "hand_tattoo"], "tags": ["high_collar", "long_sleeve"]},
+	{"id": "top_plain", "name": "素色棉质衬衫", "slot": "top", "exposure": 1, "acceptance_req": 0, "contrast": 2, "covers": [], "tags": []},
+	{"id": "top_longsleeve", "name": "长袖丝绸衬衣", "slot": "top", "exposure": 2, "acceptance_req": 2, "contrast": 3, "covers": ["hand_tattoo"], "tags": ["long_sleeve"]},
+	{"id": "top_sheer", "name": "朴素薄纱罩衫（高暴露低反差）", "slot": "top", "exposure": 7, "acceptance_req": 6, "contrast": 2, "covers": [], "tags": [], "see": "sheer"},
+	{"id": "top_lace", "name": "蕾丝半透上衣", "slot": "top", "exposure": 6, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": [], "see": "sheer"},
+	{"id": "top_corset", "name": "束身皮质马甲", "slot": "top", "exposure": 8, "acceptance_req": 9, "contrast": 7, "covers": [], "tags": [], "see": "cutout"},
+	# ★ 第二十二轮从 AU 图包补的 4 件 —— 都是「够露」的外衣（sheer），
+	#   给同侧的内衣内裤开门。补它们的原因见 README「内衣内裤的曝光门控」：
+	#   加门控之前只有 4 件外衣能开门（其中下装只有 bottom_mini 一件），
+	#   panties 那条路几乎是死的。
+	{"id": "top_crop", "name": "短款露脐上衣", "slot": "top", "exposure": 5, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": [], "see": "cutout"},
+	{"id": "top_offshoulder", "name": "露肩短上衣", "slot": "top", "exposure": 6, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": [], "see": "cutout"},
+	# ★ 第二十四轮从 AU 图包补的「两套校服」—— 每套 4 件：上衣 / 裙子 / 鞋 / 袜。
+	#   第一套（藏青）的裙子是**全图包里裙长最短的校服裙**，按用户口径算「能把内裤露出来」
+	#   （见 "see": "cutout"）；第二套（墨绿）是普通及膝校裙，盖得严实。
+	#   两套颜色互不相同，也都不同于已有的 bottom_knee（褐色格子校裙）。
+	{"id": "top_school_navy", "name": "藏青校服衬衫", "slot": "top", "exposure": 0, "acceptance_req": 0, "contrast": 1, "covers": [], "tags": []},
+	{"id": "top_school_green", "name": "墨绿校服衬衫", "slot": "top", "exposure": 0, "acceptance_req": 0, "contrast": 1, "covers": [], "tags": []},
+	# ★ 第二十五轮：水手服两套（上装）+ 三件「够露」的上衣。
+	#   水手服的下装是同一条 serafuku_dress（AU 里唯一的水手服裙），只换染色。
+	# ★ 第二十六轮：原来的 top_sundress / top_eveninggown（连衣裙与晚礼服的上半层）
+	#   已按用户口径合并进新的 `dress` 槽位 —— 一整件衣服不再拆成上装 + 下装。
+	{"id": "top_sailor_white", "name": "白色水手服上衣", "slot": "top", "exposure": 0, "acceptance_req": 0, "contrast": 1, "covers": [], "tags": []},
+	{"id": "top_sailor_navy", "name": "藏青水手服上衣", "slot": "top", "exposure": 0, "acceptance_req": 0, "contrast": 1, "covers": [], "tags": []},
+	{"id": "top_bustier", "name": "黑色蕾丝胸衣", "slot": "top", "exposure": 7, "acceptance_req": 7, "contrast": 7, "covers": [], "tags": [], "see": "cutout"},
+	{"id": "top_lolita", "name": "洛丽塔胸衣", "slot": "top", "exposure": 6, "acceptance_req": 6, "contrast": 6, "covers": [], "tags": [], "see": "cutout"},
+	{"id": "top_keyhole", "name": "开胸上衣", "slot": "top", "exposure": 6, "acceptance_req": 6, "contrast": 6, "covers": [], "tags": [], "see": "cutout"},
+
+	# ================= ★★ 第二十八轮：从 AU 补的三件上衣（解「遮缺陷 ↔ 拿反差」的死结）=================
+	# 上一轮实测的最优解里 top 只能拿 3 分，因为「手背刺青」逼着上半身必须穿长袖；
+	# 而一件普通长袖会连带压死两处：① 把 bra 盖住（门控不计）；② 因为不带高领，
+	# 颈饰被迫去顶「颈侧烙印」，只能挑最朴素的围巾（3 分）。
+	# 这三件分别开三条路，让玩家自己取舍：
+	#   · top_mesh         网纱透视   —— `sheer`：透出 bra（+8 分的乳贴就在里面），
+	#                                   但**遮不住手**，走这条路就得认了手背刺青露着。
+	#   · top_virginkiller 紧身针织衫 —— `long_sleeve`：遮住刺青，自身也给到 7 分反差。
+	#   · top_turtleneck   高领军毛衣 —— `high_collar` + `long_sleeve`：**同时遮两处**，
+	#                                   把颈饰整栏解放出来（可以放心戴尖刺项圈拿 6 分）。
+	# 三者互不压制（各是一条路线的解），所以都留着。
+	{"id": "top_mesh", "name": "网纱透视上衣", "slot": "top", "exposure": 8, "acceptance_req": 9, "contrast": 6, "covers": [], "tags": [], "see": "sheer"},
+	{"id": "top_virginkiller", "name": "紧身针织衫", "slot": "top", "exposure": 6, "acceptance_req": 9, "contrast": 7, "covers": ["hand_tattoo", "neck_brand"], "tags": ["high_collar", "long_sleeve"]},
+	{"id": "top_turtleneck", "name": "高领军毛衣", "slot": "top", "exposure": 3, "acceptance_req": 8, "contrast": 6, "covers": ["hand_tattoo", "neck_brand"], "tags": ["high_collar", "long_sleeve"]},
+	# ★ 这两件都标 `high_collar`，是**照贴图量的**、不是想当然：
+	#   烘出来的 bbox 顶边分别是 y=49（针织衫）与 y=45（军毛衣），
+	#   而颈侧那段是 y48~56（拿 neck_collar 的 bbox 当参照）—— 两件都真的盖住了。
+	#   （对比：`top_highneck` 顶边 y=53、`top_longsleeve` y=53，前者照样算高领。）
+	#   所以它们的取舍**不在「遮不遮颈」，而在数值梯度**：
+	#     · 高领军毛衣   需接受度 8 → 较早穿得起，暴 3 差 6（保守）
+	#     · 紧身针织衫   需接受度 9 → 晚一档解锁，暴 6 差 7（更露、更惹眼）
+	#   —— 这也正好对上用户这一轮的口径「添加**暴露度高的**服装」。
+
+	# ================= 上内衣 =================
+	{"id": "bra_plain", "name": "素色无痕内衣", "slot": "bra", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
+	{"id": "bra_lace", "name": "黑色蕾丝内衣", "slot": "bra", "exposure": 4, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
+	{"id": "bra_none", "name": "（不穿）", "slot": "bra", "exposure": 6, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": []},
+
+	# ================= ★★ 第二十八轮：从 AU 补的两件内衣 =================
+	# bra 这一栏原来只有 3 件、反差上限 6 分，而且平时还被外衣门控压着 ——
+	# 补两件「反差更高、但覆盖更少」的款，让走 `sheer` 路线（top_lace / top_mesh）
+	# 的玩家真的能从这一栏拿到分。
+	#   · 乳贴：比「（不穿）」盖得略多一点点（暴露 5 < 6），但**刻意感**强得多
+	#     （反差 8 > 6）—— 一个「少露一点、但更不像自己」的取舍。
+	{"id": "bra_microkini", "name": "微型比基尼上衣", "slot": "bra", "exposure": 4, "acceptance_req": 8, "contrast": 7, "covers": [], "tags": []},
+	{"id": "bra_pasties", "name": "乳贴", "slot": "bra", "exposure": 5, "acceptance_req": 9, "contrast": 8, "covers": [], "tags": []},
+
+	# ================= 手套 =================
+	{"id": "gloves_none", "name": "（不戴）", "slot": "gloves", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
+	{"id": "gloves_leather", "name": "皮质长手套", "slot": "gloves", "exposure": 1, "acceptance_req": 0, "contrast": 2, "covers": ["hand_tattoo"], "tags": ["glove"]},
+	{"id": "gloves_lace", "name": "蕾丝短手套", "slot": "gloves", "exposure": 1, "acceptance_req": 3, "contrast": 4, "covers": ["hand_tattoo"], "tags": ["glove"]},
+	{"id": "gloves_oper", "name": "歌剧长手套", "slot": "gloves", "exposure": 2, "acceptance_req": 7, "contrast": 5, "covers": ["hand_tattoo"], "tags": ["glove"]},
+
+	# ================= 配饰 =================
+	{"id": "acc_none", "name": "（不戴）", "slot": "accessory", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
+	{"id": "acc_brooch", "name": "黄铜胸针", "slot": "accessory", "exposure": 0, "acceptance_req": 1, "contrast": 1, "covers": [], "tags": []},
+	{"id": "acc_belt", "name": "束腰皮带", "slot": "accessory", "exposure": 1, "acceptance_req": 4, "contrast": 3, "covers": [], "tags": []},
+
+	# ================= 下装 =================
+	# ★ 同上：「（不穿下装）」= 下装这一层空着，里面的内裤直接外穿。
+	{"id": "bottom_none", "name": "（不穿下装）", "slot": "bottom", "exposure": 9, "acceptance_req": 11, "contrast": 8, "covers": [], "tags": [], "bare": true},
+	{"id": "bottom_longskirt", "name": "及地长裙", "slot": "bottom", "exposure": 0, "acceptance_req": 0, "contrast": 1, "covers": [], "tags": []},
+	{"id": "bottom_trousers", "name": "直筒长裤", "slot": "bottom", "exposure": 1, "acceptance_req": 0, "contrast": 2, "covers": [], "tags": []},
+	{"id": "bottom_knee", "name": "及膝百褶裙", "slot": "bottom", "exposure": 3, "acceptance_req": 3, "contrast": 3, "covers": [], "tags": []},
+	{"id": "bottom_mini", "name": "超短皮裙", "slot": "bottom", "exposure": 7, "acceptance_req": 7, "contrast": 7, "covers": [], "tags": [], "see": "cutout"},
+	# ★ 第二十二轮从 AU 图包补的 2 件下装（同样是「够露」的外衣）
+	{"id": "bottom_pleat", "name": "超薄百褶短裙", "slot": "bottom", "exposure": 5, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": [], "see": "sheer"},
+	{"id": "bottom_cut", "name": "开衩短裙", "slot": "bottom", "exposure": 6, "acceptance_req": 6, "contrast": 6, "covers": [], "tags": []},
+	# ★ 第二十四轮的两套校服裙（配 top_school_* / shoes_school_* / stockings_school_*）：
+	#   藏青那条是**图包里裙长最短的校服裙**，墨绿那条是普通及膝款，两条都不标 see。
+	#
+	# ★★ 第二十七轮：`bottom_cut` / `bottom_school_navy` / `bottom_slit` 三件**降级成普通下装**。
+	#   用户口径就是「降级成普通下装」—— 这是第二十五轮遗留待议项的收尾。
+	#   起因：这三件的 `see: "cutout"` 旗当年是拿**旧的高腰 `gstring`** 量出来的
+	#   （把内裤叠在裙下量露出的像素：18 / 22 / 30 px）。第二十五轮把内裤换成
+	#   `lacepanties` 之后，这三条裙子把内裤盖得严严实实（实测 **0 px**），
+	#   旗子就不再成立 —— 留着等于「按款式语义白送一份暴露值与反差值」。
+	#   → 去掉 `see` 之后，它们就只是普通下装：穿在内裤外面，内裤不算数。
+	#   ★ 仍然是镂空/露的只有 `bottom_mini`（超短皮裙）、`bottom_pleat`（超薄百褶短裙，
+	#     sheer）与 `bottom_hotpants`（黑色皮短裤）。
+	{"id": "bottom_school_navy", "name": "藏青超短校服裙", "slot": "bottom", "exposure": 6, "acceptance_req": 6, "contrast": 6, "covers": [], "tags": []},
+	{"id": "bottom_school_green", "name": "墨绿及膝校服裙", "slot": "bottom", "exposure": 3, "acceptance_req": 3, "contrast": 3, "covers": [], "tags": []},
+	# ★ 第二十五轮：水手服裙两套（同一条贴图、两种染色）+
+	#   三件「够露」的下装（各配上方 top_* 里那件）。
+	# ★ 第二十六轮：原来的 bottom_sundress / bottom_eveninggown 已合并进 `dress`。
+	{"id": "bottom_sailor_white", "name": "白色水手服裙", "slot": "bottom", "exposure": 3, "acceptance_req": 3, "contrast": 3, "covers": [], "tags": []},
+	{"id": "bottom_sailor_navy", "name": "藏青水手服裙", "slot": "bottom", "exposure": 3, "acceptance_req": 3, "contrast": 3, "covers": [], "tags": []},
+	{"id": "bottom_hotpants", "name": "黑色皮短裤", "slot": "bottom", "exposure": 6, "acceptance_req": 6, "contrast": 6, "covers": [], "tags": [], "see": "cutout"},
+	{"id": "bottom_slit", "name": "高开衩短裙", "slot": "bottom", "exposure": 6, "acceptance_req": 6, "contrast": 6, "covers": [], "tags": []},
+
+	# ================= ★★ 第二十八轮：从 AU 补的「高暴露」下装 =================
+	# 用户口径：「遇见反差值不足的情况下，可以从au添加暴露度高的服装」。
+	#
+	# 为什么补在**下装**这一栏（而不是随便找几件塞进去）——
+	# 先用 tests/_ProbeCeiling 量过「反差天花板到底卡在哪」，结论有点反直觉：
+	#   各关 DP 最优解的反差爬到 54 就上不去了，而**暴露值预算大量闲置**
+	#   （第 2/3/4 关分别只用了 21 / 32 上限中的 21、42 中的 21、54 中的 21）。
+	#   也就是说「反差不足」的根因**不是暴露值不够**，而是「没有更强的件可换」。
+	# 再往下拆，真正咬死天花板的是一对**互相冲突**的约束：
+	#   · top 必须穿长袖遮「手背刺青」→ 只能贡献 1~3 分；
+	#   · 而长袖又把 bra 盖死（门控），还逼得颈饰去顶「颈侧烙印」（也只能拿 3 分）。
+	#
+	# 下装这一栏是**唯一完全不受缺陷约束**的（两处缺陷都在上身），
+	# 而且只要它带 `see`，内裤那一栏就能一起被解锁 —— 所以补在这里收益最大。
+	{"id": "bottom_fishnet", "name": "网眼超短裙", "slot": "bottom", "exposure": 8, "acceptance_req": 8, "contrast": 7, "covers": [], "tags": [], "see": "cutout"},
+	{"id": "bottom_pvc", "name": "漆皮迷你裙", "slot": "bottom", "exposure": 6, "acceptance_req": 8, "contrast": 8, "covers": [], "tags": [], "see": "cutout"},
+	{"id": "bottom_qipao", "name": "开衩短旗袍", "slot": "bottom", "exposure": 7, "acceptance_req": 9, "contrast": 6, "covers": [], "tags": [], "see": "cutout"},
+
+	# ================= 成装（整件式）★ 第二十六轮新增的槽位 =================
+	# 用户口径：「如果是一整件衣服 如晚礼服 不能分开成下装和上装 应该单开一个栏目」。
+	# 所以成装各自只有**一件**，上、下两层贴图烘在同一张 PNG 里，
+	# 走 `dress` 槽位（z 96，压在 top / bottom 之上，见 dol_map.SLOT_Z）。
+	#
+	# ★ 第二十七轮按用户口径改名为「成装」（原叫「连衣裙」），并且**装备时与上装 / 下装互斥**
+	#   —— 见表头的 EXCLUSIVE_GROUPS。语义上这才自洽：成装的「上半截」就等于上装、
+	#   「下半截」就等于下装，三者任取其一；否则会出现「上半身穿成装 + 下半身穿长裤」。
+	#
+	# ★ dress_none 的暴露值是 0，不是像 top_none / bottom_none 那样的 9 ——
+	#   「没穿成装」只是穿着上衣 + 下装而已，一点都不暴露；
+	#   它标 bare 是为了让门控把它当成「这一层没有东西」，内衣照常按 top / bottom 判定。
+	{"id": "dress_none", "name": "（不穿成装）", "slot": "dress", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": [], "bare": true},
+	{"id": "dress_sundress", "name": "吊带连衣裙", "slot": "dress", "exposure": 2, "acceptance_req": 2, "contrast": 3, "covers": [], "tags": []},
+	{"id": "dress_eveninggown", "name": "晚礼服", "slot": "dress", "exposure": 2, "acceptance_req": 4, "contrast": 4, "covers": [], "tags": []},
+
+	# ================= 吊袜带 =================
+	{"id": "garter_none", "name": "（不穿）", "slot": "garterbelt", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
+	{"id": "garter_lace", "name": "蕾丝吊袜带", "slot": "garterbelt", "exposure": 1, "acceptance_req": 5, "contrast": 4, "covers": [], "tags": []},
+	{"id": "garter_black", "name": "黑色皮革吊袜带", "slot": "garterbelt", "exposure": 2, "acceptance_req": 7, "contrast": 5, "covers": [], "tags": []},
+
+	# ================= 下内衣 =================
+	# ★ 第二十六轮按用户口径「增加暴露度高的内裤款式」补了 4 件，全部取 AU 图包
+	#   自己的 clothes/under-lower/* 贴图。它们照旧受 UNDER_GATE 门控：
+	#   下面被普通下装盖住时一律不计入暴露 / 反差 —— 想让它真的算数，
+	#   得配「（不穿下装）」或者标了 see 的下装。
+	{"id": "panties_plain", "name": "素色棉质内裤", "slot": "panties", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
+	{"id": "panties_lace", "name": "黑色蕾丝内裤", "slot": "panties", "exposure": 5, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
+	{"id": "panties_thong", "name": "黑色丁字裤", "slot": "panties", "exposure": 5, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
+	{"id": "panties_janties", "name": "牛仔丁字裤", "slot": "panties", "exposure": 5, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
+	{"id": "panties_micro", "name": "微型比基尼内裤", "slot": "panties", "exposure": 6, "acceptance_req": 7, "contrast": 6, "covers": [], "tags": []},
+	{"id": "panties_crotchless", "name": "开裆蕾丝内裤", "slot": "panties", "exposure": 7, "acceptance_req": 8, "contrast": 7, "covers": [], "tags": []},
+	{"id": "panties_none", "name": "（不穿）", "slot": "panties", "exposure": 8, "acceptance_req": 8, "contrast": 7, "covers": [], "tags": []},
+
+	# ================= 袜类 =================
+	{"id": "stockings_none", "name": "（不穿）", "slot": "stockings", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
+	{"id": "stockings_opaque", "name": "不透明连裤袜", "slot": "stockings", "exposure": 1, "acceptance_req": 2, "contrast": 2, "covers": [], "tags": []},
+	{"id": "stockings_thigh", "name": "白色大腿袜", "slot": "stockings", "exposure": 2, "acceptance_req": 4, "contrast": 3, "covers": [], "tags": []},
+	{"id": "stockings_net", "name": "黑色渔网袜", "slot": "stockings", "exposure": 3, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": []},
+	# ★ 第二十四轮：两套校服的袜子（白色大腿袜 / 米色花边短袜）
+	{"id": "stockings_school_navy", "name": "白色校服袜", "slot": "stockings", "exposure": 2, "acceptance_req": 4, "contrast": 3, "covers": [], "tags": []},
+	{"id": "stockings_school_green", "name": "米色校服袜", "slot": "stockings", "exposure": 1, "acceptance_req": 2, "contrast": 2, "covers": [], "tags": []},
+
+	# ================= 鞋履 =================
+	{"id": "shoes_boots", "name": "及踝皮靴", "slot": "shoes", "exposure": 0, "acceptance_req": 0, "contrast": 1, "covers": [], "tags": []},
+	{"id": "shoes_heels", "name": "细跟高跟鞋", "slot": "shoes", "exposure": 2, "acceptance_req": 3, "contrast": 4, "covers": [], "tags": []},
+	# ★ 第二十四轮：两套校服的鞋（藏青校服皮鞋 / 棕色便鞋）
+	{"id": "shoes_school_navy", "name": "藏青校服皮鞋", "slot": "shoes", "exposure": 0, "acceptance_req": 1, "contrast": 1, "covers": [], "tags": []},
+	{"id": "shoes_school_green", "name": "棕色校服皮鞋", "slot": "shoes", "exposure": 0, "acceptance_req": 1, "contrast": 1, "covers": [], "tags": []},
+
+	# ================= 外袍（暂时下架，见 DISABLED_SLOTS）=================
+	# 这 4 件仍然定义着、贴图也照烘，只是玩家暂时看不到、也抽不到。
+	# 恢复：把 "robe" 从 DISABLED_SLOTS 里删掉即可。
+	{"id": "robe_none", "name": "（不穿外袍）", "slot": "robe", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": [], "bare": true},
+	{"id": "robe_travel", "name": "厚重旅行斗篷", "slot": "robe", "exposure": 0, "acceptance_req": 0, "contrast": 1, "covers": ["neck_brand"], "tags": ["high_collar"]},
+	{"id": "robe_lace", "name": "半透蕾丝罩袍", "slot": "robe", "exposure": 2, "acceptance_req": 4, "contrast": 5, "covers": [], "tags": [], "see": "sheer"},
+	{"id": "robe_leather", "name": "黑皮长外套", "slot": "robe", "exposure": 2, "acceptance_req": 6, "contrast": 4, "covers": [], "tags": []},
+]
+
+# ---------- 关卡进度 ----------
+# acceptance_gain : 通关后接受度提升值
+# contrast_req    : 进入质问环节所需的最低反差值（低于此值会被直接识破）
+# derived_profile : 审讯官依据线索「推导出的形象」
+#
+# 一局（run）最多 4 关。数值曲线固定，关卡名与「推导形象」由本局抽到的背景
+# 提供（见 ScenarioData.BACKGROUNDS[].levels，由 RunData.levels() 合并）。
+#
+# 曲线是怎么定的：
+#   START_ACCEPTANCE = 6  →  各关开局接受度 6 / 11 / 16 / 22
+#   暴露值上限 = 10 + 接受度 × 2  →  22 / 32 / 42 / 54
+#   contrast_req 取「该关最优解」的约八成，既要求玩家真的会搭配，又留有余地。
+#   注意第 1 关不能定得太高：接受度只有 6，高反差物件大半还锁着。
+#
+# ★ 外袍下架（DISABLED_SLOTS）之后重标过一次：robe_lace 原本能贡献 5 点反差，
+#   去掉后「每关能拿到的最大反差」整体掉了 5 点左右，第 4 关尤其紧
+#   （120 个种子实测：各关最大反差下限 61 / 73 / 83 / 83）。
+#   第 4 关的 78 于是压到 73 —— 恢复外袍时记得把这一档调回去。
+#
+# ★★ 第二十七轮又重标了一次（62/72 → 50/52），原因是一连串删减把反差上限压下来了：
+#     · 删掉眉钉（反差 4）、洛丽塔短裙（5）、单片金链眼镜（4）、黑色墨镜（6）；
+#     · 眼镜三副统一成反差 3（原为 1 / 4 / 6）—— 最高的那档没了；
+#     · 手套槽位下架（4 件分别 2 / 4 / 5 反差）；
+#     · `bottom_cut` / `bottom_school_navy` / `bottom_slit` 降级成普通下装 ——
+#       它们不再开门控，`panties` 的数值不再跟着它们一起计入。
+#   120 个种子实测（用 DP 精确求解的最大反差，下限 / 上限）：
+#     第 1 关 45~48 ｜ 第 2 关 54~65 ｜ 第 3 关 54~73 ｜ 第 4 关 54~73
+#   ★ 第 3、4 关的下限**都卡在 54**，那不是巧合 —— 它就是第 4 关的**暴露值上限**
+#     （`10 + 接受度 22 × 2 = 54`）。想再拉高反差就得穿更暴露的衣服，而暴露值封顶了。
+#   所以这两档只能贴着 54 标：取 50 / 52，各留 4 / 2 点余量。
+#
+#   ★ 想把这根曲线抬回去，只有两条路（都不是改数字）：
+#     ① 恢复外袍 / 手套槽位（它们本来就带着高反差件）；
+#     ② 补「高反差、低暴露」的新物件 —— 现在最划算的那几件都不够便宜。
+#
+# ★ 第二十五轮又重标过一次（73 → 72）：新增的 6 件高暴露衣物让「强制装备池」
+#   变大，抽取用的随机流随之重排 —— 120 个种子 480 关里出现 1 关差 1 点
+#   （seed=447514 第 4 关，强制 panties_lace + bottom_pleat，反差 72 < 73）。
+#   这两件本身反差不高，却锁死了 panties / bottom 两个槽位，降 1 点即全绿。
+#
+# ★ 第二十三轮：「一局几关」不再写死 —— `LEVELS` 变成**运行时表**，
+#   从 `data/story.json` 的 "levels" 段读（编辑器里可增删关卡、改每关的数值）。
+#   下面这份 DEFAULT_LEVELS 是出厂兜底；文件缺失 / 那一段为空时用它。
+const START_ACCEPTANCE := 6
+
+# 反差值要求曲线的出厂参数（编辑器「⚙️ 数值规则」里可改）
+#   · base —— 第 1 关的要求（后面留空的关都从它往上加）
+#   · step —— 每关自增多少
+const CONTRAST_REQ_BASE := 20
+const CONTRAST_REQ_STEP := 10
+
+# ---------- 关卡开放状态（第二十一轮）----------
+# 「开始游戏」不再直接开局，而是先让玩家在**选关面板**上挑进哪一关。
+# 目前只开放第一关 —— 其余三关在面板上看得见、但点不动。
+#
+# ★ 这是「暂时锁定」而不是「删除」：关卡的数值曲线、名字、题目编排
+#   （LEVELS / 背景的 levels）一件没动，面板也只是把它们的按钮置灰。
+#   以后要开放第 N 关，把它的下标（0 起）加进这张表就行，别处都不用改。
+const OPEN_LEVELS := [0]
+
+# 关卡表 / 关数 —— 惰性从 story.json 读一次（见 ScenarioData`levels_override`）
+var LEVELS: Array = []
+var MAX_LEVELS: int = 0
+
+func _ensure_levels() -> void:
+	if not LEVELS.is_empty():
+		return
+	var ov: Array = ScenarioData.levels_override()
+	if ov.is_empty():
+		LEVELS = []
+		for lv in DEFAULT_LEVELS:
+			LEVELS.append((lv as Dictionary).duplicate())
+	else:
+		LEVELS = []
+		for lv in ov:
+			var d: Dictionary = (lv as Dictionary).duplicate()
+			# 逐键兜底：编辑器里少写一项也不会让这一关没有数值。
+			# ★ contrast_req 不在这里兜底 —— 它留空是有意义的（= 自增），
+			#   由下面的 _resolve_contrast_req 统一算出来。
+			for k in ["name", "acceptance_gain", "derived_profile"]:
+				if not d.has(k) or str(d.get(k, "")) == "":
+					d[k] = DEFAULT_LEVELS[0].get(k) if k != "name" \
+						else "第 %d 关" % (LEVELS.size() + 1)
+			LEVELS.append(d)
+	MAX_LEVELS = maxi(1, LEVELS.size())
+	_resolve_contrast_req()
+
+# ============================================================
+#  反差值要求：自增 + 可手写覆盖（★ 第二十九轮）
+#
+#  用户口径：「关卡的反差值要求自增同时也可以修改」。
+#
+#  约定：**留空（或 0/负数）= 自动**。
+#    · 第 1 关留空 → 用 `rules.contrast_req_base`（出厂 20）；
+#    · 后面每一关留空 → 上一关的**最终值** + `rules.contrast_req_step`（出厂 10）；
+#    · 写了正数 → 直接用，并成为它后面那些关自增的新起点。
+#
+#  ★ 之所以是「以上一个手写值为锚点」而不是「统一按关号套公式」：
+#    实际能拿到的最大反差受**暴露值上限**卡着（第 28 轮实测：第 3/4 关都卡在 60），
+#    所以曲线未必是一条笔直的斜线 —— 允许在某一关插一个数、后面跟着抬，
+#    比逼着人把每一关都手写一遍要实用。
+#
+#  ★ 解析结果写回 LEVELS[i].contrast_req，所以**下游（判定 / 界面 / 测试）读到的
+#    永远是最终值**，不需要每处都去判断「这一关是不是自动的」。
+# ============================================================
+func _resolve_contrast_req() -> void:
+	var base := int(ScenarioData.rule_i("contrast_req_base", CONTRAST_REQ_BASE))
+	var step := int(ScenarioData.rule_i("contrast_req_step", CONTRAST_REQ_STEP))
+	var prev := base
+	for i in LEVELS.size():
+		var d: Dictionary = LEVELS[i]
+		var raw: Variant = d.get("contrast_req", null)
+		var given := -1
+		if raw != null:
+			# 编辑器里留空会写成 0，所以 0 也算「没写」
+			given = int(raw)
+		if given > 0:
+			prev = given                       # 手写的值：既是本关的要求，也是后面的起点
+		else:
+			prev = prev + step if i > 0 else base
+		d["contrast_req"] = prev
+
+# 这一关的要求是「手写的」还是「自增出来的」——
+# 只给界面显示用（判定与测试都只读解析后的 contrast_req）。
+func contrast_req_is_auto(li: int) -> bool:
+	_ensure_levels()
+	var ls: Array = ScenarioData.levels_override()
+	if ls.is_empty():
+		ls = DEFAULT_LEVELS
+	if li < 0 or li >= ls.size():
+		return true
+	var raw: Variant = (ls[li] as Dictionary).get("contrast_req", null)
+	return raw == null or int(raw) <= 0
+
+func levels() -> Array:
+	_ensure_levels()
+	return LEVELS
+
+func level_count() -> int:
+	_ensure_levels()
+	return MAX_LEVELS
+
+# 测试 / 编辑器改完之后要让缓存失效
+func reload_levels() -> void:
+	LEVELS = []
+	MAX_LEVELS = 0
+	_ensure_levels()
+
+# 越界的下标夹回合法范围
+func level_at(li: int) -> Dictionary:
+	_ensure_levels()
+	return LEVELS[clampi(li, 0, MAX_LEVELS - 1)]
+
+func level_unlocked(li: int) -> bool:
+	return OPEN_LEVELS.has(li)
+
+# 已开放的关数（面板 / 摘要文案用）
+func open_level_count() -> int:
+	var n := 0
+	for i in level_count():
+		if level_unlocked(i):
+			n += 1
+	return n
+
+# ---------- 强制装备 ----------
+#  设定：有些场合你没法自己决定穿什么 —— 府里发了号衣、海关要求穿查验服、
+#        场子里给「新人」统一配的行头。这就是「强制服装要求」。
+#
+#  ★ 第二十三轮：每关的强制要求改成**一张可编辑的规则表**
+#    （见 FORCED_RULES / forced_groups_at）。三种模式：
+#      · "none"   —— 本关没有强制要求；
+#      · "random" —— 沿用旧的随机抽 0~2 件高暴露（出厂默认的第 2~4 关）；
+#      · "fixed"  —— 用 rules 里写死的规则，每条规则二选一：
+#                      {"pick": "all", "items": [...]}  这几件**都要穿**（只有一件就是「固定一件」）
+#                      {"pick": "any", "items": [...]}  这几件里**任选一件**
+#                    多条规则自由叠加 —— 这就是用户口径里的「自由组合」。
+#
+#  随机抽（random 模式）的三条硬规则：
+#    1. 只会抽「高暴露」的衣物 —— 朴素的没法糊过去，必须是露的那类；
+#    2. 数量 0 ~ 2 件，最少可以一件都没有；
+#    3. 必须是你当前接受度穿得起的。
+#
+#  注意强制装备本身也是一把双刃剑：它们暴露值高，吃预算；
+#  但反差值同样高，反而帮你拉开与原貌的差距。
+const FORCED_EXPOSURE_MIN := 5
+const FORCED_MAX := 2
+
+const PICK_ALL := "all"      # 这几件都要穿（列一件 = 固定一件）
+const PICK_ANY := "any"      # 这几件里任选一件
+
+const FORCED_MODE_NONE := "none"
+const FORCED_MODE_RANDOM := "random"
+const FORCED_MODE_FIXED := "fixed"
+
+# ★★ 第二十九轮：反差值要求改成「**自增 + 可手写覆盖**」。
+#
+#   用户口径：「关卡的反差值要求自增同时也可以修改」。
+#
+#   规则（见 _resolve_contrast_req）：
+#     · 第 1 关写一个基线值（出厂 20）；
+#     · 后面每一关**留空** → 自动 = 上一关 + `rules.contrast_req_step`（出厂 10）；
+#     · 任何一关**写了数字** → 就用它，并且成为它后面那些关自增的新起点。
+#
+#   所以「自增」不是固定公式，而是一条**以手写值为锚点**的阶梯 ——
+#   你可以在任意一关插一个数，后面整段跟着抬起来。
+const DEFAULT_LEVELS := [
+	{"name": "第一关", "acceptance_gain": 5, "contrast_req": 20, "derived_profile": "一个不起眼的路人"},
+	{"name": "第二关", "acceptance_gain": 5, "derived_profile": "有点来头的商贩"},
+	{"name": "第三关", "acceptance_gain": 6, "derived_profile": "被人打过招呼的熟面孔"},
+	{"name": "第四关", "acceptance_gain": 0, "derived_profile": "即将被放行的清白之人"},
+]
+
+# 出厂兜底的强制规则表（下标 = 第几关）。
+#   第 1 关刻意留空 —— 开局就被人按着头穿某件衣服不公平（见 RunData._roll_forced_items）；
+#   后三关沿用旧的随机抽，所以升级到「规则表」之后玩法一点没变。
+const DEFAULT_FORCED_RULES := [
+	{"mode": "none", "rules": []},
+	{"mode": "random", "rules": []},
+	{"mode": "random", "rules": []},
+	{"mode": "random", "rules": []},
+]
+
+# ---------- 每题的 QTE 计划（第二十三轮，编辑器可改）----------
+#  用户口径：「编辑器还应该具备编辑……每个问题的 qte 类型 出现时间」
+#
+#  一局里每一道题都可以指定用哪种 QTE、几秒后出现。取值：
+#    ""  / "auto"   —— 按老规则自动判（表情 QTE 看 needs_expression_for，
+#                      递话走计时器随机来）—— **出厂默认就是这个**；
+#    "none"         —— 这道题不出 QTE；
+#    "expression"   —— 强制出表情控制（长按顶条）；
+#    "interference" —— 指定时间后出单键递话（按一下空格打断）；
+#    "combo"        —— 指定时间后出组合干扰（依次敲 J → K → L）。
+#
+#  delay 单位是秒：表情类是「切题后多久弹出面板」，递话类是「切题后多久他开口」。
+#  没写 delay（或 ≤ 0）→ 用该类型的出厂默认值（expr_qte_delay / interference_base）。
+const QTE_AUTO := "auto"
+const QTE_NONE := "none"
+const QTE_EXPRESSION := "expression"
+const QTE_INTERFERENCE := "interference"
+const QTE_COMBO := "combo"
+
+const QTE_KINDS := [QTE_AUTO, QTE_NONE, QTE_EXPRESSION, QTE_INTERFERENCE, QTE_COMBO]
+
+const QTE_KIND_LABELS := {
+	"auto": "自动（按老规则判）",
+	"none": "无",
+	"expression": "表情控制 QTE（长按顶条）",
+	"interference": "递话打断（按一下空格）",
+	"combo": "组合干扰（依次敲 J→K→L）",
+}
+
+# 第 li 道题的 QTE 计划（读 story.json；越界返回「自动」）
+func qte_plan_entry(li: int) -> Dictionary:
+	var d := ScenarioData.qte_plan_at(li)
+	if d.is_empty():
+		return {"qte": QTE_AUTO, "delay": -1.0}
+	var kind := str(d.get("qte", QTE_AUTO))
+	if not QTE_KINDS.has(kind):
+		kind = QTE_AUTO
+	return {"qte": kind, "delay": float(d.get("delay", -1.0))}
+
+# ---------- A 的原貌（True Appearance）----------
+# 审讯官认识的是「A」—— 你真实的样子。他脑子里存着这张脸、这身打扮。
+# 反差值的语义由此确定：**只有与原貌不同的槽位才贡献反差值**。
+# 穿得和原貌一样 = 反差 0 = 一眼就被认出来。
+#
+# 多轮制之后，原貌不再是常量 —— **每一局都会重新随机**（见 RunData）。
+# 下面这张 TRUE_POOL 就是随机池：每个槽位列出 1~3 件「A 有可能的样子」。
+#
+# 入池的硬性条件（测试会断言）：
+#   1. 暴露值 ≤ 2 —— A 是个低调的人，而且第 1 关暴露值上限只有 22，
+#      原貌本身绝不能一开局就超限；
+#   2. 必须在 ScenarioData.ITEM_DESC 里有对应的目击描述，否则外貌情报拼不出来。
+#
+# 关键两难：原貌里可能有一件「高领长袖衬衫」，同时遮住颈侧烙印与手背刺青。
+# 那就意味着想与它相反，必须把遮挡责任转移到别的槽位（颈饰 / 手套），
+# 否则一脱下高领就露出烙印 —— 这正是本作的核心张力。
+# 但原貌也可能是短袖 + 空脖子，那样你反而必须主动去遮 —— 每局都不一样。
+const TRUE_POOL := {
+	"hair": ["hair_short", "hair_braid", "hair_long"],
+	"headgear": ["head_none", "head_hat"],
+	"glasses": ["glasses_none", "glasses_round"],
+	"earrings": ["ear_none", "ear_stud"],
+	"makeup": ["makeup_none", "makeup_light"],
+	"piercing": ["piercing_none", "piercing_multi"],
+	"tattoo": ["tattoo_none", "tattoo_neck"],
+	"neckwear": ["neck_none", "neck_collar", "neck_scarf"],
+	"top": ["top_highneck", "top_plain", "top_longsleeve"],
+	"bra": ["bra_plain"],
+	"gloves": ["gloves_none", "gloves_leather"],
+	"accessory": ["acc_none", "acc_brooch"],
+	"bottom": ["bottom_longskirt", "bottom_trousers"],
+	# ★ 第二十六轮新增的整件式槽位：A 的原貌可能穿着一件素色成装，
+	#   也可能什么都没穿（dress_none 的暴露值是 0 —— 「没穿成装」只是穿着
+	#   上衣 + 下装而已，不暴露）。晚礼服不入池：那件太扎眼，不像 A 的日常。
+	#
+	# ★★ 第二十七轮：成装与上装 / 下装互斥（EXCLUSIVE_GROUPS）之后，这一池**只剩下空件**。
+	#   原因：原貌是一张「每槽位一件」的表，而互斥意味着「成装」与「上装+下装」是
+	#   两种互斥的穿法 —— 若让 dress_sundress 入池，就必须在抽签后把落败的一方
+	#   归一化掉，而落败方压成空件（top_none 暴露 9 / bottom_none 暴露 9 反差 8）
+	#   反而会白送数值，情报台也会同时报出两条自相矛盾的目击（见 _counts_with 的互斥闸）。
+	#   所以干脆不在源头制造冲突：**A 的原貌永远是「上衣 + 下装」**，
+	#   成装留给玩家主动去穿 —— 那才是「单开一栏」的玩法价值。
+	"dress": ["dress_none"],
+	"garterbelt": ["garter_none"],
+	"panties": ["panties_plain"],
+	"stockings": ["stockings_none", "stockings_opaque"],
+	"shoes": ["shoes_boots"],
+	"robe": ["robe_none", "robe_travel"],
+}
+
+# 默认原貌（池中首项）—— 仅用于「没有 RunData 参与」的场合（单元测试等）。
+# 正常游戏流程里请一律走 RunData.true_appearance()。
+const TRUE_APPEARANCE := {
+	"hair": "hair_short",
+	"headgear": "head_none",
+	"glasses": "glasses_none",
+	"earrings": "ear_none",
+	"makeup": "makeup_none",
+	"piercing": "piercing_none",
+	"tattoo": "tattoo_none",
+	"neckwear": "neck_none",
+	"top": "top_highneck",
+	"bra": "bra_plain",
+	"gloves": "gloves_none",
+	"accessory": "acc_none",
+	"bottom": "bottom_longskirt",
+	"dress": "dress_none",
+	"garterbelt": "garter_none",
+	"panties": "panties_plain",
+	"stockings": "stockings_none",
+	"shoes": "shoes_boots",
+	"robe": "robe_none",
+}
+
+# ---------- 初始套装 ----------
+# 开局即 A 的原貌 —— 你还没来得及伪装自己。
+# 实际取值由 WardrobeModel 从「本局随机出的原貌」里取，这里只是兜底定义。
+const DEFAULT_LOADOUT := TRUE_APPEARANCE
+
+# 强制装备用独立随机流（见 RunData._roll_forced_items）
+func forced_rng_seed_base() -> int:
+	return 40503
+
+# ---------- 每关的强制规则表 ----------
+# 惰性从 story.json 的 "forced_rules" 段读；出厂兜底见 DEFAULT_FORCED_RULES。
+var FORCED_RULES: Array = []
+
+func _ensure_forced_rules() -> void:
+	if not FORCED_RULES.is_empty():
+		return
+	var ov: Array = ScenarioData.forced_rules_override()
+	var src: Array = ov if not ov.is_empty() else DEFAULT_FORCED_RULES
+	FORCED_RULES = []
+	for e in src:
+		var d: Dictionary = (e as Dictionary).duplicate()
+		var mode := str(d.get("mode", FORCED_MODE_RANDOM))
+		if not [FORCED_MODE_NONE, FORCED_MODE_RANDOM, FORCED_MODE_FIXED].has(mode):
+			mode = FORCED_MODE_RANDOM
+		var rules := []
+		for r in d.get("rules", []):
+			var rd: Dictionary = (r as Dictionary).duplicate()
+			var pick := str(rd.get("pick", PICK_ALL))
+			if pick != PICK_ANY:
+				pick = PICK_ALL
+			var items := []
+			for id in rd.get("items", []):
+				# 只收「真实存在、且当前槽位没下架」的物品 ——
+				# 编辑器里写错一个 id 不该让整关崩掉
+				var it: Dictionary = get_item(str(id))
+				if it.is_empty() or not slot_enabled(str(it.get("slot", ""))):
+					continue
+				items.append(str(id))
+			if not items.is_empty():
+				rules.append({"pick": pick, "items": items})
+		FORCED_RULES.append({"mode": mode, "rules": rules})
+	for li in range(FORCED_RULES.size(), level_count()):
+		FORCED_RULES.append({"mode": FORCED_MODE_NONE, "rules": []})
+
+func reload_forced_rules() -> void:
+	FORCED_RULES = []
+	_ensure_forced_rules()
+
+# 第 li 关的强制规则（越界夹回最后一关；关卡比规则表多时按「没有要求」处理）
+func forced_rules_at(li: int) -> Dictionary:
+	_ensure_forced_rules()
+	if FORCED_RULES.is_empty():
+		return {"mode": FORCED_MODE_NONE, "rules": []}
+	return FORCED_RULES[clampi(li, 0, FORCED_RULES.size() - 1)]
+
+# 第 li 关「写死」的那些规则（mode != fixed 时为空）
+func forced_groups_at(li: int) -> Array:
+	var e := forced_rules_at(li)
+	if str(e.get("mode", "")) != FORCED_MODE_FIXED:
+		return []
+	return e.get("rules", [])
+
+# ---------- 查询接口 ----------
+# ★ 索引缓存：这两张表以前是**每次线性扫 ITEMS**（102 件）——
+#   换装界面的贪心/DP 一次要问几万遍，实测能把测试拖到超时。
+#   ITEMS 是 const、运行期只读，所以这里缓存一次就够。
+var _by_slot: Dictionary = {}
+var _by_id: Dictionary = {}
+
+func _build_index() -> void:
+	if not _by_id.is_empty():
+		return
+	for it in ITEMS:
+		var id := str(it.get("id", ""))
+		_by_id[id] = it
+		var slot := str(it.get("slot", ""))
+		if not _by_slot.has(slot):
+			_by_slot[slot] = []
+		_by_slot[slot].append(it)
+
+func get_items_for_slot(slot: String) -> Array:
+	if not slot_enabled(slot):
+		return []           # 下架的槽位：对外就是「一件都没有」
+	_build_index()
+	return _by_slot.get(slot, [])
+
+func get_item(id: String) -> Dictionary:
+	if id == "":
+		return {}
+	_build_index()
+	return _by_id.get(id, {})
+
+func exposure_cap(acceptance: int) -> int:
+	return EXPOSURE_BASE + acceptance * EXPOSURE_PER_ACCEPTANCE
+
+# ---------- 三个数值的「满值」----------
+#  卡片上那 7 颗点要按「这件东西的最大量级」切档，量表也要知道量程。
+#  满值**从 ITEMS 现算**并缓存 —— 以后改物品数值不用回来改常量表。
+var _stat_max: Dictionary = {}
+
+func stat_max_of(field: String) -> int:
+	if _stat_max.is_empty():
+		for f in ["exposure", "contrast", "acceptance_req"]:
+			var mx := 1
+			for it in ITEMS:
+				if not slot_enabled(str(it.get("slot", ""))):
+					continue    # 下架的槽位不参与「满值」标定
+				mx = maxi(mx, int(it.get(f, 0)))
+			_stat_max[f] = mx
+	return maxi(1, int(_stat_max.get(field, 1)))
+
+# ---------- 强制装备 ----------
+func is_high_exposure(item: Dictionary) -> bool:
+	return int(item.get("exposure", 0)) >= FORCED_EXPOSURE_MIN
+
+# 本关「可能被强制穿上」的物品池：高暴露 且 接受度够
+#   ★ 排除 `bare` 的空件 —— 「强制你（不穿上衣）」不是一条说得通的指令，
+#     那是「不许穿」而不是「必须穿」，语义和强制装备相反。
+func forced_pool(acceptance: int) -> Array:
+	var out := []
+	var locked := forced_locked_out_slots()
+	for it in ITEMS:
+		var slot := str(it.get("slot", ""))
+		if not slot_enabled(slot):
+			continue        # 下架的槽位抽不出来 —— 否则会强制玩家穿一件他没得选的袍子
+		if locked.has(slot):
+			continue        # 见 forced_locked_out_slots()：锁死这个槽位 = 本关死局
+		if is_bare(it):
+			continue
+		if is_high_exposure(it) and can_equip(it, acceptance):
+			out.append(it)
+	return out
+
+# ---------- 不准被强制装备占用的槽位（第二十七轮）----------
+# 某个身体缺陷的**全部可用遮挡物**都集中在同一个槽位时，那个槽位就是它的唯一解 ——
+# 强制装备一旦锁死它，玩家就再也遮不住这处缺陷，本关直接变成死局。
+#
+# ★ 现在撞上的是 `hand_tattoo`（右手背黑帮血蛇刺青）：它的 `cover_tags` 是
+#   `glove` / `long_sleeve`，而 `gloves` 槽位第二十七轮下架了 →
+#   唯一还能遮它的只剩上衣槽那两件长袖（`top_highneck` / `top_longsleeve`）。
+#   于是「强制穿 `top_lace` / `top_crop` / `top_offshoulder` 这类短袖款」
+#   = 手背刺青必露 + 上衣被锁死换不掉 → 无解。
+#   （实测：120 种子 × 4 关里出现 6 例，全都是这个原因。）
+#
+# ★ 这条规则是**算出来的**，不是写死的 —— 「唯一解」随可用物品自动变化：
+#   将来把手套栏恢复，top 就不再是唯一解，它自动重新变成可强制的槽位。
+#
+# 注意 `neck_brand`（颈侧烙印）**不会**把 top 锁进去：它的 `cover_tags` 是
+# `high_collar` / `scarf`，除了上装的长袖款，颈饰槽的 `neck_collar` / `neck_scarf`
+# 也能遮 —— 集合是 {top, neckwear} 而不是单元素，所以 top 不必为它让路。
+var _locked_slots_cache: Array = []
+
+func forced_locked_out_slots() -> Array:
+	if not _locked_slots_cache.is_empty():
+		return _locked_slots_cache
+	var out := []
+	for d in defects():
+		var need: Array = (d as Dictionary).get("cover_tags", [])
+		if need.is_empty():
+			continue
+		var slots := []
+		for it in ITEMS:
+			var s := str(it.get("slot", ""))
+			if not slot_enabled(s):
+				continue
+			var hit := false
+			for t in it.get("tags", []):
+				if need.has(str(t)):
+					hit = true
+					break
+			if not hit:
+				continue
+			if not slots.has(s):
+				slots.append(s)
+		if slots.size() == 1:
+			out.append(str(slots[0]))
+	_locked_slots_cache = out
+	return out
+
+func can_equip(item: Dictionary, acceptance: int) -> bool:
+	return acceptance >= int(item.get("acceptance_req", 0))
+
+# 某槽位「最朴素」的物品（暴露值最低、同值时反差最低）
+func cheapest_for_slot(slot: String) -> Dictionary:
+	var best := {}
+	for it in get_items_for_slot(slot):
+		if best.is_empty():
+			best = it
+			continue
+		var a := [int(it["exposure"]), int(it["contrast"])]
+		var b := [int(best["exposure"]), int(best["contrast"])]
+		if a[0] < b[0] or (a[0] == b[0] and a[1] < b[1]):
+			best = it
+	return best

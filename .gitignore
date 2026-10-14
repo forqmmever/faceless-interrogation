@@ -1,0 +1,23 @@
+# Godot 生成的导入缓存（11MB，可随时重建，不进版本库）
+.godot/
+
+# Godot 导出产物
+export.cfg
+export_presets.cfg
+*.translation
+build/
+export/
+
+# 临时/中间文件（.workbuddy-ai/memory 要留，tmp 不留）
+.workbuddy-ai/tmp/
+
+# 编辑器与系统杂项
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# 日志
+*.log

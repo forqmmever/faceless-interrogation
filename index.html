@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>千面人：高压对质 (Faceless Interrogation Prototype)</title>
+  <style>
+    :root {
+      --bg-primary: #0f1117;
+      --bg-card: #181c27;
+      --bg-card-hover: #212636;
+      --accent-purple: #7f77dd;
+      --accent-red: #e24b4a;
+      --accent-amber: #ef9f27;
+      --accent-teal: #1d9e75;
+      --accent-blue: #378add;
+      --text-main: #f0f2f5;
+      --text-muted: #9aa0a6;
+      --border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .game-container {
+      width: 100%;
+      max-width: 960px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .game-header {
+      padding: 16px 24px;
+      background: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .game-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .tag {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--accent-purple);
+      color: #fff;
+    }
+
+    .phase-badge {
+      font-size: 13px;
+      color: var(--accent-amber);
+      font-weight: 500;
+    }
+
+    .main-stage {
+      padding: 24px;
+      min-height: 520px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* PREPARATION PHASE STYLES */
+    .setup-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .setup-grid { grid-template-columns: 1fr; }
+    }
+
+    .panel-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent-blue);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding-bottom: 8px;
+    }
+
+    .defect-card {
+      background: rgba(226, 75, 74, 0.1);
+      border: 1px solid var(--accent-red);
+      border-radius: 8px;
+      padding: 12px;
+      color: #f7c1c1;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    select, input {
+      background: #0d0f14;
+      border: 1px solid var(--border-color);
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    select:focus {
+      border-color: var(--accent-purple);
+    }
+
+    .status-summary {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px dashed var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    .btn-primary {
+      background: var(--accent-purple);
+      color: white;
+      border: none;
+      padding: 14px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .btn-primary:hover {
+      background: #6b63ca;
+      transform: translateY(-1px);
+    }
+
+    /* INTERROGATION PHASE STYLES */
+    .suspicion-bar-container {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .suspicion-label {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .progress-track {
+      flex: 1;
+      height: 12px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 20%;
+      background: linear-gradient(90deg, #1d9e75, #ef9f27, #e24b4a);
+      transition: width 0.3s ease;
+    }
+
+    .suspicion-val {
+      font-size: 14px;
+      font-weight: bold;
+      width: 45px;
+      text-anchor: end;
+      color: var(--accent-amber);
+    }
+
+    .interrogation-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .interrogation-layout { grid-template-columns: 1fr; }
+    }
+
+    .inspector-avatar-box {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      text-align: center;
+    }
+
+    .inspector-face {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: #2a2f42;
+      border: 2px solid var(--accent-blue);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 36px;
+      position: relative;
+    }
+
+    .focus-ring {
+      position: absolute;
+      width: 105px;
+      height: 105px;
+      border-radius: 50%;
+      border: 1.5px stroke dashed var(--accent-amber);
+      animation: spin 8s linear infinite;
+    }
+
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    .dialogue-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+    }
+
+    .question-tag {
+      display: inline-block;
+      align-self: flex-start;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .tag-scripted { background: rgba(55, 138, 221, 0.2); color: #85b7eb; border: 1px solid var(--accent-blue); }
+    .tag-unscripted { background: rgba(226, 75, 74, 0.2); color: #f09595; border: 1px solid var(--accent-red); }
+
+    .dialogue-text {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #e1e4e8;
+      min-height: 60px;
+    }
+
+    .options-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .opt-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: var(--text-main);
+      font-size: 14px;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .opt-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent-purple);
+      transform: translateX(2px);
+    }
+
+    /* QTE Overlay Container */
+    .qte-modal {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 17, 23, 0.92);
+      backdrop-filter: blur(4px);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      gap: 16px;
+      z-index: 10;
+    }
+
+    .qte-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: var(--accent-amber);
+    }
+
+    .qte-track {
+      width: 80%;
+      height: 24px;
+      background: #111;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .qte-target-zone {
+      position: absolute;
+      left: 55%;
+      width: 30%;
+      height: 100%;
+      background: rgba(29, 158, 117, 0.3);
+      border-left: 2px solid var(--accent-teal);
+      border-right: 2px solid var(--accent-teal);
+    }
+
+    .qte-indicator {
+      height: 100%;
+      width: 50%;
+      background: var(--accent-blue);
+      transition: width 0.05s linear;
+    }
+
+    .qte-hint {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .qte-press-btn {
+      background: var(--accent-blue);
+      border: none;
+      color: white;
+      padding: 12px 32px;
+      border-radius: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .qte-press-btn:active {
+      transform: scale(0.95);
+      background: #256bb8;
+    }
+
+    .hidden { display: none !important; }
+
+    .result-screen {
+      text-align: center;
+      padding: 40px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .result-icon {
+      font-size: 64px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="game-container">
+    <div class="game-header">
+      <div class="game-title">
+        <span>千面人：潜伏与审讯</span>
+        <span class="tag">GODOT DEMO PROTOTYPE</span>
+      </div>
+      <div class="phase-badge" id="phaseBadge">阶段一：伪装与穿搭设置</div>
+    </div>
+
+    <div class="main-stage">
+
+      <!-- STAGE 1: PREPARATION & DISGUISE -->
+      <div id="prepStage" class="setup-grid">
+        <div class="panel-box">
+          <div class="panel-title">1. 目标身份与生理缺陷</div>
+          <div class="defect-card">
+            <strong>⚠️ 伪装漏洞 (Body Defect)：</strong><br>
+            你的右手背拥有不可消除的【黑帮血蛇刺青】。如果直接暴露，审讯官会立刻抓捕你！
+          </div>
+
+          <div class="form-group">
+            <label>全身骨架与体型调整（与档案是否吻合）：</label>
+            <select id="buildSelect" onchange="updatePrepEvaluation()">
+              <option value="match">纤细高挑 · 与「香料商人罗兰」档案完全吻合</option>
+              <option value="bulky">魁梧壮硕 · 与档案体型冲突，易引发盘问</option>
+              <option value="slim">瘦弱矮小 · 与档案体型冲突，易引发盘问</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>选用服装（遮挡缺陷策略）：</label>
+            <select id="clothingSelect" onchange="updatePrepEvaluation()">
+              <option value="gloves">高级皮质长手套 (完全遮挡手背刺青)</option>
+              <option value="lace">蕾丝露指短手套 (半遮挡，暴露刺青边缘)</option>
+              <option value="shirt">卷袖细纹衬衫 (完全暴露手背刺青)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>佩戴金属穿环（视觉转移策略）：</label>
+            <select id="piercingSelect" onchange="updatePrepEvaluation()">
+              <option value="diamond_ear">左耳璀璨闪钻环 (强效吸引对方视觉焦点)</option>
+              <option value="lip_ring">哥特风黑色唇环 (中等转移焦点)</option>
+              <option value="none">不佩戴任何穿环饰品 (无转移效应)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="panel-box">
+          <div class="panel-title">2. 伪造档案背书与评估</div>
+          <div style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+            <strong>已知伪造背景：</strong><br>
+            • 身份：寒霜港香料商人·罗兰<br>
+            • 路线：经黑石山脉前往公爵府<br>
+            • 伤疤掩饰理由：童年时在香料工坊不慎烫伤
+          </div>
+
+          <div class="status-summary" id="prepStatusText">
+            加载评估中...
+          </div>
+
+          <button class="btn-primary" onclick="startInterrogation()">开始对质与高压审讯 ➔</button>
+        </div>
+      </div>
+
+      <!-- STAGE 2: INTERROGATION & QTE -->
+      <div id="interrogationStage" class="hidden">
+        <div class="suspicion-bar-container">
+          <div class="suspicion-label">审讯官怀疑度：</div>
+          <div class="progress-track">
+            <div class="progress-fill" id="suspicionFill"></div>
+          </div>
+          <div class="suspicion-val" id="suspicionText">20%</div>
+        </div>
+
+        <div class="interrogation-layout" style="margin-top: 16px;">
+          <div class="inspector-avatar-box">
+            <div class="inspector-face">
+              🧐
+              <div class="focus-ring"></div>
+            </div>
+            <div style="font-size: 14px; font-weight: bold;">帝国高管·莫兰</div>
+            <div style="font-size: 12px; color: var(--text-muted);" id="inspectorFocusTag">目光焦点：面部表情</div>
+          </div>
+
+          <div class="dialogue-box">
+            <div id="questionTag" class="question-tag tag-scripted">常规档案审核</div>
+            <div id="dialogueText" class="dialogue-text">“罗兰先生，根据通关登记，你是从寒霜港来的香料商人？”</div>
+
+            <div class="options-list" id="optionsContainer">
+              <!-- Options populated by JS -->
+            </div>
+
+            <!-- QTE MODAL -->
+            <div id="qteModal" class="qte-modal hidden">
+              <div class="qte-title">⚠️ 微表情控制 QTE (Expression Control)</div>
+              <div style="font-size: 13px; color: #ccc; text-align: center;">
+                对方正在死死盯住你的脸！连续按压/按住按钮或按 [空格键]，将镇定条维持在<span style="color:var(--accent-teal)">绿色目标区间</span>！
+              </div>
+              <div class="qte-track">
+                <div class="qte-target-zone"></div>
+                <div class="qte-indicator" id="qteBarFill"></div>
+              </div>
+              <div id="qteTimerText" class="qte-hint">剩余时间: 4.0s</div>
+              <button class="qte-press-btn" id="qteBtn" onmousedown="boostQTE()" onclick="boostQTE()">点击/按住 压制心跳</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESULT STAGE -->
+      <div id="resultStage" class="result-screen hidden">
+        <div class="result-icon" id="resultIcon">🎉</div>
+        <h2 id="resultTitle" style="font-size: 22px;">潜伏成功！</h2>
+        <p id="resultDesc" style="color: var(--text-muted); max-width: 500px; line-height: 1.6;"></p>
+        <button class="btn-primary" onclick="resetGame()">重新开始实验 Demo</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // GAME STATE
+    let state = {
+      build: 'match',
+      clothing: 'gloves',
+      piercing: 'diamond_ear',
+      isCovered: true,
+      distractionPower: 0.4,
+      suspicion: 20,
+      currentQuestion: 0,
+      qteActive: false,
+      qteVal: 50,
+      qteTimer: 4.0,
+      qteInterval: null,
+      pendingSuspicionOnFail: 20
+    };
+
+    const questions = [
+      {
+        tagClass: 'tag-scripted',
+        tagText: '常规档案背书',
+        dialogue: '审讯官莫兰（推了推单片眼镜）：“罗兰先生，根据通关登记，你是从寒霜港来的香料商人？”',
+        options: [
+          { text: 'A. 是的，寒霜港正是我经营多年的根据地。(符合已知档案)', suspicionChange: -5, needQTE: true },
+          { text: 'B. 呃……其实我中途在黑石山脉待过很久。(引发不确定)', suspicionChange: 15, needQTE: true },
+          { text: 'C. 关你什么事？快放我过去！(态度极其恶劣)', suspicionChange: 35, needQTE: false }
+        ]
+      },
+      {
+        tagClass: 'tag-unscripted',
+        tagText: '⚠️ 突发超纲提问！',
+        dialogue: '审讯官莫兰（眼神骤变，猛地按住桌面）：“你的右手套为什么一直死死戴着？摘下来让我检查手背！”',
+        options: [
+          {
+            text: 'A. 顺着档案编造：“童年在工坊不慎烫伤，皮肤狰狞不便示人。”',
+            action: () => handleGloveQuestion()
+          },
+          {
+            text: 'B. 主动展示金属穿环：“长官对手套感兴趣？不如看看我左耳这颗矿山原石？”',
+            action: () => handlePiercingDistract()
+          },
+          {
+            text: 'C. 强行保持沉默，眼神冷酷对视，用表情与威压硬抗。(高难QTE)',
+            action: () => startQTE(30)
+          }
+        ]
+      },
+      {
+        tagClass: 'tag-unscripted',
+        tagText: '⚠️ 突发超纲提问！',
+        dialogue: '审讯官莫兰（紧盯你的面部）：“刚才提到烫伤时，你的瞳孔瞬间放大，嘴角还抽搐了一下！你在撒谎！”',
+        options: [
+          {
+            text: 'A. 【眼神直视QTE】毫不退缩，长按按键压制心率与表情，打消对方疑虑。',
+            action: () => startQTE(25)
+          },
+          {
+            text: 'B. 慌张地试图后退并辩解。(极度可疑)',
+            action: () => addSuspicion(35, "慌张解释暴露了破绽！")
+          },
+          {
+            text: 'C. 故意偏头展示穿环反光晃对方眼睛：“长官，您眼花了吧？”',
+            action: () => {
+              let bonus = Math.round(state.distractionPower * 20);
+              addSuspicion(5 - bonus, "借穿环光泽成功化解尴尬");
+            }
+          }
+        ]
+      }
+    ];
+
+    function updatePrepEvaluation() {
+      state.build = document.getElementById('buildSelect').value;
+      state.clothing = document.getElementById('clothingSelect').value;
+      state.piercing = document.getElementById('piercingSelect').value;
+
+      state.isCovered = (state.clothing === 'gloves');
+
+      if (state.piercing === 'diamond_ear') state.distractionPower = 0.5;
+      else if (state.piercing === 'lip_ring') state.distractionPower = 0.3;
+      else state.distractionPower = 0.0;
+
+      const buildPenalty = state.build === 'match' ? 0 : 10;
+
+      const statusBox = document.getElementById('prepStatusText');
+      statusBox.innerHTML = `
+        <strong>【预判评估】</strong><br>
+        • 体型吻合度: ${state.build === 'match' ? '<span style="color:#1d9e75">✅ 与档案吻合</span>' : '<span style="color:#e24b4a">❌ 与档案冲突 (+' + buildPenalty + '% 初始怀疑)</span>'}<br>
+        • 缺陷遮挡状态: ${state.isCovered ? '<span style="color:#1d9e75">✅ 完全掩盖 (皮手套)</span>' : '<span style="color:#e24b4a">❌ 风险暴露 (无法掩盖刺青)</span>'}<br>
+        • 饰品视觉转移吸引力: <span style="color:#ef9f27">${Math.round(state.distractionPower * 100)}%</span><br>
+        • 初始怀疑度: <strong>${20 + buildPenalty}%</strong>
+      `;
+    }
+
+    function startInterrogation() {
+      document.getElementById('prepStage').classList.add('hidden');
+      document.getElementById('interrogationStage').classList.remove('hidden');
+      document.getElementById('phaseBadge').innerText = '阶段二：高压对质与微表情QTE';
+
+      state.suspicion = 20 + (state.build === 'match' ? 0 : 10);
+      state.currentQuestion = 0;
+      updateSuspicionUI();
+      loadQuestion(0);
+    }
+
+    function loadQuestion(idx) {
+      if (idx >= questions.length) {
+        finishGame();
+        return;
+      }
+
+      const q = questions[idx];
+      const tagEl = document.getElementById('questionTag');
+      tagEl.className = `question-tag ${q.tagClass}`;
+      tagEl.innerText = q.tagText;
+
+      document.getElementById('dialogueText').innerText = q.dialogue;
+
+      const optsContainer = document.getElementById('optionsContainer');
+      optsContainer.innerHTML = '';
+
+      q.options.forEach((opt, oIdx) => {
+        const btn = document.createElement('button');
+        btn.className = 'opt-btn';
+        btn.innerText = opt.text;
+        btn.onclick = () => {
+          if (opt.action) {
+            opt.action();
+          } else {
+            addSuspicion(opt.suspicionChange);
+            if (opt.needQTE) {
+              startQTE(15);
+            } else {
+              nextQuestion();
+            }
+          }
+        };
+        optsContainer.appendChild(btn);
+      });
+    }
+
+    function handleGloveQuestion() {
+      if (state.isCovered) {
+        document.getElementById('dialogueText').innerText = "你平静地展示了厚皮手套，由于皮革厚实无破损，刺青被完美隐藏，审讯官未能发现异常。";
+        addSuspicion(5);
+        startQTE(15);
+      } else {
+        document.getElementById('dialogueText').innerText = "由于你未穿戴长手套，审讯官逼迫你伸出手臂，刺青直接暴露无遗！";
+        addSuspicion(50);
+        setTimeout(nextQuestion, 2000);
+      }
+    }
+
+    function handlePiercingDistract() {
+      const reduction = Math.round(state.distractionPower * 30);
+      document.getElementById('dialogueText').innerText = `你侧头展示耳环/唇环，璀璨的光泽成功把审讯官莫兰的注意力从手套拉到了饰品上！怀疑度下降了 ${reduction}%！`;
+      addSuspicion(-reduction);
+      startQTE(10);
+    }
+
+    function addSuspicion(val, msg) {
+      state.suspicion = Math.max(0, Math.min(100, state.suspicion + val));
+      updateSuspicionUI();
+
+      if (state.suspicion >= 100) {
+        finishGame(true);
+      }
+    }
+
+    function updateSuspicionUI() {
+      document.getElementById('suspicionFill').style.width = state.suspicion + '%';
+      document.getElementById('suspicionText').innerText = state.suspicion + '%';
+    }
+
+    // QTE SYSTEM
+    function startQTE(failPenalty) {
+      state.pendingSuspicionOnFail = failPenalty;
+      state.qteVal = 30;
+      state.qteTimer = 4.0;
+      state.qteActive = true;
+
+      document.getElementById('qteModal').classList.remove('hidden');
+
+      if (state.qteInterval) clearInterval(state.qteInterval);
+
+      state.qteInterval = setInterval(() => {
+        state.qteTimer -= 0.1;
+        state.qteVal = Math.max(0, state.qteVal - 3.0); // decay
+
+        document.getElementById('qteBarFill').style.width = state.qteVal + '%';
+        document.getElementById('qteTimerText').innerText = `剩余时间: ${state.qteTimer.toFixed(1)}s`;
+
+        if (state.qteTimer <= 0) {
+          endQTE();
+        }
+      }, 100);
+    }
+
+    function boostQTE() {
+      if (!state.qteActive) return;
+      state.qteVal = Math.min(100, state.qteVal + 12);
+      document.getElementById('qteBarFill').style.width = state.qteVal + '%';
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && state.qteActive) {
+        e.preventDefault();
+        boostQTE();
+      }
+    });
+
+    function endQTE() {
+      state.qteActive = false;
+      clearInterval(state.qteInterval);
+      document.getElementById('qteModal').classList.add('hidden');
+
+      // Check if within target zone (55% ~ 85%)
+      if (state.qteVal >= 50 && state.qteVal <= 90) {
+        document.getElementById('dialogueText').innerText = "【QTE 完美压制】你眼神冷酷如冰，心率平稳，表情毫无破绽！审讯官移开了目光。";
+        addSuspicion(-10);
+      } else {
+        document.getElementById('dialogueText').innerText = "【QTE 失败】你的眼神闪烁，表情抽搐暴露了慌张！审讯官的怀疑度大幅上升！";
+        addSuspicion(state.pendingSuspicionOnFail);
+      }
+
+      setTimeout(nextQuestion, 2200);
+    }
+
+    function nextQuestion() {
+      state.currentQuestion++;
+      loadQuestion(state.currentQuestion);
+    }
+
+    function finishGame(forcedFail = false) {
+      document.getElementById('interrogationStage').classList.add('hidden');
+      document.getElementById('resultStage').classList.remove('hidden');
+
+      const title = document.getElementById('resultTitle');
+      const desc = document.getElementById('resultDesc');
+      const icon = document.getElementById('resultIcon');
+
+      if (forcedFail || state.suspicion >= 60) {
+        icon.innerText = '🚨';
+        title.innerText = '伪装被识破 - 潜伏失败！';
+        title.style.color = '#e24b4a';
+        desc.innerText = `最终怀疑度到达 ${state.suspicion}%。帝国审讯官莫兰看穿了你的身份与表情破绽，守卫拥而上将你扣押！`;
+      } else {
+        icon.innerText = '🎭';
+        title.innerText = '完美伪装 - 潜伏成功！';
+        title.style.color = '#1d9e75';
+        desc.innerText = `最终怀疑度仅为 ${state.suspicion}%。凭借高超的服饰缺陷掩盖、金属饰品的视觉焦点转移以及无懈可击的微表情控制，你顺利通过了公爵府高压审讯！`;
+      }
+    }
+
+    function resetGame() {
+      document.getElementById('resultStage').classList.add('hidden');
+      document.getElementById('prepStage').classList.remove('hidden');
+      document.getElementById('phaseBadge').innerText = '阶段一：伪装与穿搭设置';
+      updatePrepEvaluation();
+    }
+
+    // Init
+    updatePrepEvaluation();
+  </script>
+</body>
+</html>

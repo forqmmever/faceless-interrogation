@@ -1475,6 +1475,9 @@ const EXCLUSIVE_GROUPS := [
 ## 目录结构
 
 ```
+CHANGELOG.md             # ★ 变更日志：每一轮改了什么（一句话级别，给人扫的）
+README.md                # 本文件：设计叙事 + 机制说明 + 数值表 + 踩坑清单
+.gitignore               # 排除 .godot 导入缓存（11MB）与临时文件
 project.godot            # Godot 4 项目配置（Autoload: GameData / OutfitData / ScenarioData / ProfileData / RunData / DossierData / RunSave）
 icon.svg                 # 项目图标
 scenes/
@@ -1901,6 +1904,26 @@ AU 的 4 款发型共用同一个发色（A 是同一个人），定义在 `dol_
 Godot：D:\WorkBuddy\godot\Godot_v4.3-stable_win64.exe
 ```
 
+## 变更记录与版本控制
+
+**每一轮改了什么 → 看 `CHANGELOG.md`**（一句话级别）。**为什么这么改、踩了什么坑 → 看本文件对应的轮次章节。**
+实现的细节过程（诊断数据、临时结论）在 `.workbuddy-ai/memory/`。
+
+项目从**第二十九轮末**起纳入 git：
+
+```bash
+git log --oneline            # 看每一轮
+git show <hash>              # 看某一轮具体改了哪些文件
+git diff HEAD~1 -- README.md # 只看 README 改了什么
+```
+
+> **为什么用 git 而不是手动备份 README**：README 已经 200KB+，
+> 手动存快照只能防「写坏」，防不了「想回退某次改动」，也没有 diff。
+> git 一次解决备份 + 历史 + 比对 + 回退，而且 `.git` 只有 6MB。
+>
+> **一轮一提交**：每轮做完，更新 `CHANGELOG.md` 之后提交一次，
+> 提交信息就用那一节的第一行。
+
 ## 运行方式
 
 ### 最省事：双击启动器
@@ -1935,7 +1958,7 @@ PROJ="D:/WorkBuddy/2026-10-11-09-19-59"
 # 真实渲染并抓取各阶段截图到 screenshots/（42 张，约 4 分钟）
 "$GODOT" --fixed-fps 60 --path "$PROJ" res://tests/Screenshot.tscn
 
-# 文本编辑器冒烟测试（151 项，需要 node）
+# 文本编辑器冒烟测试（160 项，需要 node）
 node tools/editor_smoke.js
 
 # 手机编辑器冒烟测试（97 项，需要 node；先刷一遍内置快照）

@@ -623,7 +623,10 @@ func _stage_size() -> Vector2:
 	return DolDoll.fit_size(STAGE_BOX)
 
 	var m_cnt := model.matching_slots().size()
-	var slot_total := OutfitData.active_slots().size()
+	# ★ 第三十九轮：分母必须与 `matching_slots()` 同口径。
+	#   那个函数现在走 `auto_slots()`（不含「妙妙工具」那一栏）——
+	#   分母要是还用 active_slots()，就会印出「13 / 14 处仍一致」这种自相矛盾的数字。
+	var slot_total := OutfitData.auto_slots().size()
 	if _peeking:
 		peek_hint.text = "「A」的原貌 —— 审讯官记忆里的你
 还有 %d 处没改" % m_cnt
@@ -643,6 +646,17 @@ func _tip_for(it: Dictionary, locked: bool, affordable: bool) -> String:
 	var tip := "%s\n暴露值 %d ｜ 需接受度 %d" % [
 		it["name"], it["exposure"], it["acceptance_req"]]
 	var slot: String = it["slot"]
+	# ★ 第三十九轮：妙妙工具（只能手动装备的一栏）。
+	#   它没有原貌、不进任何数值统计，所以上面那行「暴露值 / 接受度」对它意义不大，
+	#   但照旧印出来（都是 0，玩家一眼就知道它不占预算）。这里补两行：
+	#   · 物品自己的**介绍**（ITEMS 里的 `desc` 字段，用户口径「介绍为喵什么错都没有」）
+	#   · 这一栏的机制说明 —— 免得玩家以为它是个普通饰品
+	if OutfitData.is_manual_slot(slot):
+		var d := str(it.get("desc", ""))
+		if d != "":
+			tip += "\n" + d
+		tip += "\n（妙妙工具 —— 只能手动装备，不参与原貌与反差值计算）"
+		return tip
 	# ★ 第二十二轮（第三十六轮扩到纹身）：受门控的件 —— 只有「看得见」时才算数值。
 	#   不写出来的话，读数跟量表对不上，玩家会以为出 bug 了。
 	if OutfitData.is_gated_item(it) and not model.item_counts(slot, str(it["id"])):
@@ -690,7 +704,16 @@ func _refresh_buttons() -> void:
 		var bar: ColorRect = lab.get_meta("bar") if lab != null else null
 		if lab != null:
 			var base := str(OutfitData.SLOT_NAMES.get(slot, slot))
-			if not _slot_revealed(slot):
+			# ★ 第三十九轮：妙妙工具（只能手动装备的一栏）**没有原貌可比** ——
+			#   所以既不给它「? 原貌未知」（它不是「还没查到」，是压根不参与），
+			#   也不给「仍与 A 一致 / 已偏离原貌」（那两个说法对它都没有意义）。
+			if OutfitData.is_manual_slot(slot):
+				lab.text = base
+				lab.add_theme_color_override("font_color", Color(0.74, 0.68, 0.94))
+				lab.tooltip_text = "妙妙工具 —— 只能手动装备，不参与原貌与反差值计算"
+				if bar != null:
+					bar.color = Color(0.60, 0.54, 0.82)
+			elif not _slot_revealed(slot):
 				lab.text = base + " ?"
 				lab.add_theme_color_override("font_color", Color(0.50, 0.53, 0.58))
 				lab.tooltip_text = "原貌未知 —— 你还没查到他在这个部位的样子"
@@ -889,5 +912,14 @@ func sync_outfit_verdict() -> void:
 	GameData.defects_covered = model.exposed_defects().is_empty()
 	GameData.uncovered_defects = model.exposed_defects()
 	GameData.acceptance = model.acceptance
+	# ★ 第三十九轮：把「这一关实际携带的妙妙工具」交给 GameData —— 阶段二要用它。
+	#   妙妙工具（OutfitData.MANUAL_SLOTS）是**手动装备**的一栏，不进任何数值统计，
+	#   所以这里只把它的实体件 id 报出去（空件「（不携带）」不算）。
+	#   遍历 MANUAL_SLOTS 而不是写死 "tool" —— 以后这一栏加槽位不用改这里。
+	var tools: Array = []
+	for ms in OutfitData.MANUAL_SLOTS:
+		for tid in model.solid_ids(str(ms)):
+			tools.append(str(tid))
+	GameData.carried_tools = tools
 	# ★ 不锁按钮：赌不赌由你决定。
 	continue_btn.disabled = false

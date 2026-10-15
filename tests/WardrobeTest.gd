@@ -41,6 +41,7 @@ func _ready() -> void:
 
 	_test_slots()
 	_test_disabled_slots()
+	_test_manual_slot_tool()
 	_test_underwear_gate()
 	_test_tattoo_multi()
 	_test_true_pool()
@@ -77,9 +78,10 @@ func _test_slots() -> void:
 	print("\n-- 槽位体系（移植自 WTS）--")
 	var m := WardrobeModel.new(OutfitData)
 	# ★ 第三十七轮：吊袜带整栏并入袜类，槽位 19 → 18
-	_check("槽位数量为 18", OutfitData.SLOT_ORDER.size() == 18)
-	_check("绘制顺序槽位数一致", OutfitData.PREVIEW_ORDER.size() == 18)
-	_check("zorder 表覆盖全部槽位", OutfitData.SLOT_ZORDER.size() == 18)
+	# ★ 第三十九轮：新增「妙妙工具」一栏，18 → 19
+	_check("槽位数量为 19", OutfitData.SLOT_ORDER.size() == 19)
+	_check("绘制顺序槽位数一致", OutfitData.PREVIEW_ORDER.size() == 19)
+	_check("zorder 表覆盖全部槽位", OutfitData.SLOT_ZORDER.size() == 19)
 	_check("已无 garterbelt 槽位（并入袜类）", not OutfitData.SLOT_ORDER.has("garterbelt"))
 	_check("garterbelt 不在绘制顺序里", not OutfitData.PREVIEW_ORDER.has("garterbelt"))
 	_check("garterbelt 不在 zorder 表里", not OutfitData.SLOT_ZORDER.has("garterbelt"))
@@ -89,6 +91,10 @@ func _test_slots() -> void:
 	_check("含 gloves 手套槽位", OutfitData.SLOT_ORDER.has("gloves"))
 	_check("含 headgear 头饰槽位", OutfitData.SLOT_ORDER.has("headgear"))
 	_check("含 dress 整件式槽位（第二十六轮新增）", OutfitData.SLOT_ORDER.has("dress"))
+	_check("★ 含 tool 妙妙工具槽位（第三十九轮新增）", OutfitData.SLOT_ORDER.has("tool"))
+	_check("★ 妙妙工具排在最后（界面上在服装最下面）",
+		OutfitData.SLOT_ORDER[OutfitData.SLOT_ORDER.size() - 1] == "tool")
+	_check("★ 妙妙工具也在绘制顺序里", OutfitData.PREVIEW_ORDER.has("tool"))
 	_check("绘制顺序按 zorder 递增", _zorder_sorted())
 	_check("每个槽位至少 2 件物品", _every_slot_has_items())
 	_check("每个槽位都有默认装备定义", _every_slot_has_default())
@@ -111,6 +117,16 @@ func _test_slots() -> void:
 		and tattoo_ids.has("tattoo_slave") and tattoo_ids.has("tattoo_cumrag"))
 	_check("★ 每件纹身都写了目击描述（第三十五 / 三十六轮补齐）",
 		_tattoo_desc_ok())
+
+	# ★ 第三十九轮：从 AU `clothes/genitals/` 引入的平坦贞操笼
+	#   （用户口径「引入平坦贞操笼放在下内衣，暴露度取最高」）
+	_check("含平坦贞操笼（第三十九轮引入）",
+		not OutfitData.get_item("panties_flatcage").is_empty())
+	_check("平坦贞操笼挂在下内衣槽",
+		str(OutfitData.get_item("panties_flatcage").get("slot", "")) == "panties")
+	_check("平坦贞操笼的暴露值 = 下内衣这一栏的最高档",
+		int(OutfitData.get_item("panties_flatcage").get("exposure", -1))
+		== _max_exposure_of("panties"))
 
 # ------------------------------------------------------------
 #  内衣内裤的曝光门控（第二十二轮）
@@ -524,11 +540,129 @@ func _photos_exclude_disabled() -> bool:
 	return true
 
 # ------------------------------------------------------------
+#  妙妙工具（MANUAL_SLOTS，第三十九轮）
+#
+#  用户口径：「在服装最下面新增一栏名称为妙妙工具，此栏专门为减少换装环节难度的
+#            设置的，只能手动装备，调试计算反差值时请不要使用」。
+#
+#  契约与 DISABLED_SLOTS **恰好相反** ——
+#    下架 = 玩家**看不到**（界面 / 原貌 / 情报 / 相册 / 强制池全跳过）
+#    手动 = 玩家**看得到、点得到**，但**系统从不代劳**：
+#      · 界面能看到它（active_slots 含它）
+#      · 不进原貌 / 情报 / 相册 / 强制池 / 一键达标
+#      · 不进「与原貌一致 / 已改掉 / 相似度」这些统计 → 也就不影响反差值口径
+# ------------------------------------------------------------
+func _test_manual_slot_tool() -> void:
+	print("\n-- 妙妙工具（只能手动装备的一栏）--")
+	_check("MANUAL_SLOTS 目前只有 tool 一栏",
+		OutfitData.MANUAL_SLOTS.size() == 1 and OutfitData.MANUAL_SLOTS.has("tool"))
+	_check("is_manual_slot() 语义正确",
+		OutfitData.is_manual_slot("tool") and not OutfitData.is_manual_slot("top"))
+	_check("妙妙工具在界面可见槽位里（active_slots）",
+		OutfitData.active_slots().has("tool"))
+	_check("auto_slots() = active_slots() 去掉 MANUAL_SLOTS",
+		OutfitData.auto_slots().size() == OutfitData.active_slots().size() - 1
+		and not OutfitData.auto_slots().has("tool"))
+	_check("槽位中文名是「妙妙工具」",
+		str(OutfitData.SLOT_NAMES.get("tool", "")) == "妙妙工具")
+
+	var tool_ids := []
+	for it in OutfitData.get_items_for_slot("tool"):
+		tool_ids.append(str(it["id"]))
+	_check("妙妙工具有 2 件（空件 + 尼古喵尾）", tool_ids.size() == 2)
+	_check("空件 tool_none 是「（不携带）」且标了 bare",
+		OutfitData.is_bare(OutfitData.get_item("tool_none")))
+	_check("尼古喵尾的名字与介绍都是用户口径那两句",
+		str(OutfitData.get_item("tool_tail").get("name", "")) == "尼古喵尾"
+		and str(OutfitData.get_item("tool_tail").get("desc", "")) == "喵什么错都没有")
+	_check("尼古喵尾不吃暴露值预算（带与不带都不影响暴露值）",
+		int(OutfitData.get_item("tool_tail").get("exposure", -1)) == 0)
+	_check("默认装备是「不携带」（系统不主动送）", _manual_default_is_bare())
+	_check("妙妙工具不进强制装备池", _manual_excluded_from_forced())
+	_check("每局原貌不含妙妙工具", _manual_excluded_from_true())
+	_check("每局情报不含妙妙工具", _manual_excluded_from_clues())
+	_check("每局相册不含妙妙工具", _manual_excluded_from_photos())
+	_check("「与原貌一致 / 已改掉」统计不含妙妙工具", _manual_excluded_from_matching())
+	_check("一键达标不会替玩家装 / 脱妙妙工具", _manual_excluded_from_auto())
+
+func _manual_default_is_bare() -> bool:
+	ProfileData.reset_all()
+	RunData.start_new_run(1)
+	var m := WardrobeModel.new(OutfitData, RunData.true_appearance(), OutfitData.LEVELS)
+	return OutfitData.is_bare(OutfitData.get_item(str(m.equipped.get("tool", ""))))
+
+func _manual_excluded_from_forced() -> bool:
+	for acc in [0, 6, 12, 24, 40]:
+		for it in OutfitData.forced_pool(acc):
+			if OutfitData.is_manual_slot(str(it.get("slot", ""))):
+				return false
+	return true
+
+func _manual_excluded_from_true() -> bool:
+	for s in range(1, 8):
+		ProfileData.reset_all()
+		RunData.start_new_run(s)
+		for slot in RunData.true_appearance().keys():
+			if OutfitData.is_manual_slot(str(slot)):
+				return false
+	return true
+
+func _manual_excluded_from_clues() -> bool:
+	for s in range(1, 8):
+		ProfileData.reset_all()
+		RunData.start_new_run(s)
+		for c in RunData.clues:
+			if OutfitData.is_manual_slot(str((c as Dictionary).get("slot", ""))):
+				return false
+	return true
+
+func _manual_excluded_from_photos() -> bool:
+	for s in range(1, 8):
+		ProfileData.reset_all()
+		RunData.start_new_run(s)
+		for p in RunData.photos:
+			if OutfitData.is_manual_slot(str((p as Dictionary).get("slot", ""))):
+				return false
+	return true
+
+func _manual_excluded_from_matching() -> bool:
+	ProfileData.reset_all()
+	RunData.start_new_run(3)
+	var m := WardrobeModel.new(OutfitData, RunData.true_appearance(), OutfitData.LEVELS)
+	if m.matching_slots().has("tool") or m.changed_slots().has("tool"):
+		return false
+	# 相似度的分母也必须是 auto_slots（不含妙妙工具），否则口径与分子对不上
+	var hit := 0
+	for s in OutfitData.auto_slots():
+		if m.matching_slots().has(s):
+			hit += 1
+	return is_equal_approx(m.resemblance(),
+		float(hit) / float(OutfitData.auto_slots().size()))
+
+func _manual_excluded_from_auto() -> bool:
+	# 先**手动**装上尼古喵尾，再点一键达标 —— 它必须原样留在身上
+	ProfileData.reset_all()
+	RunData.start_new_run(5)
+	var m := WardrobeModel.new(OutfitData, RunData.true_appearance(), OutfitData.LEVELS)
+	m.reset_for_level(RunData.acceptance_at(0), 0, RunData.true_appearance(), [])
+	if not m.equip(OutfitData.get_item("tool_tail")):
+		return false
+	m.auto_complete_outfit()
+	return str(m.item_at("tool").get("id", "")) == "tool_tail"
+
+# 某一栏里最高的暴露值（第三十九轮：核对「平坦贞操笼的暴露度取最高」）
+func _max_exposure_of(slot: String) -> int:
+	var mx := -999
+	for it in OutfitData.get_items_for_slot(slot):
+		mx = maxi(mx, int(it.get("exposure", 0)))
+	return mx
+
+# ------------------------------------------------------------
 #  原貌候选池（多轮制的基础）
 # ------------------------------------------------------------
 func _test_true_pool() -> void:
 	print("\n-- 原貌候选池 TRUE_POOL --")
-	_check("候选池覆盖全部 %d 个槽位" % OutfitData.active_slots().size(),
+	_check("候选池覆盖全部 %d 个槽位" % OutfitData.auto_slots().size(),
 		_pool_covers_all_slots())
 	_check("池内物品 id 全部存在", _pool_items_resolve())
 	_check("池内物品都属于它所在的槽位", _pool_slots_match())
@@ -672,7 +806,7 @@ func _test_run_randomization() -> void:
 	_check("多种子能生成多种原貌", apps.size() >= 20)
 
 	print("\n-- 随机原貌的合法性 --")
-	var n_slots := OutfitData.active_slots().size()
+	var n_slots := OutfitData.auto_slots().size()
 	var all_slots_ok := true
 	var exposure_ok := true
 	var pool_ok := true
@@ -684,7 +818,7 @@ func _test_run_randomization() -> void:
 		if ta.size() != n_slots:
 			all_slots_ok = false
 		var exp := 0
-		for slot in OutfitData.active_slots():
+		for slot in OutfitData.auto_slots():
 			var id := str(ta.get(slot, ""))
 			var pool: Array = OutfitData.TRUE_POOL.get(slot, [])
 			# ★ 第二十七轮：成装与上装 / 下装互斥之后，`dress` 这一池**只放空件**
@@ -709,7 +843,7 @@ func _test_run_randomization() -> void:
 	print("\n-- 外貌情报必须与本局原貌一致 --")
 	RunData.start_new_run(7)
 	var mismatch := 0
-	for slot in OutfitData.active_slots():
+	for slot in OutfitData.auto_slots():
 		var clue := DossierData.clue_for_slot(slot)
 		if clue.is_empty():
 			mismatch += 1
@@ -892,7 +1026,7 @@ func _test_model_basics() -> void:
 	var m := WardrobeModel.new(OutfitData)
 	_check("初始接受度为 0", m.acceptance == 0)
 	_check("模型使用了默认原貌", _dict_eq(m.true_appearance, OutfitData.TRUE_APPEARANCE))
-	_check("开局即 A 的原貌", m.matching_slots().size() == OutfitData.active_slots().size())
+	_check("开局即 A 的原貌", m.matching_slots().size() == OutfitData.auto_slots().size())
 	_check("开局反差值为 0（一眼就会被认出）", m.total_contrast() == 0)
 	_check("开局相似度为 1.0", is_equal_approx(m.resemblance(), 1.0))
 	_check("原貌本身已遮住全部缺陷", m.exposed_defects().is_empty())
@@ -909,7 +1043,7 @@ func _test_model_basics() -> void:
 	}
 	var mc := WardrobeModel.new(OutfitData, custom)
 	_check("自定义原貌下开局仍是 0 反差", mc.total_contrast() == 0)
-	_check("自定义原貌被完整套用", mc.matching_slots().size() == OutfitData.active_slots().size())
+	_check("自定义原貌被完整套用", mc.matching_slots().size() == OutfitData.auto_slots().size())
 	_check("自定义原貌下短袖+空脖子 → 两处缺陷都暴露", mc.exposed_defects().size() == 2)
 	_check("换上高领长袖后两处缺陷一起遮住",
 		_try_equip(mc, "top_highneck") and mc.exposed_defects().is_empty())
@@ -2177,12 +2311,18 @@ func _every_slot_has_items() -> bool:
 
 func _every_slot_has_default() -> bool:
 	for slot in OutfitData.SLOT_ORDER:
+		# ★ 第三十九轮：妙妙工具**不在原貌表里** —— 它是玩家手动揣的道具，
+		#   默认值是「（不携带）」这个空件，由 `_equip_defaults()` 单独铺（见那里）。
+		if OutfitData.is_manual_slot(slot):
+			continue
 		if not OutfitData.DEFAULT_LOADOUT.has(slot):
 			return false
 	return true
 
 func _defaults_resolve() -> bool:
 	for slot in OutfitData.SLOT_ORDER:
+		if OutfitData.is_manual_slot(slot):
+			continue
 		var it := OutfitData.get_item(OutfitData.DEFAULT_LOADOUT.get(slot, ""))
 		if it.is_empty() or it["slot"] != slot:
 			return false
@@ -2203,7 +2343,7 @@ func _slots_valid() -> bool:
 	return true
 
 func _pool_covers_all_slots() -> bool:
-	for slot in OutfitData.active_slots():
+	for slot in OutfitData.auto_slots():
 		if not OutfitData.TRUE_POOL.has(slot):
 			print("      pool missing slot: ", slot)
 			return false
@@ -2211,6 +2351,9 @@ func _pool_covers_all_slots() -> bool:
 
 func _pool_non_empty() -> bool:
 	for slot in OutfitData.SLOT_ORDER:
+		# ★ 第三十九轮：妙妙工具不在原貌相关的表里（它是玩家手动揣的道具），跳过
+		if OutfitData.is_manual_slot(slot):
+			continue
 		if (OutfitData.TRUE_POOL.get(slot, []) as Array).is_empty():
 			return false
 	return true
@@ -2261,6 +2404,9 @@ func _tattoo_desc_ok() -> bool:
 
 func _default_true_in_pool() -> bool:
 	for slot in OutfitData.SLOT_ORDER:
+		# ★ 第三十九轮：妙妙工具不在原貌相关的表里（它是玩家手动揣的道具），跳过
+		if OutfitData.is_manual_slot(slot):
+			continue
 		var id := str(OutfitData.TRUE_APPEARANCE.get(slot, ""))
 		if not (OutfitData.TRUE_POOL.get(slot, []) as Array).has(id):
 			print("      default true not in pool: ", slot, " -> ", id)
@@ -2293,6 +2439,9 @@ func _desc_matches_pool() -> bool:
 
 func _frame_covers_all_slots() -> bool:
 	for slot in OutfitData.SLOT_ORDER:
+		# ★ 第三十九轮：妙妙工具不在原貌相关的表里（它是玩家手动揣的道具），跳过
+		if OutfitData.is_manual_slot(slot):
+			continue
 		if not ScenarioData.CLUE_FRAME.has(slot):
 			print("      CLUE_FRAME missing: ", slot)
 			return false
@@ -2300,6 +2449,9 @@ func _frame_covers_all_slots() -> bool:
 
 func _sources_covers_all_slots() -> bool:
 	for slot in OutfitData.SLOT_ORDER:
+		# ★ 第三十九轮：妙妙工具不在原貌相关的表里（它是玩家手动揣的道具），跳过
+		if OutfitData.is_manual_slot(slot):
+			continue
 		if not ScenarioData.CLUE_SOURCES.has(slot):
 			print("      CLUE_SOURCES missing: ", slot)
 			return false
@@ -2307,6 +2459,9 @@ func _sources_covers_all_slots() -> bool:
 
 func _sources_enough() -> bool:
 	for slot in OutfitData.SLOT_ORDER:
+		# ★ 第三十九轮：妙妙工具不在原貌相关的表里（它是玩家手动揣的道具），跳过
+		if OutfitData.is_manual_slot(slot):
+			continue
 		if (ScenarioData.CLUE_SOURCES.get(slot, []) as Array).size() < 2:
 			return false
 	return true

@@ -40,6 +40,17 @@ var matching_slots_count: int = 0    # 仍与 A 原貌一致的槽位数
 var defects_covered: bool = false
 var uncovered_defects: Array = []
 
+# --- 妙妙工具（第三十九轮）---
+# 本关**实际携带**的妙妙工具物品 id（由 Wardrobe.sync_outfit_verdict() 写入）。
+# 这一栏是「只能手动装备」的：它不参与原貌 / 强制 / 一键达标 / 反差统计，
+# 唯一的作用是在盘问环节生效 —— 目前是「尼古喵尾」（装备时不再提高怀疑值）。
+# ★ 不携带时是空数组；判定一律走 has_any_tool() / carried_tool()，别直接比字符串。
+var carried_tools: Array = []
+
+# 身上有没有指定的妙妙工具
+func carried_tool(item_id: String) -> bool:
+	return carried_tools.has(item_id)
+
 # --- 换装判定结果 ---
 # 阶段一（准备室）**不再**替玩家下结论 —— 它只把「这身打扮算出来什么」写在这里，
 # 真正的审判发生在阶段二：门一开，审讯官抬眼的那一瞬间。
@@ -155,6 +166,9 @@ func reset_level_state() -> void:
 	uncovered_defects = []
 	outfit_passed = true
 	outfit_fail_reasons = []
+	# ★ 第三十九轮：妙妙工具是「准备室点完之后带进来的东西」，换关要重新确认，
+	#   所以这里清空 —— 界面层 `sync_outfit_verdict()` 会在每次确认换装时重写。
+	carried_tools = []
 
 func reset_game() -> void:
 	reset_run_state()

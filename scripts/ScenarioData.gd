@@ -2371,6 +2371,9 @@ func CATALOG_EXPORT() -> Dictionary:
 		"slot_names": OutfitData.SLOT_NAMES.duplicate(),
 		"active_slots": OutfitData.active_slots(),
 		"disabled_slots": OutfitData.DISABLED_SLOTS.duplicate(),
+		# ★ 第三十九轮：告诉编辑器哪些槽位是「只能手动装备」的（界面上看得到，
+		#   但不参与原貌 / 强制 / 一键达标 / 反差统计）。目前只有 tool 一栏。
+		"manual_slots": OutfitData.MANUAL_SLOTS.duplicate(),
 	}
 
 # 第 li 道题的 QTE 计划；没写这一道 → 返回空字典（调用方按「自动」处理）

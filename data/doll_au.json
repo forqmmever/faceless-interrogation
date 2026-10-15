@@ -901,6 +901,16 @@
     }
    ]
   },
+  "panties_flatcage": {
+   "icon": "icons/panties_flatcage.png",
+   "layers": [
+    {
+     "file": "clothes/panties_flatcage.png",
+     "name": "panties_flatcage",
+     "z": 67.0
+    }
+   ]
+  },
   "panties_gstring": {
    "icon": "icons/panties_gstring.png",
    "layers": [
@@ -1306,6 +1316,21 @@
     }
    ]
   },
+  "tool_none": {
+   "icon": "icons/tool_none.png",
+   "layers": [],
+   "z": 92.0
+  },
+  "tool_tail": {
+   "icon": "icons/tool_tail.png",
+   "layers": [
+    {
+     "file": "clothes/tool_tail.png",
+     "name": "tool_tail",
+     "z": 92.0
+    }
+   ]
+  },
   "top_bedsheet": {
    "icon": "icons/top_bedsheet.png",
    "layers": [
@@ -1595,6 +1620,7 @@
   "shoes": 85.0,
   "stockings": 66.6,
   "tattoo": 36.0,
+  "tool": 92.0,
   "top": 95.0
  }
 }

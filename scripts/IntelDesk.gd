@@ -63,7 +63,8 @@ func _fill_identity() -> void:
 
 func _fill_revealed() -> void:
 	revealed.clear()
-	for slot in OutfitData.active_slots():
+	# ★ 第三十九轮：走 auto_slots() —— 「妙妙工具」没有原貌可比，不该被标成「已还原」。
+	for slot in OutfitData.auto_slots():
 		revealed[slot] = true
 
 # ---------------- UI ----------------
@@ -299,7 +300,9 @@ func sync_to_gamedata() -> void:
 	GameData.dossier_total = DossierData.card_count()
 
 	var slots := []
-	for slot in OutfitData.active_slots():
+	# ★ 第三十九轮：同上 —— reached_slots 只统计「与原貌有关」的槽位，
+	#   妙妙工具不参与原貌比对，所以不进这张表（否则会白占一处「情报」）。
+	for slot in OutfitData.auto_slots():
 		if revealed.has(slot):
 			slots.append(slot)
 	GameData.revealed_slots = slots

@@ -357,6 +357,55 @@
   `-acc`（附属小件，23，`resolve()` 会滤）、`-cover`（8）、`-open`（5）。
 - 测试：本轮不动游戏代码，四套测试照跑一遍确认无回归。
 
+### 第 39 轮：新增「妙妙工具」一栏（尼古喵尾）+ 引入平坦贞操笼
+
+- 用户口径：「引入 back，在服装最下面新增一栏名称为妙妙工具，此栏专门为减少换装环节
+  难度的设置的，只能手动装备，调试计算反差值时请不要使用，引入的物品名称设定为尼古喵尾，
+  介绍为喵什么错都没有，效果装备时，无论选择什么选项都不会提高怀疑值，但是触发游戏结束的
+  选项依然会使游戏结束，引入平坦贞操笼放在下内衣，暴露度取最高」。
+- **新增槽位 `tool`（妙妙工具），排在最末** —— `SLOT_ORDER` / `PREVIEW_ORDER` /
+  `SLOT_NAMES` / `SLOT_ZORDER` 四处同步；槽位 **18 → 19**。
+  `SLOT_ZORDER["tool"] = 196`（WTS 值域里取「bottom 191 之上、top 211 之下」），
+  烘焙用 `SLOT_Z["tool"] = 92.0`（同一位次），尾巴压在下装之上、上装之下。
+- **新增 `MANUAL_SLOTS := ["tool"]`（只能手动装备）**，与 `DISABLED_SLOTS` 是**两件不同的事**：
+  - 下架 = 玩家**看不到**（界面 / 原貌 / 情报 / 相册 / 强制池全跳过）
+  - 手动 = 玩家**看得到、点得到**，但**任何自动流程都不碰它**
+  为此新增 `OutfitData.auto_slots()`（= `active_slots()` 去掉 `MANUAL_SLOTS`），
+  并把「原貌 / 情报 / 相册 / 强制池 / 一键达标 / 一致数统计」全部切到它：
+  `RunData._roll_true_appearance` / `_build_clues` / `_roll_photos`、
+  `IntelDesk._fill_revealed` 与 `sync`、`WardrobeModel.matching_slots` / `changed_slots` /
+  `resemblance` / `auto_complete_outfit`、`OutfitData.forced_pool` / `gate_dependents`。
+- **两件物品**：
+  - `tool_none`「（不携带）」（空件，`bare: true`）
+  - `tool_tail`「尼古喵尾」（介绍 `desc` = 「喵什么错都没有」，暴露值 0）
+  贴图取 AU `clothes/back/fox tail butt plug/back.png`（挂在身后的尾巴，
+  左列 bbox 36,40-116,107），灰度蒙版 → `tint = FUR_FOX` 上橙棕毛色。
+  尾巴伸出取景框左缘（被切 26 px），烘出来 54×67 —— 看得见，观感就是「尾巴向后伸出画面」。
+  ★ 默认装备是**「（不携带）」**：系统不主动送（`_equip_defaults()` 对 manual 槽位
+  直接落到 `bare_id_of()`），符合「只能手动装备」。
+- **效果：装备时不再提高怀疑值**（`Interrogation._add_suspicion`）：
+  携带 `tool_tail` 时把一切**非致命**增量归零；判据用 `_rf("leak_delta", 100.0)` ——
+  会一击致命的选项（说漏嘴 / 指定 `ending` 的那些）拿的就是它，一次顶满，
+  所以**依然游戏结束**（正是用户口径的后半句）。
+  携带状态由 `Wardrobe.sync_outfit_verdict()` 写进新增的 `GameData.carried_tools`。
+- **平坦贞操笼** `panties_flatcage`「平坦贞操笼」挂**下内衣**槽，暴露值 **9** ——
+  取该栏最高（现有 5 件 9 档并列最高）。贴图取 AU `clothes/genitals/flatchastitycage/full.png`
+  （四态内容完全相同，只取 full），`tint = CHROME`。位置 `x91..118 / y81..104`
+  与 `under-lower/*` 天然同高，不需要 align 搬移。
+- **界面**：`Wardrobe._tip_for()` 对 manual 槽位显示物品的 `desc` 并说明「不参与原貌与反差值计算」；
+  槽位标题对 manual 槽位不给「? 原貌未知 / 仍与 A 一致 / 已偏离原貌」那三种说法，
+  改用中性紫色 + 「只能手动装备」提示（它压根没有原貌，那三个说法对它都是错的）。
+  另修一处口径不一致：`peek_hint` 的分母从 `active_slots()` 改成 `auto_slots()`，
+  否则会印出「13 / 14 处仍一致」这种分子分母不同批的假数字。
+- 物品总数 **155 → 158**（tool_none / tool_tail / panties_flatcage）；
+  `story.json` 的 catalog 同步加 `manual_slots` 字段；编辑器校验器改用
+  `catalog.manual_slots` 过滤，不再要求妙妙工具写外貌情报句式与来源。
+- 测试：WardrobeTest 487 → **509**（新增一整段「妙妙工具（只能手动装备的一栏）」，
+  含「一键达标不会替玩家装 / 脱」与「平坦贞操笼暴露值 = 下内衣最高档」）；
+  TestRunner 901 → **906**（新增「妙妙工具：装备后不再提高怀疑值」——
+  前后矛盾 / 沉默 / 编造 / 盲区硬答 / QTE 失败 / 掏手机全部归零，而说漏嘴依然顶满 100）。
+  另有一批断言的口径从 `active_slots()` 改为 `auto_slots()`（原貌 / 情报 / 一致数）。
+
 ## 测试规模的变化（只有实测过的数据点）
 
 | 轮次 | WardrobeTest | TestRunner | 编辑器冒烟 | 手机冒烟 |

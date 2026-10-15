@@ -44,6 +44,12 @@ const IMPROVISE_PENALTY := 12.0       # 说法与官方口径不符（还没被�
 # ★ 第十三轮：轮内怀疑度只涨不跌 —— 「答对口径 / 复问一致」不再给负奖励，
 #   这几条奖励常量直接删掉，_add_suspicion 也会把一切负增量拦在门外。
 
+# ★ 第三十九轮：妙妙工具「尼古喵尾」的物品 id（对应 OutfitData 的 tool 栏，
+#   那一栏只能手动装备、不进任何数值统计）。
+#   装备它时，一切**非致命**的怀疑值增量都不生效；
+#   会一击致命的那种选项（说漏嘴）照常结束游戏。判定见 _add_suspicion()。
+const TOOL_TAIL_ID := "tool_tail"
+
 # 盲区题（「完全没给信息的题」）：
 #   档案里没有、短信里也没提 —— 硬答一个具体细节是恒定重罚，
 #   因为编得越细，他越能顺着往下追问。真正的选择在「撒谎 / 回避」之间，
@@ -1959,7 +1965,20 @@ func _next_question_delay() -> void:
 # ★ 第十三轮：**轮内怀疑度只涨不跌**。
 #   所有奖励性的负增量一律归零 —— 想靠一两次「答得漂亮」把怀疑度刷下去，不行。
 #   唯一能让怀疑度降下来的地方是**轮次之间**的衰减（见 GameData.reset_level_state）。
+#
+# ★ 第三十九轮：妙妙工具「尼古喵尾」（见 OutfitData.MANUAL_SLOTS 的 tool 栏）。
+#   用户口径：「效果装备时，无论选择什么选项都不会提高怀疑值，
+#            但是触发游戏结束的选项依然会使游戏结束」。
+#   所以这里只拦**非致命**的增量；一击必杀的那条路照旧放行。
 func _add_suspicion(amount: float) -> void:
+	# 「致命」的判据用 `leak_delta`（默认 100）：会直接把这一局送走的选项
+	# （说漏嘴 / 指定 ending 的那些）都是拿它当增量 —— 一次顶满 100。
+	# 其余**一切**增量（答错 / 沉默 / 编造 / 前后矛盾 / 表情 QTE 失败 / 掏手机越界……）
+	# 都远小于这个数，装备尼古喵尾时一律不生效。
+	# ★ 用规则里的值而不是写死 100 —— 编辑器把 leak_delta 调成别的数时这里自动跟上。
+	if GameData.carried_tool(TOOL_TAIL_ID) \
+			and amount < _rf("leak_delta", 100.0):
+		return
 	var delta := maxf(0.0, amount)
 	GameData.suspicion_level = clampf(GameData.suspicion_level + delta, 0.0, 100.0)
 	_update_suspicion_ui()

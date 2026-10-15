@@ -109,6 +109,11 @@ SLOT_Z = {
     "stockings":  66.6,
     "shoes":      85.0,
     "robe":       150.0,
+    # ★ 第三十九轮：妙妙工具（挂在身后的那条尾巴）。
+    #   z 取 92 —— 压在 `bottom`(90) 之上、`top`(95) 之下：尾巴从腰后翘出来，
+    #   根部被下装压住、尾梢露在外面，这是最自然的一层。
+    #   与 OutfitData.SLOT_ZORDER["tool"] = 196（WTS 参考值域里的同一位次）语义一致。
+    "tool":       92.0,
 }
 
 # ---------------- 68 件衣物的映射 ----------------
@@ -156,6 +161,10 @@ FISHNET = (0.16, 0.16, 0.18)        # 网眼超短裙
 KNIT_ASH = (0.46, 0.46, 0.50)       # 紧身针织衫（灰）
 KNIT_CREAM = (0.84, 0.81, 0.74)     # 高领军毛衣（米白）
 SKIN_SILK = (0.86, 0.70, 0.66)      # 乳贴 / 微型比基尼（肤色绸）
+
+# 第三十九轮：妙妙工具与平坦贞操笼
+FUR_FOX = (0.66, 0.38, 0.19)        # 尼古喵尾（橙棕毛色 —— 源图是灰度蒙版，饱和度 0.00）
+CHROME = (0.72, 0.75, 0.80)         # 平坦贞操笼（冷调金属，比 SILVER 稍暗一点）
 
 # 第三十四轮：从 AU 补的 3 个妆容 + 3 个配饰
 LIP_RED = (0.86, 0.12, 0.14)        # 烈焰红唇（正红；源图本身就是红的，乘一层压深）
@@ -502,6 +511,13 @@ ITEMS = {
     "panties_loincloth":  [{"src": ("clothes", "under-lower", "loincloth"),          "tint": LINEN}],
     "panties_tieside":    [{"src": ("clothes", "under-lower", "tiesidebikini"),      "tint": SKIN_SILK}],
     "panties_seethrough": [{"src": ("clothes", "under-lower", "seethroughswimsuit"), "tint": SKIN_SILK}],
+    # ★ 第三十九轮：从 AU 的 `clothes/genitals/` 引入（用户口径「引入平坦贞操笼放在下内衣」）。
+    #   源图就是为「下体」画的，落点天然与 `under-lower/*` 同一高度
+    #   （左列 bbox 91,89-118,101 —— gstring 是 88,84-121,106），所以**不需要 align 搬移**，
+    #   直接取 `full.png` 那一帧、按取景框裁掉即可。
+    #   四态（full / torn / tattered / frayed）在第三十八轮的清点里已实测**内容完全相同**，
+    #   所以只取 full 一张。
+    "panties_flatcage":   [{"src": ("clothes", "genitals", "flatchastitycage", "full"), "tint": CHROME}],
 
     # ---- 袜类（4 件）----
     "stockings_sheer":         [{"src": ("clothes", "legs", "sheer stockings"),   "tint": BLACK}],
@@ -511,6 +527,14 @@ ITEMS = {
     #   换成 `chain leggings`：整条腿的网眼织法 + 一排金属环，两腿都在，正合「高暴露」。
     "stockings_chainnet":      [{"src": ("clothes", "legs", "chain leggings"),    "tint": FISHNET}],
     "stockings_sheerskin":     [{"src": ("clothes", "legs", "sheerleggings"),     "tint": SKIN_SILK}],
+
+    # ---- 妙妙工具（第三十九轮新增的一栏，只能手动装备）----
+    # 贴图取 AU `clothes/back/fox tail butt plug/back.png` —— 挂在身后的那条尾巴。
+    # ★ 这一栏的贴图不需要 align / scale：源图本身就是「尾巴挂在身后」的构图
+    #   （左列 bbox 36,40-116,107，从臀部一路向侧后方伸出去），
+    #   而 AU 的 back 层本来就画在那个位置，照原样取帧即可。
+    "tool_none": [],
+    "tool_tail": [{"src": ("clothes", "back", "fox tail butt plug", "back"), "tint": FUR_FOX}],
 }
 
 # ---------------- 借用头部小件的覆盖参数（AU）----------------

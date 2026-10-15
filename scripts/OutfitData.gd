@@ -31,13 +31,13 @@ const SLOT_ORDER := [
 	"hair", "headgear", "glasses", "earrings", "makeup",
 	"piercing", "tattoo", "neckwear", "top", "bra",
 	"gloves", "accessory", "bottom", "dress", "panties",
-	"stockings", "shoes", "robe",
+	"stockings", "shoes", "robe", "tool",
 ]
 
 # 图层绘制顺序（底 → 顶），严格对应 WTS 的 zorder 编号
 const PREVIEW_ORDER := [
 	"makeup", "accessory", "piercing", "tattoo",
-	"stockings", "panties", "bottom",
+	"stockings", "panties", "bottom", "tool",
 	"bra", "top", "dress", "gloves", "shoes",
 	"robe", "neckwear", "hair", "earrings",
 	"glasses", "headgear",
@@ -50,6 +50,11 @@ const SLOT_ZORDER := {
 	"bra": 201, "top": 211, "dress": 216, "gloves": 221, "shoes": 225,
 	"robe": 231, "neckwear": 241, "hair": 251, "earrings": 261,
 	"glasses": 271, "headgear": 281,
+	# ★ 第三十九轮自创槽位（WTS 没有这一栏）：值取「bottom 191 之上、top 211 之下」——
+	#   挂在身后的尾巴从腰后翘出来，压在下装之上、上装之下。
+	#   ★ 这只是对齐参考表；真正决定渲染层序的是 data/doll_au.json 里的 z
+	#     （由 tools/dol_map.py 的 SLOT_Z 烘出来）。
+	"tool": 196,
 }
 
 const SLOT_NAMES := {
@@ -71,6 +76,7 @@ const SLOT_NAMES := {
 	"stockings": "袜类",
 	"shoes": "鞋履",
 	"robe": "外袍",
+	"tool": "妙妙工具",
 }
 
 # ---------- 暂时下架的槽位 ----------
@@ -106,6 +112,37 @@ static func active_slots() -> Array:
 
 static func slot_enabled(slot: String) -> bool:
 	return not DISABLED_SLOTS.has(slot)
+
+# ---------- 只能手动装备的槽位（第三十九轮）----------
+# 用户口径：「此栏专门为减少换装环节难度的设置的，只能手动装备，
+#            调试计算反差值时请不要使用」。
+#
+# 现在的成员只有 `tool`（妙妙工具）。它和 DISABLED_SLOTS 是**两件不同的事**：
+#   · DISABLED_SLOTS —— 玩家**看不到**这一栏（界面 / 原貌 / 情报 / 相册全跳过）
+#   · MANUAL_SLOTS   —— 玩家**看得到、点得到**，但**任何自动流程都不碰它**：
+#       · 原貌（RunData._roll_true_appearance）不抽 → 情报台不问、相册不拍
+#       · 强制装备池（forced_pool）不抽
+#       · 一键达标（WardrobeModel.auto_complete_outfit 的 DP）不用它凑数
+#       · 「与原貌一致 / 已改掉 / 相似度」这些**统计**也不算它
+#         → 所以它**不影响反差值与任何数值判定的口径**
+#   换句话说：它是一件玩家自己决定要不要揣上的道具，系统从不代劳。
+#
+# ★ 为什么单开一张表而不是塞进 DISABLED_SLOTS：
+#   下架会让整个槽位从换装界面消失，而用户要的恰恰是「界面上能看见、能点」。
+const MANUAL_SLOTS := ["tool"]
+
+static func is_manual_slot(slot: String) -> bool:
+	return MANUAL_SLOTS.has(slot)
+
+# 参与「自动抽取 / 数值统计」的槽位 = 玩家可见的那批去掉「只能手动」的。
+# ★ 原貌 / 情报 / 相册 / 强制池 / 一键达标 / 一致数统计一律用它；
+#   换装界面继续用 active_slots()（要能看见妙妙工具那一栏）。
+static func auto_slots() -> Array:
+	var out := []
+	for s in active_slots():
+		if not MANUAL_SLOTS.has(s):
+			out.append(s)
+	return out
 
 # ---------- 可同时装备多件的槽位（第三十六轮）----------
 # 用户口径：「可装备的纹身上限设为 2」。
@@ -270,7 +307,9 @@ func gate_dependents(slot: String) -> Array:
 	if _gate_dep_cache.has(slot):
 		return _gate_dep_cache[slot]
 	var out := []
-	for gs in active_slots():
+	# ★ 第三十九轮：扫 auto_slots() 而不是 active_slots() —— 妙妙工具的两件都没有
+	#   `gate`，扫它纯属浪费（这是求解器的热路径）。
+	for gs in auto_slots():
 		var s := str(gs)
 		var hit := false
 		for it in get_items_for_slot(s):
@@ -737,6 +776,15 @@ const ITEMS := [
 	{"id": "panties_tieside", "name": "系带开衩比基尼内裤", "slot": "panties", "exposure": 9, "acceptance_req": 11, "contrast": 8, "covers": [], "tags": []},
 	{"id": "panties_seethrough", "name": "透明连体泳裤", "slot": "panties", "exposure": 9, "acceptance_req": 11, "contrast": 8, "covers": [], "tags": []},
 
+	# ---- ★★ 第三十九轮：从 AU 的 `clothes/genitals/` 引入一件 ----
+	# 用户口径：「引入平坦贞操笼放在下内衣，暴露度取最高」。
+	# 贴图取 AU 自己的 `genitals/flatchastitycage/full.png` —— 金属笼，正面几乎全开，
+	# 所以它的暴露值就该是这一栏最高的那一档。
+	# ★ 「取最高」的实现依据：`panties` 现有 12 件里最高是 **9**
+	#   （细绳丁字裤 / 遮羞布 / 系带开衩比基尼 / 透明连体泳裤 / 连体泳裤 五件都是 9，
+	#     空件 `panties_none` 是 8）—— 这一件也取 9，与它们并列最高。
+	{"id": "panties_flatcage", "name": "平坦贞操笼", "slot": "panties", "exposure": 9, "acceptance_req": 10, "contrast": 8, "covers": [], "tags": []},
+
 	# ================= 袜类（第三十七轮起含「吊袜带」）=================
 	# ★ 第三十七轮合并：原 `garterbelt` 一栏的两件（蕾丝 / 黑色皮革吊袜带）挪到这里，
 	#   贴图照旧取 AU `clothes/legs/*`（asymmetricalgarter / harness garter stockings），
@@ -774,6 +822,26 @@ const ITEMS := [
 	{"id": "robe_travel", "name": "厚重旅行斗篷", "slot": "robe", "exposure": 0, "acceptance_req": 0, "contrast": 1, "covers": ["neck_brand"], "tags": ["high_collar"]},
 	{"id": "robe_lace", "name": "半透蕾丝罩袍", "slot": "robe", "exposure": 2, "acceptance_req": 4, "contrast": 5, "covers": [], "tags": [], "see": "sheer"},
 	{"id": "robe_leather", "name": "黑皮长外套", "slot": "robe", "exposure": 2, "acceptance_req": 6, "contrast": 4, "covers": [], "tags": []},
+
+	# ================= ★★ 第三十九轮：妙妙工具（只能手动装备）=================
+	# 用户口径：「在服装最下面新增一栏名称为妙妙工具，此栏专门为减少换装环节难度的
+	#   设置的，只能手动装备，调试计算反差值时请不要使用」。
+	#
+	# 这一栏与其余各栏的**根本区别**在 `OutfitData.MANUAL_SLOTS` —— 它是「看得到、
+	# 点得到，但系统从不代劳」的一栏：
+	#   · 不参与原貌抽取 → 情报台不会问、相册不会拍（`RunData` 一律走 `auto_slots()`）
+	#   · 不进强制装备池（`forced_pool()` 直接跳过）
+	#   · 一键达标（DP）不会替你装上它（`auto_complete_outfit()` 不把它排进分组）
+	#   · **不进「与原貌一致 / 已改掉 / 相似度」这些统计** → 所以它不影响反差值口径，
+	#     这正是用户说的「调试计算反差值时请不要使用」
+	#   · 暴露值 0 —— 它藏在衣服底下，本身不扎眼；带与不带都不吃暴露值预算
+	# 换句话说：它是一件**玩家自己决定要不要揣上**的道具，你不点它就当不存在。
+	#
+	# 贴图取 AU `clothes/back/fox tail butt plug/back.png`（挂在身后的那条尾巴，
+	# 画布 bbox 从 x36 一路延伸到 x116 —— 侧后方翘出来的形状）。
+	# `desc` 是这件物品的**介绍文字**，会出现在换装卡片的悬停提示里（见 Wardrobe._tip_for）。
+	{"id": "tool_none", "name": "（不携带）", "slot": "tool", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": [], "bare": true},
+	{"id": "tool_tail", "name": "尼古喵尾", "slot": "tool", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": [], "desc": "喵什么错都没有"},
 ]
 
 # ---------- 关卡进度 ----------
@@ -1246,6 +1314,8 @@ func forced_pool(acceptance: int) -> Array:
 		var slot := str(it.get("slot", ""))
 		if not slot_enabled(slot):
 			continue        # 下架的槽位抽不出来 —— 否则会强制玩家穿一件他没得选的袍子
+		if is_manual_slot(slot):
+			continue        # ★ 第三十九轮：妙妙工具只能手动装备，永不强制
 		if locked.has(slot):
 			continue        # 见 forced_locked_out_slots()：锁死这个槽位 = 本关死局
 		if is_bare(it):

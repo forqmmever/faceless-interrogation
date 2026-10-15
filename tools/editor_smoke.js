@@ -177,7 +177,7 @@ try {
   console.log("   输出 " + Buffer.byteLength(text, "utf8") + " 字节");
 
   console.log("\n-- 7. 槽位/池 常量 --");
-  ok(P.SLOTS.length === 18, "SLOTS = 18（第三十七轮去掉吊袜带）");
+  ok(P.SLOTS.length === 19, "SLOTS = 19（第三十九轮新增妙妙工具）");
   ok(P.POOL_IDS.length === 34, "候选池 = 34 件（吊袜带并入袜类后少 1），实际 " + P.POOL_IDS.length);
   const idsc = P.story.item_desc || {};
   ok(P.POOL_IDS.every(id => id in idsc), "ITEM_DESC 覆盖候选池全部");
@@ -504,7 +504,7 @@ try {
 
     // ---- catalog：编辑器靠它做下拉，缺了就没法挑衣服 ----
     const C = S.catalog || {};
-    ok((C.items || []).length === 155, "catalog 里有 155 件衣物，实际 " + ((C.items || []).length));
+    ok((C.items || []).length === 158, "catalog 里有 158 件衣物，实际 " + ((C.items || []).length));
     ok(Array.isArray(C.tags) && C.tags.length >= 4, "catalog 里有标签池：" + (C.tags || []).join(" / "));
     ok(C.items.every(x => x.id && x.name && x.slot), "catalog 每件都有 id / name / slot");
     ok(P.itemById("panties_lace") !== null, "itemById 能查到黑色蕾丝内裤");
@@ -637,7 +637,7 @@ try {
     S.qte_plan = [{ qte: "interference", delay: 2 }];
     const t2 = P.toJSON();
     ok(JSON.parse(t2).qte_plan[0].qte === "interference", "qte_plan 能往返");
-    ok(JSON.parse(t2).catalog.items.length === 155, "catalog 能往返");
+    ok(JSON.parse(t2).catalog.items.length === 158, "catalog 能往返");
     P.loadStory(JSON.parse(JSON.stringify(pristine)), "t.json", false);
   }
 

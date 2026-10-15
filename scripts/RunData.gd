@@ -277,9 +277,11 @@ func _roll_interrogator_trait() -> void:
 
 # 每局随机生成 A 的原貌：每个槽位从候选池里抽一件
 # （只抽玩家能看到的槽位 —— 下架的槽位不参与，否则会凭空多出一处对不上的原貌）
+# ★ 第三十九轮：换成 `auto_slots()` —— 把「妙妙工具」也排掉。它是玩家手动揣的道具，
+#   不是 A 的原貌；抽进去会让情报台问一句「他带着尼古喵尾吗」，那是说不通的。
 func _roll_true_appearance() -> void:
 	true_app = {}
-	for slot in OutfitData.active_slots():
+	for slot in OutfitData.auto_slots():
 		var pool: Array = OutfitData.TRUE_POOL.get(slot, [])
 		if pool.is_empty():
 			continue
@@ -305,9 +307,10 @@ func _roll_true_appearance() -> void:
 				true_app[slot] = OutfitData.bare_id_of(slot)
 
 # 按本局原貌现场拼出外貌情报（文案与来源都随局变化）
+# ★ 第三十九轮：同样走 `auto_slots()` —— 妙妙工具不进情报（它是你自己的道具）。
 func _build_clues() -> void:
 	clues = []
-	for slot in OutfitData.active_slots():
+	for slot in OutfitData.auto_slots():
 		var item_id := true_item(slot)
 		if item_id == "":
 			continue
@@ -327,7 +330,8 @@ func _roll_photos() -> void:
 	# 下架的槽位不进相册 —— 否则会抽到一张「拍的是外袍」但画面上什么都没有的照片
 	var pool: Array = []
 	for s in ScenarioData.PHOTO_SLOTS:
-		if OutfitData.slot_enabled(str(s)):
+		# ★ 第三十九轮：妙妙工具也不进相册（它是你的道具，不是「偷拍到的 A」）
+		if OutfitData.slot_enabled(str(s)) and not OutfitData.is_manual_slot(str(s)):
 			pool.append(s)
 	# 洗牌
 	for i in range(pool.size() - 1, 0, -1):

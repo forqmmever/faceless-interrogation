@@ -180,7 +180,7 @@ func _test_boot() -> void:
 	_check("%d 个槽位全部有装备" % OutfitData.active_slots().size(), m.equipped.size() == OutfitData.active_slots().size())
 	_check("模型拿到了本局原貌", _dict_eq(m.true_appearance, RunData.true_appearance()))
 	_check("开局即 A 的原貌（未改动任何部位）",
-		m.matching_slots().size() == OutfitData.active_slots().size())
+		m.matching_slots().size() == OutfitData.auto_slots().size())
 	_check("开局反差值为 0", m.total_contrast() == 0)
 	_check("第 1 关接受度 = START_ACCEPTANCE", m.acceptance == OutfitData.START_ACCEPTANCE)
 
@@ -193,8 +193,8 @@ func _test_boot() -> void:
 	#   · 原貌 18 处开局即全部可见
 	# 信息一条没少，少的是那几十次点击。
 	_check("身份情报 12/12 已归类（按 owner 自动）", intel.identity_done_count() == 12)
-	_check("外貌情报 %d/%d 已可见（开局即全可见）" % [intel.clues_done_count(), OutfitData.active_slots().size()],
-		intel.clues_done_count() == OutfitData.active_slots().size())
+	_check("外貌情报 %d/%d 已可见（开局即全可见）" % [intel.clues_done_count(), OutfitData.auto_slots().size()],
+		intel.clues_done_count() == OutfitData.auto_slots().size())
 	_check("未归类数 = 0", intel.unassigned_count() == 0)
 	_check("归类零失误", intel.identity_mistakes() == 0)
 	_check("B 卡全部归入伪装档案", gd.dossier_kept.size() == DossierData.b_cards().size())
@@ -210,7 +210,7 @@ func _test_boot() -> void:
 	_check("发型标签不带问号", not wardrobe.slot_labels["hair"].text.ends_with("?"))
 	_check("上衣标签不带问号", not wardrobe.slot_labels["top"].text.ends_with("?"))
 	_check("GameData.revealed_slots 覆盖全部槽位",
-		gd.revealed_slots.size() == OutfitData.active_slots().size())
+		gd.revealed_slots.size() == OutfitData.auto_slots().size())
 
 	print("\n-- 开局：原封不动的打扮 => 不合格（判定在阶段二结算）--")
 	var ev0: Dictionary = m.evaluate()
@@ -239,8 +239,8 @@ func _test_boot() -> void:
 # ------------------------------------------------------------
 func _test_clue_reveal() -> void:
 	print("\n-- 外貌情报栏已删：原貌开局即全部可见 --")
-	_check("外貌情报共 %d 条" % OutfitData.active_slots().size(),
-		DossierData.clue_count() == OutfitData.active_slots().size())
+	_check("外貌情报共 %d 条" % OutfitData.auto_slots().size(),
+		DossierData.clue_count() == OutfitData.auto_slots().size())
 
 	var clue_hair := DossierData.clue_for_slot("hair")
 	_check("每个槽位都有对应情报", not clue_hair.is_empty())
@@ -248,10 +248,10 @@ func _test_clue_reveal() -> void:
 	_check("情报文案指向本局原貌的发型",
 		str(clue_hair.get("text", "")) == ScenarioData.clue_text("hair", RunData.true_item("hair")))
 
-	_check("开局 %d 处原貌全部可见" % OutfitData.active_slots().size(),
-		intel.clues_done_count() == OutfitData.active_slots().size())
+	_check("开局 %d 处原貌全部可见" % OutfitData.auto_slots().size(),
+		intel.clues_done_count() == OutfitData.auto_slots().size())
 	_check("GameData.revealed_slots 覆盖全部槽位",
-		gd.revealed_slots.size() == OutfitData.active_slots().size())
+		gd.revealed_slots.size() == OutfitData.auto_slots().size())
 
 	# peek = 直接看「审讯官记忆里的你」，整张脸都在，没有空白处
 	wardrobe._on_peek_toggled(true)
@@ -262,7 +262,7 @@ func _test_clue_reveal() -> void:
 
 	# _reveal 现在只是兼容钩子：原貌本来就全可见，重复调用不该改变任何东西
 	intel._reveal(str(clue_hair["id"]))
-	_check("重复调用 _reveal 不改变计数", intel.clues_done_count() == OutfitData.active_slots().size())
+	_check("重复调用 _reveal 不改变计数", intel.clues_done_count() == OutfitData.auto_slots().size())
 
 # ------------------------------------------------------------
 # 身份情报栏已删：归类改成开局按 owner 自动填
@@ -380,7 +380,7 @@ func _test_enter_interrogation() -> void:
 	_check("反差达标已同步", gd.contrast_sufficient == true)
 	_check("缺陷遮挡已同步", gd.defects_covered == true)
 	_check("暴露值已同步", gd.outfit_exposure > 0)
-	_check("外貌情报收集度已同步", gd.revealed_slots.size() == OutfitData.active_slots().size())
+	_check("外貌情报收集度已同步", gd.revealed_slots.size() == OutfitData.auto_slots().size())
 
 	print("\n-- 盘问：按关抽题 --")
 	interro.set_process(false)   # 关掉自动计时，改为手工步进
@@ -1908,6 +1908,36 @@ func _test_expression_qte() -> void:
 	interro._add_suspicion(50.0)
 	_check("怀疑度上限钳制在 100", gd.suspicion_level <= 100.0)
 
+	# ★ 第三十九轮：妙妙工具「尼古喵尾」（OutfitData 的 tool 栏，只能手动装备）
+	#   用户口径：「无论选择什么选项都不会提高怀疑值，但触发游戏结束的选项依然会使游戏结束」。
+	print("\n-- 妙妙工具「尼古喵尾」：装备后不再提高怀疑值 --")
+	gd.carried_tools = []
+	gd.suspicion_level = 40.0
+	interro._add_suspicion(Interrogation.CONTRADICTION_PENALTY)
+	_check("没带尼古喵尾 → 照常涨怀疑值",
+		is_equal_approx(gd.suspicion_level, 40.0 + Interrogation.CONTRADICTION_PENALTY))
+
+	gd.carried_tools = ["tool_tail"]
+	_check("GameData.carried_tool() 认得出来", gd.carried_tool("tool_tail"))
+	gd.suspicion_level = 40.0
+	interro._add_suspicion(Interrogation.CONTRADICTION_PENALTY)
+	_check("带着尼古喵尾 → 前后矛盾也不涨怀疑值",
+		is_equal_approx(gd.suspicion_level, 40.0))
+	interro._add_suspicion(Interrogation.SILENCE_DELTA)
+	interro._add_suspicion(Interrogation.IMPROVISE_PENALTY)
+	interro._add_suspicion(Interrogation.EXPR_QTE_FAIL)
+	interro._add_suspicion(Interrogation.BLIND_MADE_UP_DELTA)
+	interro._add_suspicion(Interrogation.PHONE_PULL_PENALTY * 3.0)
+	_check("沉默 / 编造 / 盲区硬答 / QTE 失败 / 掏手机 全都不涨",
+		is_equal_approx(gd.suspicion_level, 40.0))
+
+	# 一击致命的那条路照旧放行 —— 说漏嘴的增量就是 `leak_delta`（默认 100），一次顶满
+	interro._add_suspicion(interro._rf("leak_delta", 100.0))
+	_check("★ 说漏嘴（一击致命）依然把怀疑度顶满、游戏照样结束",
+		gd.suspicion_level >= 100.0)
+	gd.carried_tools = []
+	gd.suspicion_level = 100.0   # 恢复成上面那一段留下的状态，不给后面的用例改环境
+
 # ------------------------------------------------------------
 # 表情 QTE 的「真·主循环」—— 必须走 _process()，不能手工调
 #
@@ -3111,9 +3141,9 @@ func _test_multi_level_flow() -> void:
 	print("\n-- 多轮流程：从第 1 关一路走到整局通关 --")
 	main._start_new_run()
 	_check("新局回到第 1 关", RunData.level_number() == 1)
-	_check("新局：情报台按新背景重填（12 条归类 + %d 处原貌）" % OutfitData.active_slots().size(),
-		intel.clues_done_count() == OutfitData.active_slots().size() and intel.unassigned_count() == 0)
-	_check("新局原貌已重抽", wardrobe.model.matching_slots().size() == OutfitData.active_slots().size())
+	_check("新局：情报台按新背景重填（12 条归类 + %d 处原貌）" % OutfitData.auto_slots().size(),
+		intel.clues_done_count() == OutfitData.auto_slots().size() and intel.unassigned_count() == 0)
+	_check("新局原貌已重抽", wardrobe.model.matching_slots().size() == OutfitData.auto_slots().size())
 
 	var run_id := RunData.run_index
 	var bg_id := RunData.background_id
@@ -3133,7 +3163,7 @@ func _test_multi_level_flow() -> void:
 		if lvl > 0:
 			_check("第 %d 关开局装备退回原貌（反差归零）" % n, wardrobe.model.total_contrast() == 0)
 			_check("第 %d 关情报进度跨关保留" % n,
-				intel.clues_done_count() == OutfitData.active_slots().size() and intel.unassigned_count() == 0)
+				intel.clues_done_count() == OutfitData.auto_slots().size() and intel.unassigned_count() == 0)
 
 		_prepare_and_enter()
 		# 伪装必须成立 —— 断言放在这儿（调用点）而不是 _prepare_and_enter() 里，
@@ -3174,7 +3204,7 @@ func _test_multi_level_flow() -> void:
 			_check("跨局保留确实积累起来了", ProfileData.bonus() > 0)
 			_check("重开后已通过关数归零", RunData.cleared_levels == 0)
 			_check("重开后情报台按新背景重填",
-				intel.clues_done_count() == OutfitData.active_slots().size() and intel.unassigned_count() == 0)
+				intel.clues_done_count() == OutfitData.auto_slots().size() and intel.unassigned_count() == 0)
 			var changed := 0
 			if RunData.background_id != old_bg:
 				changed += 1
@@ -3246,7 +3276,7 @@ func _test_leak_and_fail_restart() -> void:
 	_check("重来本轮 → 背景不变", RunData.background_id == bg_before)
 	_check("重来本轮 → 原貌不变", _dict_eq(RunData.true_appearance(), app_before))
 	_check("重来本轮 → 情报台照旧（还是本局那套）",
-		intel.clues_done_count() == OutfitData.active_slots().size() and intel.unassigned_count() == 0)
+		intel.clues_done_count() == OutfitData.auto_slots().size() and intel.unassigned_count() == 0)
 	_check("重来本轮 → 准备室可见", wardrobe.visible == true)
 	_check("重来本轮 → 装备退回 A 的原貌（好重新搭一遍）",
 		wardrobe.model.total_contrast() == 0)

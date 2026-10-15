@@ -156,6 +156,10 @@ func _viable_build(m: WardrobeModel) -> void:
 			#   纹身只加暴露值、不贡献反差，对「凑达标」没有帮助，索性整栏跳过。
 			if OutfitData.is_multi_slot(slot):
 				continue
+			# ★ 第三十九轮：妙妙工具是「只能手动装备」的一栏 ——
+			#   它不改暴露值、不遮缺陷、不算反差，推导搭配时整栏跳过。
+			if OutfitData.is_manual_slot(slot):
+				continue
 			var cur := m.item_at(slot)
 			for it in OutfitData.get_items_for_slot(slot):
 				if str(it["id"]) == str(cur.get("id", "")):
@@ -201,6 +205,10 @@ func _viable_build(m: WardrobeModel) -> void:
 			#   而这一版贪心是「一个槽位一件」的模型 —— 它会把整条 Array 顶成单件。
 			#   纹身只加暴露值、不贡献反差，对「凑达标」没有帮助，索性整栏跳过。
 			if OutfitData.is_multi_slot(slot):
+				continue
+			# ★ 第三十九轮：妙妙工具是「只能手动装备」的一栏 ——
+			#   它不改暴露值、不遮缺陷、不算反差，推导搭配时整栏跳过。
+			if OutfitData.is_manual_slot(slot):
 				continue
 			var cur := m.item_at(slot)
 			var cur_id := str(cur.get("id", ""))

@@ -316,6 +316,15 @@ func _equip_defaults() -> void:
 	# 这样暴露值 / 反差值 / 一致数 / 存档都不会多出一处
 	for slot in data.active_slots():
 		var s := str(slot)
+		# ★ 第三十九轮：妙妙工具默认「不携带」。
+		#   它是玩家**手动**揣上的道具（用户口径「只能手动装备」），
+		#   默认送一件等于白给 —— 所以这里不走「取最朴素的那件」那套，
+		#   直接落到这一栏的空件（`tool_none`「（不携带）」，由 `bare: true` 标出）。
+		if data.is_manual_slot(s):
+			var none_id: String = str(data.bare_id_of(s))
+			if none_id != "":
+				set_ids(s, [none_id])
+			continue
 		var ids := []
 		for x in _ids_of(true_appearance.get(s, "")):
 			var it: Dictionary = data.get_item(str(x))
@@ -836,9 +845,11 @@ func exposure_after(changed: String, new_id: String) -> int:
 	return total_exposure() + exposure_delta(changed, new_id)
 
 # 仍与原貌一致的槽位（越少越安全）
+# ★ 第三十九轮：走 `auto_slots()` —— 「妙妙工具」没有原貌，不计入这项统计
+#   （所以它不影响反差值与任何数值判定的口径，见 OutfitData.MANUAL_SLOTS）。
 func matching_slots() -> Array:
 	var out := []
-	for slot in data.active_slots():
+	for slot in data.auto_slots():
 		if _matches_true(slot):
 			out.append(slot)
 	return out
@@ -846,7 +857,7 @@ func matching_slots() -> Array:
 # 已经改掉的槽位
 func changed_slots() -> Array:
 	var out := []
-	for slot in data.active_slots():
+	for slot in data.auto_slots():
 		if not _matches_true(slot):
 			out.append(slot)
 	return out
@@ -854,7 +865,7 @@ func changed_slots() -> Array:
 # 原貌相似度 0.0 ~ 1.0（越低越好认不出来）
 func resemblance() -> float:
 	var n: int = matching_slots().size()
-	return float(n) / float(max(1, data.active_slots().size()))
+	return float(n) / float(max(1, data.auto_slots().size()))
 
 func contrast_requirement() -> int:
 	return int(level_info().get("contrast_req", 0))
@@ -959,7 +970,10 @@ func evaluate() -> Dictionary:
 #  它只是把玩家本来要自己算的那道题直接算完。
 # ============================================================
 func auto_complete_outfit() -> Dictionary:
-	var slots: Array = data.active_slots()
+	# ★ 第三十九轮：走 `auto_slots()` —— 「妙妙工具」不参与一键达标。
+	#   用户口径「只能手动装备，调试计算反差值时请不要使用」：这一栏系统从不代劳，
+	#   你点「一键达标」时它不会被穿上、也不会被脱下 —— 保持你手动设的那个状态。
+	var slots: Array = data.auto_slots()
 	var defects: Array = data.defects()
 	var mask_n: int = 1 << defects.size()
 

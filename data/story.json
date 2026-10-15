@@ -1725,6 +1725,17 @@
 				"disabled": false
 			},
 			{
+				"id": "panties_flatcage",
+				"name": "平坦贞操笼",
+				"slot": "panties",
+				"slot_name": "下内衣",
+				"exposure": 9,
+				"contrast": 8,
+				"acceptance_req": 10,
+				"tags": [],
+				"disabled": false
+			},
+			{
 				"id": "stockings_none",
 				"name": "（不穿）",
 				"slot": "stockings",
@@ -1945,6 +1956,28 @@
 				"acceptance_req": 6,
 				"tags": [],
 				"disabled": true
+			},
+			{
+				"id": "tool_none",
+				"name": "（不携带）",
+				"slot": "tool",
+				"slot_name": "妙妙工具",
+				"exposure": 0,
+				"contrast": 0,
+				"acceptance_req": 0,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "tool_tail",
+				"name": "尼古喵尾",
+				"slot": "tool",
+				"slot_name": "妙妙工具",
+				"exposure": 0,
+				"contrast": 0,
+				"acceptance_req": 0,
+				"tags": [],
+				"disabled": false
 			}
 		],
 		"tags": [
@@ -1971,7 +2004,8 @@
 			"panties",
 			"stockings",
 			"shoes",
-			"robe"
+			"robe",
+			"tool"
 		],
 		"slot_names": {
 			"hair": "发型",
@@ -1991,7 +2025,8 @@
 			"panties": "下内衣",
 			"stockings": "袜类",
 			"shoes": "鞋履",
-			"robe": "外袍"
+			"robe": "外袍",
+			"tool": "妙妙工具"
 		},
 		"active_slots": [
 			"hair",
@@ -2006,7 +2041,8 @@
 			"dress",
 			"panties",
 			"stockings",
-			"shoes"
+			"shoes",
+			"tool"
 		],
 		"disabled_slots": [
 			"robe",
@@ -2014,6 +2050,9 @@
 			"gloves",
 			"headgear",
 			"piercing"
+		],
+		"manual_slots": [
+			"tool"
 		]
 	},
 	"backgrounds": [

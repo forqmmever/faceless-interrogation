@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bc8n31sn8ujn2"
-path="res://.godot/imported/acc_brooch.png-16f5b1153e159ab5b2e21fc3c0f3fac6.ctex"
+uid="uid://chk1xpnqymp84"
+path="res://.godot/imported/makeup_blush.png-8a091035052d3630c14fb9bba515af3d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/dol_au/clothes/acc_brooch.png"
-dest_files=["res://.godot/imported/acc_brooch.png-16f5b1153e159ab5b2e21fc3c0f3fac6.ctex"]
+source_file="res://assets/dol_au/icons/makeup_blush.png"
+dest_files=["res://.godot/imported/makeup_blush.png-8a091035052d3630c14fb9bba515af3d.ctex"]
 
 [params]
 

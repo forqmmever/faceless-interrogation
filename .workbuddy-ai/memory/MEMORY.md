@@ -64,6 +64,32 @@ godot --path . res://tests/Screenshot.tscn                    # 42 张截图（�
 > 规矩：写 `a < b < c` 这类断言前，**先在纸上算出三个取样点的实际值**。
 > 名字叫 low/mid/high 不代表数值真的递增 —— 尤其是从「最小值 + 偏移」推出来的点。
 
+### 派生数据不会自己跟上来（三处都是「改了源表还得手动同步」）
+
+改 `OutfitData.gd` 的**槽位或标签**时，除了改那一行，还必须记得：
+
+1. **重烘图包**：`data/doll*.json` 里每件物品的图层 `z` 是从 `OutfitData.gd` 的槽位推出来的
+   （`dol_prepare.item_slots()`）。第 32 轮把两件丁字裤从 `panties` 挪到 `bottom` 但没重烘，
+   于是预览里它们一直画在下装**下面**，谁也没发现 —— 直到第三十四轮重烘才修好。
+2. **重建 `story.json` 的 `catalog`**：那是 `DumpStory` 导出的只读快照，
+   而 DumpStory **不能随便跑**（会用内置常量覆盖 JSON，冲掉只在 JSON 里的题库）。
+   所以它只会越漂越远 —— 第 32 轮的槽位、第 28 轮的标签都漂了。
+   正确做法是**用脚本按 `OutfitData.gd` 重建 `catalog.items`**，别去跑 DumpStory。
+3. **`tools/story_editor.html` 里另有一份手写的 `TRUE_POOL` 常量** ——
+   它在 JS 常量区、**不在内嵌快照的两个标记之间**，所以 `build_story_editor.py`
+   重建快照时不会碰它，必须手改（否则编辑器的「原貌候选池」和游戏对不上）。
+
+> 一句话：**`OutfitData.gd` 是唯一权威，其余全是派生快照。**
+> 改完权威表顺手问一句「哪些地方抄了它」。
+
+### 新增物品后必须先让 Godot 登记资源
+
+烘完 `assets/dol*/` 的新 png 之后要跑一次
+`godot --headless --path . --import`。
+不然 `ResourceLoader.exists()` 对新 png 返回 false，
+WardrobeTest 的「全部物品均有卡片图标」会挂 —— 而烘焙产物其实是好的，
+只是没被 Godot 写进 `.godot/imported/`。这个坑第三十四轮踩过一次。
+
 ### 稳定随机 vs 运行时随机
 
 「同一道题要不要出 QTE」这种事，**必须用确定性哈希**（`hash("seed|关号|题号|标签")`），

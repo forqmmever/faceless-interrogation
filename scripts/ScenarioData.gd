@@ -1461,8 +1461,9 @@ const DEFAULT_ITEM_DESC := {
 	"gloves_none": "从不戴手套，抓缰绳都是赤着手",
 	"gloves_leather": "总戴着一副磨旧了的皮手套",
 	# ---- accessory ----
+	# ★ 第三十四轮：黄铜胸针整件删掉 → 这条目击描述一并撤掉。
+	#   这一栏现在只有空件，所以只见得到上面那一句。
 	"acc_none": "没有一件多余的物件，干干净净",
-	"acc_brooch": "别着一枚黄铜胸针，很旧了",
 	# ---- bottom ----
 	"bottom_longskirt": "裙摆几乎扫地，看不见鞋面",
 	"bottom_trousers": "是条直筒长裤，裤脚沾着泥",

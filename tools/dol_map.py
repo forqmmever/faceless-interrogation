@@ -169,6 +169,12 @@ KNIT_ASH = (0.46, 0.46, 0.50)       # 紧身针织衫（灰）
 KNIT_CREAM = (0.84, 0.81, 0.74)     # 高领军毛衣（米白）
 SKIN_SILK = (0.86, 0.70, 0.66)      # 乳贴 / 微型比基尼（肤色绸）
 
+# 第三十四轮：从 AU 补的 3 个妆容 + 3 个配饰
+LIP_RED = (0.86, 0.12, 0.14)        # 烈焰红唇（正红；源图本身就是红的，乘一层压深）
+BLUSH_PINK = (0.96, 0.56, 0.58)     # 绯色腮红（粉；源图 alpha 很低，乘完仍是薄薄一层）
+FRECKLE_BROWN = (0.44, 0.30, 0.22)  # 点出来的雀斑（褐；源图近灰，乘一层上色）
+PEWTER = (0.66, 0.68, 0.74)         # 银质心形吊坠（旧银，比 SILVER 压暗一档）
+
 ITEMS = {
     # ---- 发型（由 HAIR_STYLES 处理，这里只占位）----
     "hair_short": [], "hair_braid": [], "hair_long": [], "hair_up": [],
@@ -205,6 +211,17 @@ ITEMS = {
     "makeup_heavy": [{"src": ("face", "default", "default", "makeup", "eyeshadow"), "tint": (0.34, 0.26, 0.38), "z": 55.0},
                      {"src": ("face", "default", "default", "makeup", "mascara"),   "tint": BLACK, "z": 55.4},
                      {"src": ("face", "default", "lipstick-neutral"), "tint": WINE, "z": 56.0}],
+    # ★★ 第三十四轮：按用户口径「从 au 中添加几个妆容」补的 3 件。
+    #   三件都取 AU 图包**真实的面部图层**（不是借用别的东西顶替）：
+    #     · 源图在 AU 里是 face/default/default/<件>.png；
+    #     · DoL 原版少一层，写作 face/default/<件>.png —— 所以每条都带 `alt` 兜底。
+    #   ★ 三张图都**已经落在正确的解剖位置上**，所以一律不给 align（给了反而会搬歪）。
+    "makeup_lip":      [{"src": ("face", "default", "default", "lipstick-neutral"), "tint": LIP_RED,
+                         "alt": {"src": ("face", "default", "lipstick-neutral"), "tint": LIP_RED}}],
+    "makeup_blush":    [{"src": ("face", "default", "default", "blusher"), "tint": BLUSH_PINK,
+                         "alt": {"src": ("face", "default", "blusher"), "tint": BLUSH_PINK}}],
+    "makeup_freckles": [{"src": ("face", "default", "default", "freckles"), "tint": FRECKLE_BROWN,
+                         "alt": {"src": ("face", "default", "freckles"), "tint": FRECKLE_BROWN}}],
 
     # ---- 穿环（同样靠位置搬移顶替）----
     "piercing_none": [],
@@ -322,9 +339,18 @@ ITEMS = {
                        {"src": ("clothes", "hands", "armwarmers", "right-idle"), "tint": (0.78, 0.78, 0.82)}],
 
     # ---- 配饰 ----
+    # ★★ 第三十四轮：用户口径「黄铜胸针去掉」→ `acc_brooch` **物品级删除**（整条撤掉，
+    #   和上一轮撤掉眉钉 `piercing_brow` 是同一档处理）。同轮从 AU 补 3 件新的：
+    #     · 三件都是 AU 图包自己那套贴图（`neck/lovelocket` / `legs/goldanklets` /
+    #       `hands/goldshackles`），两套图包的路径一致，所以都不用 `alt`；
+    #     · 位置也**本来就对**（吊坠在锁骨、脚链在脚踝、手铐垂在腕边），一律不给 align。
+    #   ★ 染色：吊坠源图是纯灰（实测彩度 0.00）→ 乘一层旧银；
+    #     脚链 / 手铐源图**本来就是金的**（彩度 0.67）→ 不给 tint，再乘一层只会发乌。
     "acc_none": [],
-    "acc_brooch": [{"src": ("clothes", "neck", "bow brooch"),        "tint": GOLD, "scale": 0.8,
-                    "alt": {"src": ("clothes", "neck", "bowtie"), "tint": GOLD, "scale": 0.8}}],
+    "acc_locket": [{"src": ("clothes", "neck", "lovelocket"), "tint": PEWTER}],                    # 11×21 纯灰
+    "acc_anklet": [{"src": ("clothes", "legs", "goldanklets")}],                                    # 29×8  已彩色
+    "acc_shackle": [{"src": ("clothes", "hands", "goldshackles", "left-idle")},                     # 10×78 已彩色
+                    {"src": ("clothes", "hands", "goldshackles", "right-idle")}],                   # 15×101
     "acc_belt":   [{"src": ("clothes", "lower", "chainbelt skirt", "acc"), "tint": LEATHER,
                     "alt": {"src": ("clothes", "lower", "belted"), "tint": LEATHER}}],
 

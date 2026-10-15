@@ -72,6 +72,16 @@
   256
  ],
  "items": {
+  "acc_anklet": {
+   "icon": "icons/acc_anklet.png",
+   "layers": [
+    {
+     "file": "clothes/acc_anklet.png",
+     "name": "acc_anklet",
+     "z": 105.0
+    }
+   ]
+  },
   "acc_belt": {
    "icon": "icons/acc_belt.png",
    "layers": [
@@ -82,12 +92,12 @@
     }
    ]
   },
-  "acc_brooch": {
-   "icon": "icons/acc_brooch.png",
+  "acc_locket": {
+   "icon": "icons/acc_locket.png",
    "layers": [
     {
-     "file": "clothes/acc_brooch.png",
-     "name": "acc_brooch",
+     "file": "clothes/acc_locket.png",
+     "name": "acc_locket",
      "z": 105.0
     }
    ]
@@ -96,6 +106,16 @@
    "icon": "icons/acc_none.png",
    "layers": [],
    "z": 105.0
+  },
+  "acc_shackle": {
+   "icon": "icons/acc_shackle.png",
+   "layers": [
+    {
+     "file": "clothes/acc_shackle.png",
+     "name": "acc_shackle",
+     "z": 105.0
+    }
+   ]
   },
   "bottom_cut": {
    "icon": "icons/bottom_cut.png",
@@ -556,6 +576,26 @@
     }
    ]
   },
+  "makeup_blush": {
+   "icon": "icons/makeup_blush.png",
+   "layers": [
+    {
+     "file": "clothes/makeup_blush.png",
+     "name": "makeup_blush",
+     "z": 45.0
+    }
+   ]
+  },
+  "makeup_freckles": {
+   "icon": "icons/makeup_freckles.png",
+   "layers": [
+    {
+     "file": "clothes/makeup_freckles.png",
+     "name": "makeup_freckles",
+     "z": 45.0
+    }
+   ]
+  },
   "makeup_heavy": {
    "icon": "icons/makeup_heavy.png",
    "layers": [
@@ -572,6 +612,16 @@
     {
      "file": "clothes/makeup_light.png",
      "name": "makeup_light",
+     "z": 45.0
+    }
+   ]
+  },
+  "makeup_lip": {
+   "icon": "icons/makeup_lip.png",
+   "layers": [
+    {
+     "file": "clothes/makeup_lip.png",
+     "name": "makeup_lip",
      "z": 45.0
     }
    ]
@@ -682,7 +732,7 @@
     {
      "file": "clothes/panties_janties.png",
      "name": "panties_janties",
-     "z": 67.0
+     "z": 90.0
     }
    ]
   },
@@ -727,7 +777,7 @@
     {
      "file": "clothes/panties_thong.png",
      "name": "panties_thong",
-     "z": 67.0
+     "z": 90.0
     }
    ]
   },

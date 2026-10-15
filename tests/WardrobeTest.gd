@@ -719,7 +719,7 @@ func _test_model_basics() -> void:
 		"hair": "hair_long", "headgear": "head_hat", "glasses": "glasses_round",
 		"earrings": "ear_stud", "makeup": "makeup_light", "piercing": "piercing_none",
 		"tattoo": "tattoo_none", "neckwear": "neck_none", "top": "top_plain",
-		"bra": "bra_plain", "gloves": "gloves_none", "accessory": "acc_brooch",
+		"bra": "bra_plain", "gloves": "gloves_none", "accessory": "acc_belt",
 		"bottom": "bottom_trousers", "garterbelt": "garter_none", "panties": "panties_plain",
 		"stockings": "stockings_opaque", "shoes": "shoes_boots", "robe": "robe_none",
 		"dress": "dress_none",

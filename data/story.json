@@ -428,6 +428,39 @@
 				"disabled": false
 			},
 			{
+				"id": "makeup_lip",
+				"name": "烈焰红唇",
+				"slot": "makeup",
+				"slot_name": "妆容",
+				"exposure": 0,
+				"contrast": 3,
+				"acceptance_req": 3,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "makeup_blush",
+				"name": "绯色腮红",
+				"slot": "makeup",
+				"slot_name": "妆容",
+				"exposure": 0,
+				"contrast": 2,
+				"acceptance_req": 2,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "makeup_freckles",
+				"name": "点出来的雀斑",
+				"slot": "makeup",
+				"slot_name": "妆容",
+				"exposure": 0,
+				"contrast": 4,
+				"acceptance_req": 4,
+				"tags": [],
+				"disabled": false
+			},
+			{
 				"id": "piercing_none",
 				"name": "（不穿）",
 				"slot": "piercing",
@@ -819,6 +852,7 @@
 				"contrast": 7,
 				"acceptance_req": 9,
 				"tags": [
+					"high_collar",
 					"long_sleeve"
 				],
 				"disabled": false
@@ -954,13 +988,35 @@
 				"disabled": false
 			},
 			{
-				"id": "acc_brooch",
-				"name": "黄铜胸针",
+				"id": "acc_locket",
+				"name": "银质心形吊坠",
 				"slot": "accessory",
 				"slot_name": "配饰",
 				"exposure": 0,
-				"contrast": 1,
-				"acceptance_req": 1,
+				"contrast": 2,
+				"acceptance_req": 2,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "acc_anklet",
+				"name": "金脚链",
+				"slot": "accessory",
+				"slot_name": "配饰",
+				"exposure": 0,
+				"contrast": 3,
+				"acceptance_req": 4,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "acc_shackle",
+				"name": "金色手铐",
+				"slot": "accessory",
+				"slot_name": "配饰",
+				"exposure": 1,
+				"contrast": 5,
+				"acceptance_req": 6,
 				"tags": [],
 				"disabled": false
 			},
@@ -972,6 +1028,28 @@
 				"exposure": 1,
 				"contrast": 3,
 				"acceptance_req": 4,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "panties_thong",
+				"name": "黑色丁字裤",
+				"slot": "bottom",
+				"slot_name": "下装",
+				"exposure": 5,
+				"contrast": 5,
+				"acceptance_req": 5,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "panties_janties",
+				"name": "牛仔丁字裤",
+				"slot": "bottom",
+				"slot_name": "下装",
+				"exposure": 5,
+				"contrast": 5,
+				"acceptance_req": 6,
 				"tags": [],
 				"disabled": false
 			},
@@ -1231,28 +1309,6 @@
 			{
 				"id": "panties_lace",
 				"name": "黑色蕾丝内裤",
-				"slot": "panties",
-				"slot_name": "下内衣",
-				"exposure": 5,
-				"contrast": 5,
-				"acceptance_req": 6,
-				"tags": [],
-				"disabled": false
-			},
-			{
-				"id": "panties_thong",
-				"name": "黑色丁字裤",
-				"slot": "panties",
-				"slot_name": "下内衣",
-				"exposure": 5,
-				"contrast": 5,
-				"acceptance_req": 5,
-				"tags": [],
-				"disabled": false
-			},
-			{
-				"id": "panties_janties",
-				"name": "牛仔丁字裤",
 				"slot": "panties",
 				"slot_name": "下内衣",
 				"exposure": 5,
@@ -5816,7 +5872,6 @@
 		"gloves_none": "从不戴手套，抓缰绳都是赤着手",
 		"gloves_leather": "总戴着一副磨旧了的皮手套",
 		"acc_none": "没有一件多余的物件，干干净净",
-		"acc_brooch": "别着一枚黄铜胸针，很旧了",
 		"bottom_longskirt": "裙摆几乎扫地，看不见鞋面",
 		"bottom_trousers": "是条直筒长裤，裤脚沾着泥",
 		"dress_none": "从没见穿过裙子，一贯是上衣配长裤",

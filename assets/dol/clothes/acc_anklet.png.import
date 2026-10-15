@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d2ui75mdh4vuj"
-path="res://.godot/imported/acc_brooch.png-cf08bde1c71d34d1c9efd75f58e8be77.ctex"
+uid="uid://dh4hdfgequhkr"
+path="res://.godot/imported/acc_anklet.png-a549640db074ffe1b8ca5cbc09497177.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/dol/clothes/acc_brooch.png"
-dest_files=["res://.godot/imported/acc_brooch.png-cf08bde1c71d34d1c9efd75f58e8be77.ctex"]
+source_file="res://assets/dol/clothes/acc_anklet.png"
+dest_files=["res://.godot/imported/acc_anklet.png-a549640db074ffe1b8ca5cbc09497177.ctex"]
 
 [params]
 

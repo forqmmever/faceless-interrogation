@@ -323,6 +323,18 @@ const ITEMS := [
 	{"id": "makeup_none", "name": "（素颜）", "slot": "makeup", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
 	{"id": "makeup_light", "name": "淡妆", "slot": "makeup", "exposure": 0, "acceptance_req": 1, "contrast": 1, "covers": [], "tags": []},
 	{"id": "makeup_heavy", "name": "浓艳烟熏妆", "slot": "makeup", "exposure": 1, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
+	# ★★ 第三十四轮：按用户口径「从 au 中添加几个妆容」补的 3 件。
+	#   三件都是 AU 图包**真实的面部图层**（眼影那一档原来只有「淡 / 烟熏」两件，
+	#   而 AU 自己还画着口红 / 腮红 / 雀斑三张）。分工是按**改的是脸上哪个部位**分的：
+	#     · 烈焰红唇   —— 只动嘴，最省的一档
+	#     · 绯色腮红   —— 只动颊，比口红再进一步
+	#     · 点出来的雀斑 —— 动的是**识别特征**（肤色纹理），落差最高
+	#   数值刻意排成一条 2 / 3 / 4 的斜坡，接在「淡妆 1」与「烟熏 5」之间。
+	#   ★ 暴露值全给 0：这一栏动的是脸，不涉及露肤（只有烟熏妆那件是 1，
+	#     那是它连唇色一起压深、显得更「刻意」）。
+	{"id": "makeup_lip", "name": "烈焰红唇", "slot": "makeup", "exposure": 0, "acceptance_req": 3, "contrast": 3, "covers": [], "tags": []},
+	{"id": "makeup_blush", "name": "绯色腮红", "slot": "makeup", "exposure": 0, "acceptance_req": 2, "contrast": 2, "covers": [], "tags": []},
+	{"id": "makeup_freckles", "name": "点出来的雀斑", "slot": "makeup", "exposure": 0, "acceptance_req": 4, "contrast": 4, "covers": [], "tags": []},
 
 	# ================= 穿环 =================
 	{"id": "piercing_none", "name": "（不穿）", "slot": "piercing", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
@@ -436,8 +448,24 @@ const ITEMS := [
 	{"id": "gloves_oper", "name": "歌剧长手套", "slot": "gloves", "exposure": 2, "acceptance_req": 7, "contrast": 5, "covers": ["hand_tattoo"], "tags": ["glove"]},
 
 	# ================= 配饰 =================
+	# ★ 第三十四轮：用户口径「黄铜胸针去掉」→ `acc_brooch` **物品级删除**
+	#   （和上一轮撤掉眉钉 `piercing_brow` 是同一档处理：整条从表里撤掉，
+	#   连带 `dol_map.py` 的映射、`ScenarioData.ITEM_DESC` 的目击描述、
+	#   `TRUE_POOL` 的候选、目录快照与烘焙产物一起清掉）。
+	#   ★ 连带口径：A 的原貌从此**不再可能戴配饰**（`TRUE_POOL["accessory"]`
+	#   只剩 `acc_none`）—— 少了胸针那件「A 也可能戴」的东西，就不要再补一件
+	#   进来冒充，等用户点名再说。
 	{"id": "acc_none", "name": "（不戴）", "slot": "accessory", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
-	{"id": "acc_brooch", "name": "黄铜胸针", "slot": "accessory", "exposure": 0, "acceptance_req": 1, "contrast": 1, "covers": [], "tags": []},
+	# ★★ 第三十四轮：按用户口径「从 au 中添加几个配饰」补的 3 件，全部取 AU 真实贴图。
+	#   三件刻意分在**身上三个不同的位置**，换一件就是换一个地方露东西：
+	#     · 银质心形吊坠 —— 锁骨（AU `neck/lovelocket`，源图纯灰，乘一层旧银）
+	#     · 金脚链       —— 脚踝（AU `legs/goldanklets`，源图本来就是金的，不再染色）
+	#     · 金色手铐     —— 双腕 + 垂下来的链子（AU `hands/goldshackles`，左右手各一层）
+	#   ★ 数值也排成 2 / 3 / 5 的斜坡：吊坠最便宜，脚链要裙短才露得出来，
+	#     手铐最扎眼（也是这一栏唯一带暴露值的 —— 腕上那串链子本身就惹眼）。
+	{"id": "acc_locket", "name": "银质心形吊坠", "slot": "accessory", "exposure": 0, "acceptance_req": 2, "contrast": 2, "covers": [], "tags": []},
+	{"id": "acc_anklet", "name": "金脚链", "slot": "accessory", "exposure": 0, "acceptance_req": 4, "contrast": 3, "covers": [], "tags": []},
+	{"id": "acc_shackle", "name": "金色手铐", "slot": "accessory", "exposure": 1, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
 	{"id": "acc_belt", "name": "束腰皮带", "slot": "accessory", "exposure": 1, "acceptance_req": 4, "contrast": 3, "covers": [], "tags": []},
 
 	# ================= 下装 =================
@@ -854,7 +882,11 @@ const TRUE_POOL := {
 	"top": ["top_highneck", "top_plain", "top_longsleeve"],
 	"bra": ["bra_plain"],
 	"gloves": ["gloves_none", "gloves_leather"],
-	"accessory": ["acc_none", "acc_brooch"],
+	# ★ 第三十四轮：黄铜胸针被整件删掉，这一栏的候选也跟着收敛成**只有空件**。
+	#   效果是「A 的原貌从此不戴配饰」—— 目击情报里这一句恒定是
+	#   「没有一件多余的物件，干干净净」。
+	#   （不影响反差值：反差只统计 top / bottom 两个槽位，见 WardrobeModel。）
+	"accessory": ["acc_none"],
 	"bottom": ["bottom_longskirt", "bottom_trousers"],
 	# ★ 第二十六轮新增的整件式槽位：A 的原貌可能穿着一件素色成装，
 	#   也可能什么都没穿（dress_none 的暴露值是 0 —— 「没穿成装」只是穿着

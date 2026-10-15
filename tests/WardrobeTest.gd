@@ -44,6 +44,8 @@ func _ready() -> void:
 	_test_manual_slot_tool()
 	_test_item_overrides()
 	_test_true_presets()
+	_test_bg_overrides()
+	_test_question_order()
 	_test_underwear_gate()
 	_test_tattoo_multi()
 	_test_true_pool()
@@ -853,6 +855,202 @@ func _test_true_presets() -> void:
 	ScenarioData._true_presets = {}
 	ProfileData.reset_all()
 	RunData.base_true_app = {}
+
+# ------------------------------------------------------------
+#  背景级流程覆写（第四十一轮）
+#
+#  用户口径：「每局游戏应该能够设置不同强制穿着，qte计划，身体缺陷，
+#            关卡轮数，原貌」，并补充「原貌也是按背景的四关每关都可以设置不同的」。
+#
+#  一局 = 一套背景 + 若干轮。所以「挂在背景上」=「每局都能不同」。
+#  这里测的是运行时那条链：背景里写了 → 灌进 OutfitData → 各读取入口看到新值；
+#  背景里没写 → 完全回退全局那份（默认行为与以前逐字节相同）。
+# ------------------------------------------------------------
+func _test_bg_overrides() -> void:
+	print("\n-- 背景级流程覆写（每局不同的轮数 / 强制 / QTE / 缺陷 / 原貌）--")
+	var bgs: Array = ScenarioData._backgrounds
+	if bgs.is_empty():
+		_check("背景表非空（否则这条用例是空转）", false)
+		return
+	var b0: Dictionary = bgs[0]
+	var bg_id := str(b0.get("id", ""))
+
+	# ---- 基准：清掉覆写后就是全局那份 ----
+	OutfitData.clear_run_overrides()
+	ScenarioData.clear_run_overrides()
+	var g_levels := OutfitData.level_count()
+	var g_forced := OutfitData.forced_rules_at(1).duplicate(true)
+	var g_defects := OutfitData.defects().size()
+	_check("没有覆写时 = 全局那份（%d 轮 / 第 2 关强制 mode=%s / 缺陷 %d 项）" % [
+		g_levels, str(g_forced.get("mode", "")), g_defects], g_levels >= 1)
+
+	# ---- 给第 1 套背景写上五项覆写 ----
+	var keep_levels: Array = (b0.get("levels", []) as Array).duplicate(true)
+	var keep_forced: Variant = b0.get("forced_rules", null)
+	var keep_defects: Variant = b0.get("defects", null)
+	var keep_qte: Variant = b0.get("qte_plan", null)
+	var keep_presets: Variant = b0.get("true_presets", null)
+
+	var new_levels := [
+		{"name": "测试一轮", "acceptance_gain": 7, "contrast_req": 30},
+		{"name": "测试二轮", "acceptance_gain": 8},
+		{"name": "测试三轮", "acceptance_gain": 0},
+	]
+	b0["levels"] = new_levels
+	b0["forced_rules"] = [
+		{"mode": "none", "rules": []},
+		{"mode": "fixed", "rules": [{"pick": "all", "items": ["top_longsleeve"]}]},
+		{"mode": "none", "rules": []},
+	]
+	b0["defects"] = [{"id": "neck_brand", "name": "测试缺陷", "slot_hint": "颈侧",
+		"cover_tags": ["high_collar"]}]
+	b0["qte_plan"] = [{"qte": "expression", "delay": 1.5}, {"qte": "none", "delay": -1.0}]
+	b0["true_presets"] = {"pool": [], "by_level": [
+		{"name": "一轮原貌", "slots": {"top": "top_plain"}},
+		{"name": "二轮原貌", "slots": {"top": "top_highneck"}},
+		{"name": "三轮原貌", "slots": {"top": "top_longsleeve"}},
+	]}
+
+	OutfitData.apply_run_overrides(bg_id)
+	ScenarioData.apply_run_qte_plan(bg_id)
+	ScenarioData.apply_run_true_presets(bg_id)
+
+	# ---- ① 轮数 ----
+	_check("★ 轮数按背景变（3 条 = 这一局打 3 轮）：%d" % OutfitData.level_count(),
+		OutfitData.level_count() == 3)
+	_check("RunData.level_count() 同步", RunData.level_count() == 3)
+	# ★ 轮次名走的是「两条路」，这里把口径写清楚：
+	#   · OutfitData.level_at().name = **全局名** —— 选轮面板在开局前就要用，
+	#     那时还没抽背景，所以它拿不到、也不该拿背景的名字；
+	#   · RunData.levels() 把**本局背景**的 name / derived_profile 叠上去 —— 游戏里显示的是它。
+	_check("覆写里的轮次名就是「测试一轮」",
+		str((ScenarioData.bg_levels(bg_id)[0] as Dictionary).get("name", "")) == "测试一轮")
+	_check("OutfitData.level_at() 保留的是全局名（不被背景覆写抢先）",
+		str(OutfitData.level_at(0).get("name", "")) != "测试一轮")
+	_check("覆写的接受度生效（+7）", int(OutfitData.level_at(0).get("acceptance_gain", -1)) == 7)
+	_check("覆写的反差要求生效（30）", int(OutfitData.level_at(0).get("contrast_req", -1)) == 30)
+	_check("没写反差要求的那一轮按自增算（30 + 3 = 33）",
+		int(OutfitData.level_at(1).get("contrast_req", -1)) == 33)
+
+	# ---- ② 强制穿着 ----
+	_check("★ 第 2 轮强制 mode=fixed（覆写生效）",
+		str(OutfitData.forced_rules_at(1).get("mode", "")) == "fixed")
+	_check("强制清单里就是那件长袖",
+		OutfitData.forced_groups_at(1).size() == 1
+		and (OutfitData.forced_groups_at(1)[0]["items"] as Array).has("top_longsleeve"))
+
+	# ---- ③ 缺陷 ----
+	_check("★ 缺陷表按背景换（1 项）", OutfitData.defects().size() == 1)
+	_check("缺陷就是覆写那一项",
+		str(OutfitData.defects()[0].get("id", "")) == "neck_brand")
+
+	# ---- ④ QTE 计划 ----
+	_check("★ QTE 第 1 道按覆写（expression / 1.5s）",
+		str(OutfitData.qte_plan_entry(0).get("qte", "")) == "expression"
+		and is_equal_approx(float(OutfitData.qte_plan_entry(0).get("delay", -1.0)), 1.5))
+	_check("QTE 第 2 道按覆写（none）",
+		str(OutfitData.qte_plan_entry(1).get("qte", "")) == "none")
+
+	# ---- ⑤ 原貌（按背景 + 逐轮不同）----
+	ProfileData.reset_all()
+	RunData.start_new_run(909090)
+	_check("抽到的背景就是被覆写的那一套（否则这条用例是空转）",
+		RunData.background_id != "")
+	var per_level := []
+	for li in RunData.level_count():
+		RunData.level_index = li
+		RunData._roll_true_appearance()
+		per_level.append(str(RunData.true_item("top")))
+	_check("★ 三轮的原貌各不相同：" + str(per_level),
+		per_level == ["top_plain", "top_highneck", "top_longsleeve"])
+
+	# ---- 清掉覆写 → 回到全局那份 ----
+	OutfitData.clear_run_overrides()
+	ScenarioData.clear_run_overrides()
+	_check("clear_run_overrides() 后轮数回到全局（%d）" % OutfitData.level_count(),
+		OutfitData.level_count() == g_levels)
+	_check("强制穿着回到全局那份",
+		str(OutfitData.forced_rules_at(1).get("mode", "")) == str(g_forced.get("mode", "")))
+	_check("缺陷回到全局那份（%d 项）" % OutfitData.defects().size(),
+		OutfitData.defects().size() == g_defects)
+
+	# 还原背景数据
+	b0["levels"] = keep_levels
+	for f in [["forced_rules", keep_forced], ["defects", keep_defects],
+			["qte_plan", keep_qte], ["true_presets", keep_presets]]:
+		var k := str(f[0])
+		if f[1] == null:
+			b0.erase(k)
+		else:
+			b0[k] = f[1]
+	ScenarioData._true_presets = {}
+	ProfileData.reset_all()
+	RunData.base_true_app = {}
+
+# ------------------------------------------------------------
+#  题目出场序号（第四十一轮）
+#
+#  用户口径：「题目出现顺序也应该可以设置」。
+#  做法：题目多一个 `order`。同一轮的固定题按 order 升序；
+#  没写 order 的用它在清单里的**下标**当序号 ——
+#  所以「一道都不写」时顺序与以前完全一样。
+# ------------------------------------------------------------
+func _test_question_order() -> void:
+	print("\n-- 题目出场序号 order --")
+	var qs := [
+		{"id": "a", "order": 50},
+		{"id": "b", "order": 10},
+		{"id": "c", "order": 20},
+		{"id": "d", "order": 30},
+	]
+	var out := RunData._sorted_by_order(qs)
+	var ids := []
+	for q in out:
+		ids.append(str((q as Dictionary).get("id", "")))
+	_check("★ 按 order 升序排：" + str(ids), ids == ["b", "c", "d", "a"])
+
+	# 一道都不写 → 顺序不变（用下标当序号）
+	var plain := [{"id": "x"}, {"id": "y"}, {"id": "z"}]
+	var p2 := []
+	for q in RunData._sorted_by_order(plain):
+		p2.append(str((q as Dictionary).get("id", "")))
+	_check("★ 不写 order 时顺序原样（下标当序号）", p2 == ["x", "y", "z"])
+
+	# 部分写：写了 order 的插队，没写的按原位置
+	var mix := [{"id": "m0"}, {"id": "m1", "order": -5}, {"id": "m2"}]
+	var m2 := []
+	for q in RunData._sorted_by_order(mix):
+		m2.append(str((q as Dictionary).get("id", "")))
+	_check("★ 只给一道写 order = 把它插到指定位置：" + str(m2), m2 == ["m1", "m0", "m2"])
+
+	# 相同 order → 按原下标决胜（稳定）
+	var dup := [{"id": "p", "order": 5}, {"id": "q", "order": 5}]
+	var d2 := []
+	for q in RunData._sorted_by_order(dup):
+		d2.append(str((q as Dictionary).get("id", "")))
+	_check("相同 order 时按清单先后决胜（稳定排序）", d2 == ["p", "q"])
+
+	# 真实链路：把某套背景第 1 轮的四道题的 order 打乱，看出题顺序跟着变
+	var bgs: Array = ScenarioData._backgrounds
+	if bgs.is_empty():
+		return
+	var b0: Dictionary = bgs[0]
+	var keep_q: Array = (b0.get("questions", []) as Array).duplicate(true)
+	# 4 道专属第 1 轮的题，order 依次写成 40/10/30/20
+	var made := []
+	for i in 4:
+		made.append({"id": "ordq%d" % i, "level": 0, "order": [40, 10, 30, 20][i],
+			"options": [{"tone": "correct", "text": "x"}], "text": "t%d" % i})
+	b0["questions"] = made
+	ProfileData.reset_all()
+	RunData.start_new_run(20261011)
+	var got := []
+	for q in RunData.questions_for_level(0, 4):
+		got.append(str((q as Dictionary).get("id", "")))
+	_check("★ 真实出题链路按 order 排：" + str(got),
+		got == ["ordq1", "ordq3", "ordq2", "ordq0"])
+	b0["questions"] = keep_q
+	ProfileData.reset_all()
 
 # ------------------------------------------------------------
 #  原貌候选池（多轮制的基础）

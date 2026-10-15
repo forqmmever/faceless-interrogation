@@ -2318,25 +2318,130 @@ func item_overrides_override() -> Dictionary:
 	_ensure_story()
 	return _item_ov
 
+# ============================================================
+#  第四十一轮：按背景覆写「本局的流程配置」
+#
+#  用户口径：「每局游戏应该能够设置不同强制穿着，qte计划，身体缺陷，
+#            关卡轮数，原貌」。
+#
+#  做法：这五项都可以**挂在背景上**（`backgrounds[i]`），一套背景一份。
+#        背景里写了就用它，没写就回退到全局那份 —— 所以默认（四套背景都不写）
+#        的行为与以前**逐字节相同**。
+#
+#    backgrounds[i].levels        ★ 数组长度 = **本局打几关**；第 i 项是对全局第 i 关的逐键覆写
+#    backgrounds[i].forced_rules  本局的强制穿着表（每关一条）
+#    backgrounds[i].qte_plan      本局的 QTE 计划（按题号对齐）
+#    backgrounds[i].defects       本局的身体缺陷表
+#    backgrounds[i].true_presets  本局的原貌预设（{pool, by_level}）
+#
+#  ★ levels 的语义与另外四项**不同**：另外四项是「非空即整份取代」，
+#    而 levels 是「非空则长度定关数、逐条按索引覆写」——
+#    因为背景原先就用它覆写「每关叫什么名字 / 推导形象」（那时长度必须等于全局关数）。
+#    现在把「长度」也赋予了意义，于是「给某套背景只配 3 关」只要写 3 条即可，
+#    而且旧数据（写满 4 条）语义不变。
+# ============================================================
+func _bg_of(bg_id: String) -> Dictionary:
+	_ensure_story()
+	if bg_id == "":
+		return {}
+	for b in _backgrounds:
+		if str((b as Dictionary).get("id", "")) == bg_id:
+			return b
+	return {}
+
+func _as_array(v: Variant) -> Array:
+	return (v as Array) if typeof(v) == TYPE_ARRAY else []
+
+# 这套背景覆写的关卡表（空 = 用全局那份）
+func bg_levels(bg_id: String) -> Array:
+	return _as_array(_bg_of(bg_id).get("levels", null))
+
+func bg_forced_rules(bg_id: String) -> Array:
+	return _as_array(_bg_of(bg_id).get("forced_rules", null))
+
+func bg_qte_plan(bg_id: String) -> Array:
+	return _as_array(_bg_of(bg_id).get("qte_plan", null))
+
+func bg_defects(bg_id: String) -> Array:
+	return _as_array(_bg_of(bg_id).get("defects", null))
+
+func bg_true_presets(bg_id: String) -> Dictionary:
+	var v: Variant = _bg_of(bg_id).get("true_presets", null)
+	return v if typeof(v) == TYPE_DICTIONARY else {}
+
+# 这套背景覆写的原貌预设（清洗 + 按关对齐，与全局那套走同一段逻辑）
+func bg_true_preset_pool(bg_id: String) -> Array:
+	var d := bg_true_presets(bg_id)
+	if d.is_empty():
+		return []
+	var out := []
+	for e in _sanitize_presets(d.get("pool", [])):
+		if not (e as Dictionary).is_empty():
+			out.append(e)
+	return out
+
+func bg_true_preset_by_level(bg_id: String) -> Array:
+	var d := bg_true_presets(bg_id)
+	if d.is_empty():
+		return []
+	var raw: Array = _sanitize_presets(d.get("by_level", []))
+	var out := []
+	for i in OutfitData.level_count():
+		out.append(raw[i] if i < raw.size() else {})
+	return out
+
+# 导出用：把四套背景各自的覆写原样交出去（DumpStory 走它）
+func BG_OVERRIDES_EXPORT(bg: Dictionary) -> Dictionary:
+	return {
+		"levels": _as_array(bg.get("levels", null)),
+		"forced_rules": _as_array(bg.get("forced_rules", null)),
+		"qte_plan": _as_array(bg.get("qte_plan", null)),
+		"defects": _as_array(bg.get("defects", null)),
+		"true_presets": (bg.get("true_presets", {}) as Dictionary) \
+			if typeof(bg.get("true_presets", null)) == TYPE_DICTIONARY else {},
+	}
+
+# ---------- 本局那份（由 RunData 在开局时灌进来）----------
+# ★ 只影响「读」，不影响导出 —— 导出读的是背景/全局那两份原始数据。
+var _run_qte_ov: Array = []
+var _run_true_presets: Dictionary = {}
+
+func apply_run_qte_plan(bg_id: String) -> void:
+	_run_qte_ov = bg_qte_plan(bg_id)
+
+func apply_run_true_presets(bg_id: String) -> void:
+	_run_true_presets = bg_true_presets(bg_id)
+
+# 回到「没有本局覆写」的状态（测试 / 退出局时用）
+func clear_run_overrides() -> void:
+	_run_qte_ov = []
+	_run_true_presets = {}
+
 # 原貌预设（第四十轮）—— {pool: [{name, slots}], by_level: [{name, slots} | null]}
+#   ★ 第四十一轮：本局背景若覆写了就优先用它。
 func true_presets_override() -> Dictionary:
 	_ensure_story()
+	if not _run_true_presets.is_empty():
+		return _run_true_presets
 	return _true_presets
 
 # 这一份原貌预设里「随机池」那部分（去掉空项 —— 池子里不该有「不覆写」这个概念）
+#   ★ 第四十一轮：本局背景覆写了就优先用背景那份（见 apply_run_true_presets）。
 func true_preset_pool() -> Array:
 	_ensure_story()
 	var out := []
-	for e in _sanitize_presets(_true_presets.get("pool", [])):
+	for e in _sanitize_presets(true_presets_override().get("pool", [])):
 		if not (e as Dictionary).is_empty():
 			out.append(e)
 	return out
 
 # 这一份原貌预设里「按关覆写」那部分 —— 长度对齐关卡数，没配的关是 {}（= 不覆写）
 #   ★ 必须保留位置，所以这里**不能**过滤空项。
+#   ★ 第四十一轮：用户口径「原貌也是按背景的四关每关都可以设置不同的」——
+#     所以「按关覆写」自然就是「在每套背景里配四关各一套」。
 func true_preset_by_level() -> Array:
 	_ensure_story()
-	var raw: Array = _sanitize_presets(_true_presets.get("by_level", []))
+	var raw: Array = _sanitize_presets(true_presets_override().get("by_level", []))
 	var out := []
 	for i in OutfitData.level_count():
 		out.append(raw[i] if i < raw.size() else {})
@@ -2489,9 +2594,11 @@ func _catalog_base_values() -> Dictionary:
 # 第 li 道题的 QTE 计划；没写这一道 → 返回空字典（调用方按「自动」处理）
 func qte_plan_at(li: int) -> Dictionary:
 	_ensure_story()
-	if li < 0 or li >= _qte_plan_ov.size():
+	# ★ 第四十一轮：本局背景覆写了 QTE 计划就优先用它（见 apply_run_qte_plan）
+	var src: Array = _run_qte_ov if not _run_qte_ov.is_empty() else _qte_plan_ov
+	if li < 0 or li >= src.size():
 		return {}
-	var e: Variant = _qte_plan_ov[li]
+	var e: Variant = src[li]
 	return e if typeof(e) == TYPE_DICTIONARY else {}
 
 func qte_plan() -> Array:

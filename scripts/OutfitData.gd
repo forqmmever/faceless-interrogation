@@ -366,7 +366,8 @@ var DEFECTS: Array = []
 func _ensure_defects() -> void:
 	if not DEFECTS.is_empty():
 		return
-	var ov: Array = ScenarioData.defects_override()
+	# ★ 第四十一轮：本局背景覆写优先（空则回退全局那份）
+	var ov: Array = _bg_defects if not _bg_defects.is_empty() else ScenarioData.defects_override()
 	var src: Array = ov if not ov.is_empty() else DEFAULT_DEFECTS
 	DEFECTS = []
 	for d in src:
@@ -1028,30 +1029,57 @@ func contrast_per_exposure() -> int:
 #   以后要开放第 N 关，把它的下标（0 起）加进这张表就行，别处都不用改。
 const OPEN_LEVELS := [0]
 
-# 关卡表 / 关数 —— 惰性从 story.json 读一次（见 ScenarioData`levels_override`）
+# 关卡表 / 关数 —— 惰性从 story.json 读一次（见 ScenarioData.levels_override）
+# ★ 第四十一轮：**本局背景可以覆写它**（见 apply_run_overrides / _bg_levels）。
+#   背景覆写的语义有两条：
+#     · 数组**长度** = 这一局打几关（所以「给某套背景只配 3 关」只要写 3 条）
+#     · 每一条是对全局第 i 关的**逐键覆写**（数值部分：acceptance_gain / contrast_req /
+#       questions_per_level；名字与推导形象仍由 RunData.levels() 从背景里叠 —— 见那里）
 var LEVELS: Array = []
 var MAX_LEVELS: int = 0
+
+# 全局那份关卡表（不含任何背景覆写）—— 背景覆写时拿它当逐键覆写的底
+var _global_levels_cache: Array = []
+
+func global_levels() -> Array:
+	if _global_levels_cache.is_empty():
+		var ov: Array = ScenarioData.levels_override()
+		var src: Array = ov if not ov.is_empty() else DEFAULT_LEVELS
+		for lv in src:
+			_global_levels_cache.append((lv as Dictionary).duplicate())
+	return _global_levels_cache
 
 func _ensure_levels() -> void:
 	if not LEVELS.is_empty():
 		return
-	var ov: Array = ScenarioData.levels_override()
-	if ov.is_empty():
-		LEVELS = []
-		for lv in DEFAULT_LEVELS:
-			LEVELS.append((lv as Dictionary).duplicate())
-	else:
-		LEVELS = []
-		for lv in ov:
-			var d: Dictionary = (lv as Dictionary).duplicate()
-			# 逐键兜底：编辑器里少写一项也不会让这一关没有数值。
-			# ★ contrast_req 不在这里兜底 —— 它留空是有意义的（= 自增），
-			#   由下面的 _resolve_contrast_req 统一算出来。
-			for k in ["name", "acceptance_gain", "derived_profile"]:
-				if not d.has(k) or str(d.get(k, "")) == "":
-					d[k] = DEFAULT_LEVELS[0].get(k) if k != "name" \
-						else "第 %d 关" % (LEVELS.size() + 1)
-			LEVELS.append(d)
+	var src: Array = global_levels()
+	# ★ 背景覆写的那一份（空 = 不覆写，关数照全局）
+	var bg: Array = _bg_levels
+	var n: int = bg.size() if not bg.is_empty() else src.size()
+	if n <= 0:
+		n = DEFAULT_LEVELS.size()
+	LEVELS = []
+	for i in n:
+		var base := {}
+		if i < src.size():
+			base = (src[i] as Dictionary).duplicate()
+		elif not DEFAULT_LEVELS.is_empty():
+			# 背景配得比全局还多 —— 多出来的关用出厂表兜底，保证每一项都有值
+			base = (DEFAULT_LEVELS[mini(i, DEFAULT_LEVELS.size() - 1)] as Dictionary).duplicate()
+		# 逐键兜底：编辑器里少写一项也不会让这一关没有数值。
+		# ★ contrast_req 不在这里兜底 —— 它留空是有意义的（= 自增），
+		#   由下面的 _resolve_contrast_req 统一算出来。
+		for k in ["name", "acceptance_gain", "derived_profile"]:
+			if not base.has(k) or str(base.get(k, "")) == "":
+				base[k] = DEFAULT_LEVELS[0].get(k) if k != "name" \
+					else "第 %d 关" % (i + 1)
+		# ★ 背景这一关的覆写（逐键；只认数值类的键，名字那两项交给 RunData 叠）
+		if i < bg.size() and typeof(bg[i]) == TYPE_DICTIONARY:
+			for k in (bg[i] as Dictionary).keys():
+				if k == "name" or k == "derived_profile":
+					continue          # 名字与推导形象由 RunData.levels() 叠，别在这儿抢先
+				base[k] = (bg[i] as Dictionary)[k]
+		LEVELS.append(base)
 	MAX_LEVELS = maxi(1, LEVELS.size())
 	_resolve_contrast_req()
 
@@ -1112,9 +1140,64 @@ func level_count() -> int:
 
 # 测试 / 编辑器改完之后要让缓存失效
 func reload_levels() -> void:
+	_global_levels_cache = []
 	LEVELS = []
 	MAX_LEVELS = 0
 	_ensure_levels()
+
+# ============================================================
+#  第四十一轮：按背景覆写「本局的流程配置」
+#
+#  用户口径：「每局游戏应该能够设置不同强制穿着，qte计划，身体缺陷，
+#            关卡轮数，原貌」，并补充「原貌也是按背景的四关每关都可以设置不同的」。
+#
+#  这五项都挂在背景上（`backgrounds[i]` 下同名键），默认（背景里不写）时
+#  完全等于以前的行为。运行时由 `RunData.start_new_run()` 抽完背景后调
+#  `apply_run_overrides(bg_id)` 灌进来 —— 走的是「原地改运行表」这条路，
+#  和第四十轮的 `apply_item_overrides()` 同一个模式，
+#  所以 `level_count()` / `forced_rules_at()` / `defects()` 这些既有入口
+#  **一行都不用改**就自动看到本局那一份。
+#
+#  ★ 为什么不让各读取点自己去查背景：OutfitData 是 autoload，它不知道
+#    「当前是哪一套背景」；而 RunData 知道。把「本局那份」灌进来，
+#    比给每个读取函数加一个 bg_id 参数干净得多（后者要改几十个调用点）。
+# ============================================================
+var _bg_levels: Array = []       # 本局背景覆写的关卡表（长度 = 本局打几关）
+var _bg_forced: Array = []       # 本局背景覆写的强制穿着表
+var _bg_defects: Array = []      # 本局背景覆写的缺陷表
+
+func apply_run_overrides(bg_id: String) -> void:
+	_bg_levels = ScenarioData.bg_levels(bg_id)
+	_bg_forced = ScenarioData.bg_forced_rules(bg_id)
+	_bg_defects = ScenarioData.bg_defects(bg_id)
+	reload_run_tables()
+
+# 回到「没有背景覆写」的状态（测试 / 退出局时用）
+func clear_run_overrides() -> void:
+	_bg_levels = []
+	_bg_forced = []
+	_bg_defects = []
+	reload_run_tables()
+
+# 丢掉本局那三张表并让它们按当前覆写重建
+func reload_run_tables() -> void:
+	LEVELS = []
+	MAX_LEVELS = 0
+	_ensure_levels()
+	FORCED_RULES = []
+	_ensure_forced_rules()
+	DEFECTS = []
+	_ensure_defects()
+
+# 本局生效的覆写（编辑器 / 测试用）
+func run_levels_override() -> Array:
+	return _bg_levels.duplicate(true)
+
+func run_forced_override() -> Array:
+	return _bg_forced.duplicate(true)
+
+func run_defects_override() -> Array:
+	return _bg_defects.duplicate(true)
 
 # 越界的下标夹回合法范围
 func level_at(li: int) -> Dictionary:
@@ -1321,7 +1404,8 @@ var FORCED_RULES: Array = []
 func _ensure_forced_rules() -> void:
 	if not FORCED_RULES.is_empty():
 		return
-	var ov: Array = ScenarioData.forced_rules_override()
+	# ★ 第四十一轮：本局背景覆写优先（空则回退全局那份）
+	var ov: Array = _bg_forced if not _bg_forced.is_empty() else ScenarioData.forced_rules_override()
 	var src: Array = ov if not ov.is_empty() else DEFAULT_FORCED_RULES
 	FORCED_RULES = []
 	for e in src:

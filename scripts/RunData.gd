@@ -82,6 +82,17 @@ func start_new_run(seed_in: int = -1, start_level: int = 0) -> void:
 	background_id = str(ids[_rng.randi() % ids.size()])
 	_bg = ScenarioData.get_background(background_id)
 
+	# ★ 第四十一轮：把「本局背景的那份流程配置」灌进数据层。
+	#   用户口径：「每局游戏应该能够设置不同强制穿着，qte计划，身体缺陷，
+	#             关卡轮数，原貌」——这五项现在都挂在背景上（见 ScenarioData 的
+	#             bg_* 门面），这里落成「本局生效」的那一份。
+	#   ★ 必须在设置 level_index / 抽原貌 / 抽强制装备**之前**：
+	#     关卡覆写决定「这一局打几关」（level_index 要按它 clamp），
+	#     原貌预设的「按关覆写」要按新关数对齐，强制装备按新的规则表抽。
+	OutfitData.apply_run_overrides(background_id)
+	ScenarioData.apply_run_qte_plan(background_id)
+	ScenarioData.apply_run_true_presets(background_id)
+
 	# ★ 第四十轮：`level_index` 必须**先**设好，再抽原貌 ——
 	#   因为原貌现在要看「本关有没有按关覆写」（`true_presets.by_level[level_index]`）。
 	#   以前这一行在后面（抽完原貌才设），于是「从选关面板直接进第 3 关」时，
@@ -791,7 +802,11 @@ func _questions_for_level_v1(bg: Dictionary, li: int, count: int) -> Array:
 				pool.append(d)
 
 	var out := []
-	for q in fixed:
+	# ★ 第四十一轮：固定题按「出场序号」`order` 从小到大排。
+	#   没写 order 的题，用**它在数据里的下标**当序号 ——
+	#   于是「一道都不写」时顺序与以前完全一样（0,1,2,…），
+	#   而「给某几道写 order」就等于把它们插到对应位置去。
+	for q in _sorted_by_order(fixed):
 		out.append((q as Dictionary).duplicate(true))
 
 	# 跨关复问：第 1 关没有「上一关」，不排；其余关按本关抽到的旧说法挑对应的那道。
@@ -822,6 +837,31 @@ func _questions_for_level_v1(bg: Dictionary, li: int, count: int) -> Array:
 	# 返回全部：固定题与复问如果已经凑够（或超过）count，就以**数据为准** ——
 	# 用户显式把 8 道题都分配给了这一关，就不该再被全局的 count 砍掉。
 	# 不够时才由通用池补足。所以「每关几道题」= 固定题数，不足则补到 count。
+	return out
+
+# ★ 第四十一轮：按「出场序号」`order` 稳定排序。
+#   键 = (order, 原下标)。order 没写就用原下标 ——
+#   所以「一道都不写」= 顺序不变；「给某几道写 order」= 把那几道插到指定位置。
+#   ★ 必须显式带上「原下标」做第二键：GDScript 的 sort_custom 底层是不稳定排序，
+#     两个相同的 order 之间谁先谁后不确定 —— 那会让「同 order 的题」每次跑都可能换位置。
+func _sorted_by_order(list: Array) -> Array:
+	if list.size() <= 1:
+		return list
+	var keyed := []
+	for i in list.size():
+		var q: Dictionary = list[i]
+		var o: Variant = q.get("order", null)
+		var k := float(i)                      # 没写 order → 用原下标
+		if o != null and (typeof(o) == TYPE_INT or typeof(o) == TYPE_FLOAT):
+			k = float(o)
+		keyed.append({"k": k, "i": i})
+	keyed.sort_custom(func(a, b):
+		if float(a["k"]) != float(b["k"]):
+			return float(a["k"]) < float(b["k"])
+		return int(a["i"]) < int(b["i"]))
+	var out := []
+	for e in keyed:
+		out.append(list[int(e["i"])])
 	return out
 
 # 本关出题数：全局 rules 打底，每关可以用 levels[li].questions_per_level 覆盖。

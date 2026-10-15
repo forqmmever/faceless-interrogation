@@ -24,6 +24,15 @@ func _ready() -> void:
 	for b in ScenarioData.BACKGROUNDS:
 		var copy: Dictionary = (b as Dictionary).duplicate(true)
 		copy["endings"] = ScenarioData.endings_of(b)
+		# ★ 第四十一轮：每套背景的「本局流程配置」覆写（关卡轮数 / 强制穿着 /
+		#   QTE 计划 / 身体缺陷 / 原貌）单独保留为独立键 ——
+		#   不写就是空，运行时回退到全局那份。
+		var ov := ScenarioData.BG_OVERRIDES_EXPORT(b)
+		copy["levels"] = ov["levels"]
+		copy["forced_rules"] = ov["forced_rules"]
+		copy["qte_plan"] = ov["qte_plan"]
+		copy["defects"] = ov["defects"]
+		copy["true_presets"] = ov["true_presets"]
 		bgs.append(copy)
 
 	var out := {

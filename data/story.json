@@ -3827,7 +3827,13 @@
 				"overlay_level_btn": "进入第 %d 关  ➔",
 				"overlay_next_body": "[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n[color=#f0a83c]下一关[/color]  %s\n接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n反差值要求提高到 [b]%d[/b]\n\n[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，你已经查到的外貌情报也还在。要改的是打扮，不是身份。[/color]"
 			},
-			"questions_schema": "faceless-questions-v1"
+			"questions_schema": "faceless-questions-v1",
+			"forced_rules": [],
+			"qte_plan": [],
+			"defects": [],
+			"true_presets": {
+
+			}
 		},
 		{
 			"id": "town_inn",
@@ -4874,7 +4880,13 @@
 				"overlay_level_btn": "进入第 %d 关  ➔",
 				"overlay_next_body": "[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n[color=#f0a83c]下一关[/color]  %s\n接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n反差值要求提高到 [b]%d[/b]\n\n[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，你已经查到的外貌情报也还在。要改的是打扮，不是身份。[/color]"
 			},
-			"questions_schema": "faceless-questions-v1"
+			"questions_schema": "faceless-questions-v1",
+			"forced_rules": [],
+			"qte_plan": [],
+			"defects": [],
+			"true_presets": {
+
+			}
 		},
 		{
 			"id": "ducal_manor",
@@ -5921,7 +5933,13 @@
 				"overlay_level_btn": "进入第 %d 关  ➔",
 				"overlay_next_body": "[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n[color=#f0a83c]下一关[/color]  %s\n接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n反差值要求提高到 [b]%d[/b]\n\n[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，你已经查到的外貌情报也还在。要改的是打扮，不是身份。[/color]"
 			},
-			"questions_schema": "faceless-questions-v1"
+			"questions_schema": "faceless-questions-v1",
+			"forced_rules": [],
+			"qte_plan": [],
+			"defects": [],
+			"true_presets": {
+
+			}
 		},
 		{
 			"id": "harbor_customs",
@@ -6968,7 +6986,13 @@
 				"overlay_level_btn": "进入第 %d 关  ➔",
 				"overlay_next_body": "[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n[color=#f0a83c]下一关[/color]  %s\n接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n反差值要求提高到 [b]%d[/b]\n\n[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，你已经查到的外貌情报也还在。要改的是打扮，不是身份。[/color]"
 			},
-			"questions_schema": "faceless-questions-v1"
+			"questions_schema": "faceless-questions-v1",
+			"forced_rules": [],
+			"qte_plan": [],
+			"defects": [],
+			"true_presets": {
+
+			}
 		}
 	],
 	"traits": [

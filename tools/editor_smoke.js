@@ -88,6 +88,9 @@ mainJs += `
   get presetMode(){ return presetMode; }, set presetMode(v){ presetMode = v; },
   get presetSel(){ return presetSel; }, set presetSel(v){ presetSel = v; },
   get itemFilter(){ return itemFilter; },
+  // ★ 第四十一轮：背景级流程覆写 + 原貌编辑器复用
+  presetEditor, presetSummaryOf, bgSections, cascadeDeleteRound,
+  get presetScope(){ return presetScope; },
 };
 `;
 
@@ -753,7 +756,7 @@ try {
     P.validateNow();
     ok(!P.issues.some(i => i.lv === "e" && i.m.includes("true_presets")),
       "按关覆写（中间一关有值、其余 null）不报错");
-    ok(P.presetSummary().includes("按关 1 关"), "导航角标统计到按关覆写：" + P.presetSummary());
+    ok(P.presetSummary().includes("逐轮 1 轮"), "导航角标统计到逐轮覆写：" + P.presetSummary());
     ok(P.issues.some(i => i.lv === "w" && i.m.includes("逐关变化")),
       "按关覆写生效时会提醒「A 的样子会逐关变化」");
 
@@ -782,6 +785,147 @@ try {
       "true_presets.by_level 能往返");
 
     P.loadStory(JSON.parse(JSON.stringify(pristine)), "t.json", false);
+  }
+
+
+  // ============================================================
+  //  15. 背景级流程覆写 · 删轮次联动 · 出场序号（第四十一轮）
+  // ============================================================
+  console.log("\n-- 15. 本局覆写 / 删轮次联动 / 出场序号（第四十一轮）--");
+  {
+    const S = P.story;
+    const pristine = JSON.parse(JSON.stringify(S));
+
+    // ---- 背景页里带上了三个覆写节 ----
+    const secs = P.bgSections(S.backgrounds[0]);
+    const keys = secs.map(x => x.key);
+    ok(keys.includes("levels"), "背景页有「本局几轮」节");
+    ok(keys.includes("ov_forced"), "背景页有「本局覆写 · 强制穿着」节");
+    ok(keys.includes("ov_qte"), "背景页有「本局覆写 · QTE 计划」节");
+    ok(keys.includes("ov_defects"), "背景页有「本局覆写 · 身体缺陷」节");
+
+    // ---- 背景的覆写字段都能建出来、能渲染 ----
+    S.backgrounds.forEach((b, i) => {
+      if (!Array.isArray(b.forced_rules)) b.forced_rules = [];
+      if (!Array.isArray(b.qte_plan)) b.qte_plan = [];
+      if (!Array.isArray(b.defects)) b.defects = [];
+      if (!b.true_presets) b.true_presets = {};
+    });
+    S.backgrounds[0].forced_rules = [{mode:"fixed", rules:[{pick:"all", items:["top_plain"]}]}];
+    S.backgrounds[0].qte_plan = [{qte:"expression", delay:1.5}];
+    S.backgrounds[0].defects = [{id:"hand_tattoo", name:"测试", slot_hint:"", cover_tags:["glove"]}];
+    P.validateNow();
+    ok(!P.issues.some(x => x.lv === "e" && x.m.includes("强制规则")), "合法的背景强制穿着不报错");
+    ok(!P.issues.some(x => x.lv === "e" && x.m.includes("QTE 计划")), "合法的背景 QTE 计划不报错");
+
+    // ---- 反向：非法的 mode / qte / 衣物 id / 标签 ----
+    S.backgrounds[0].forced_rules = [{mode:"乱写", rules:[{pick:"all", items:["__no__"]}]}];
+    P.validateNow();
+    ok(P.issues.some(x => x.lv === "e" && x.m.includes("mode 只能是")), "非法 mode 会报错");
+    ok(P.issues.some(x => x.lv === "e" && x.m.includes("不存在的衣物")), "强制穿着引用不存在的衣物会报错");
+    S.backgrounds[0].forced_rules = [];
+    S.backgrounds[0].qte_plan = [{qte:"乱写", delay:0}];
+    P.validateNow();
+    ok(P.issues.some(x => x.lv === "e" && x.m.includes("qte 只能是")), "非法 QTE 类型会报错");
+    S.backgrounds[0].qte_plan = [];
+    S.backgrounds[0].defects = [{id:"d1", name:"甲", cover_tags:["不存在的标签"]}];
+    P.validateNow();
+    ok(P.issues.some(x => x.lv === "e" && x.m.includes("不存在的标签")), "缺陷引用不存在的标签会报错");
+    S.backgrounds[0].defects = [];
+    P.validateNow();
+    ok(!P.issues.some(x => x.lv === "e" && x.m.includes("缺陷")), "清空后校验干净");
+
+    // ---- 背景覆写原貌：非法槽位对不上要报错 ----
+    S.backgrounds[0].true_presets = {pool:[], by_level:[{name:"x", slots:{bottom:"top_plain"}}]};
+    P.validateNow();
+    ok(P.issues.some(x => x.lv === "e" && x.m.includes("放进了")), "背景原貌把衣物放进错槽位会报错");
+    S.backgrounds[0].true_presets = {};
+    P.validateNow();
+
+    // ---- presetEditor 能用背景那份 host 渲染（scope 也跟着变） ----
+    const bg0 = S.backgrounds[0];
+    bg0.true_presets = {pool:[{name:"甲", slots:{}}], by_level:[null,null,null,null]};
+    P.presetMode = "pool";
+    try { P.go({kind:"bg", index:0}); ok(true, "背景页（含本局原貌编辑器）渲染不抛错"); }
+    catch (e) { ok(false, "背景页渲染抛错：" + (e && e.message)); }
+    ok(P.presetScope === "bg:" + (bg0.id || 0), "原貌编辑器的 scope 切到了这套背景：" + P.presetScope);
+    ok(P.presetSummaryOf(bg0.true_presets).includes("池 1 套"),
+      "按背景的摘要正确：" + P.presetSummaryOf(bg0.true_presets));
+    // 全局那份不该被背景的编辑串味
+    ok(P.presetSummaryOf(S.true_presets) === "默认",
+      "全局原貌仍是「默认」（没被背景那份串味）");
+    P.presetMode = "pool";
+
+    // ---- 题库：出场序号字段在 ----
+    const qf = P.questionFields();
+    ok(qf.some(f => f.k === "order"), "题目字段里有 order（出场序号）");
+
+    // ---- ★ 删轮次联动：删第 2 轮，第 2 轮的题被删、后面的往前挪 ----
+    const bg = S.backgrounds[0];
+    bg.levels = [{name:"一轮"},{name:"二轮"},{name:"三轮"},{name:"四轮"}];
+    bg.questions = [
+      {id:"q0a", level:0, options:[]},
+      {id:"q1a", level:1, options:[]},
+      {id:"q1b", level:1, options:[]},
+      {id:"q2a", level:2, options:[]},
+      {id:"q3a", level:3, options:[]},
+      {id:"qAny", level:-1, options:[]},
+    ];
+    bg.true_presets = {pool:[], by_level:[{name:"p0", slots:{top:"top_plain"}},
+      {name:"p1", slots:{top:"top_plain"}}, null, {name:"p3", slots:{top:"top_plain"}}]};
+    const before = bg.questions.length;
+    const okDel = P.cascadeDeleteRound(bg, 1);
+    ok(okDel === true, "删轮次联动返回 true（允许继续删）");
+    ok(bg.questions.length === before - 2, "第 2 轮那两道题被删掉了（" + before
+      + " → " + bg.questions.length + "）");
+    ok(!bg.questions.some(q => q.id === "q1a" || q.id === "q1b"), "被删的正是第 2 轮那两道");
+    ok(bg.questions.find(q => q.id === "q2a").level === 1, "原本第 3 轮的题往前挪成了第 2 轮");
+    ok(bg.questions.find(q => q.id === "q3a").level === 2, "原本第 4 轮的题往前挪成了第 3 轮");
+    ok(bg.questions.find(q => q.id === "qAny").level === -1, "通用池的题（level=-1）不受影响");
+    ok(bg.questions.find(q => q.id === "q0a").level === 0, "前面的题不受影响");
+    ok(bg.true_presets.by_level.length === 3, "原貌「逐轮指定」也跟着少了一项");
+    ok(bg.true_presets.by_level[2] && bg.true_presets.by_level[2].name === "p3",
+      "原貌指定里后面那项往前挪了（p3 从第 4 轮到第 3 轮）");
+
+    // ---- 没有牵连时不该弹确认、直接返回 true ----
+    const bg2 = S.backgrounds[1];
+    bg2.levels = [{name:"a"},{name:"b"}];
+    bg2.questions = [{id:"x", level:-1, options:[]}];
+    bg2.true_presets = {};
+    ok(P.cascadeDeleteRound(bg2, 1) === true, "没有牵连时直接允许删除");
+
+    // ---- 反向校验：题目挂在「这一局不存在的轮次」上 → 提醒 ----
+    S.backgrounds[0].levels = [{name:"一"},{name:"二"}];
+    S.backgrounds[0].questions = [{id:"zz", level:3, options:[]}];
+    P.validateNow();
+    ok(P.issues.some(x => x.lv === "w" && x.m.includes("永远不会出现")),
+      "题目属于本局不存在的轮次会被提醒");
+    S.backgrounds[0].questions = [];
+    S.backgrounds[0].levels = pristine.backgrounds[0].levels;
+    P.validateNow();
+
+    // ---- 出场序号重复 → 提醒（不是错误） ----
+    S.backgrounds[0].questions = [
+      {id:"d1", level:0, order:5, options:[]},
+      {id:"d2", level:0, order:5, options:[]},
+    ];
+    P.validateNow();
+    ok(P.issues.some(x => x.lv === "w" && x.m.includes("出场序号相同")), "同轮序号重复会提醒");
+    ok(!P.issues.some(x => x.lv === "e" && x.m.includes("出场序号")), "序号重复只是提醒、不是错误");
+    S.backgrounds[0].questions = [];
+    P.validateNow();
+
+    // ---- 往返无损 ----
+    S.backgrounds[0].forced_rules = [{mode:"random", rules:[]}];
+    S.backgrounds[0].qte_plan = [{qte:"none", delay:-1}];
+    S.backgrounds[0].defects = [];
+    S.backgrounds[0].true_presets = {pool: [], by_level: [null, null, null, null]};
+    const t4 = JSON.parse(P.toJSON());
+    ok(t4.backgrounds[0].forced_rules[0].mode === "random", "背景强制穿着能往返");
+    ok(t4.backgrounds[0].qte_plan[0].qte === "none", "背景 QTE 计划能往返");
+
+    P.loadStory(JSON.parse(JSON.stringify(pristine)), "t.json", false);
+    ok(true, "恢复原始数据");
   }
 
   console.log("\n================================");

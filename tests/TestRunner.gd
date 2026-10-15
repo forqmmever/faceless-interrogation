@@ -1141,19 +1141,38 @@ func _test_phone() -> void:
 	#   注意：原貌**不靠照片解锁**（那栏已经删了，18 处开局即全可见）。
 	#   照片擦清楚的意义是「你在手机里认出了他记忆里的那一处」—— 是多一条线索，
 	#   不是打开一扇门。
-	var slot := str(DossierData.get_photo(idx0)["slot"])
+	#   ★ 第四十三轮：一张照片是一段**半身**（可能同时有好几件），而且照片里那件
+	#     只是「暴露值与原貌最接近」的 —— **不一定就是原貌**。所以「已还原」只
+	#     对**真拍到原貌**（`is_true`）的槽位成立。这里按这张照片实际的内容来断言。
+	var p0 := DossierData.get_photo(idx0)
+	var true_slots := []
+	for e in p0.get("items", []):
+		var d: Dictionary = e
+		if bool(d.get("is_true", false)):
+			true_slots.append(str(d.get("slot", "")))
 	var seen_ok: bool = gd.photos_revealed.has(idx0)
-	var slot_visible: bool = gd.revealed_slots.has(slot)
-	var label_ok: bool = not wardrobe.slot_labels[slot].text.ends_with("?")
+	var all_visible := true
+	var all_label_ok := true
+	for s in true_slots:
+		if not gd.revealed_slots.has(s):
+			all_visible = false
+		if wardrobe.slot_labels.has(s) and wardrobe.slot_labels[s].text.ends_with("?"):
+			all_label_ok = false
 	if clear_enough:
 		_check("看清的照片 → 记为已看清", seen_ok)
-		_check("看清的照片 → 那处原貌可见", slot_visible)
-		_check("看清的照片 → 该槽位标签不带问号", label_ok)
+		_check("看清的照片 → 真拍到原貌的那几处才算已还原（%d 处）" % true_slots.size(),
+			all_visible)
+		_check("看清的照片 → 那几处的槽位标签不带问号", all_label_ok)
 	else:
 		print("      （这张是废片：怎么擦都看不清 —— 这就是信息不全）")
 		_check("废片 → 不该记为已看清", not seen_ok)
-		_check("废片 → 原貌照样可见（原貌不靠照片解锁）", slot_visible)
-		_check("废片 → 该槽位标签仍不带问号", label_ok)
+		_check("废片 → 原貌照样可见（原貌不靠照片解锁）",
+			gd.revealed_slots.size() > 0)
+		_check("废片 → 槽位标签不带问号（原貌开局即全可见）", all_label_ok)
+	_check("★ 相册里的照片都是「一段半身」且至少一件",
+		not p0.get("items", []).is_empty() and str(p0.get("half", "")) != "")
+	_check("★ 擦亮后文字会列出这张照片里的每一件（%d 件）" % true_slots.size(),
+		(p0.get("items", []) as Array).size() >= 1)
 
 	# ---- 备忘录：第一条记的就是审问者 ----
 	phone._switch_app("memo")

@@ -46,7 +46,9 @@ const PHONE_W := 336
 #   相册是 2 列网格，每格还要扣掉卡片内边距 8×2 ——
 #   2×(PHOTO_VW+16) + 列间距 7 ≤ 302  →  PHOTO_VW ≤ 131。
 #   以前是 150：相册一展开就把整部手机撑宽了（其它 App 看着就「变小」）。
-const PHOTO_VW := 124
+# ★ 第四十三轮：照片改成拍「一段半身」之后，取景框是 68×99（比例 0.687）——
+#   所以视口也按这个比例来（108:158 = 0.684，几乎完全吻合，几乎不留黑边）。
+const PHOTO_VW := 108
 const PHOTO_VH := 158
 
 # 三个分组的强调色 —— 和准备室顶栏的卡司配色对齐：
@@ -583,7 +585,6 @@ func _build_album() -> void:
 
 func _make_photo_card(i: int, grid: Node) -> void:
 	var p := DossierData.get_photo(i)
-	var slot := str(p.get("slot", ""))
 	var clarity := clarity_of(i)
 	var clear_enough: bool = clarity >= ScenarioData.PHOTO_CLEAR_AT
 	var used := int(GameData.photo_wipes.get(i, 0))
@@ -593,12 +594,17 @@ func _make_photo_card(i: int, grid: Node) -> void:
 	vb.add_theme_constant_override("separation", 4)
 
 	var shot := Label.new()
-	# ★ 第三十一轮：标题里带上「上半身 / 下半身」—— 明确告诉你这张记的是哪一半
-	var half := str(p.get("half", ""))
+	# ★ 第四十三轮：标题里的「是哪几件」由生成时拼好（`shot_slot`）——
+	#   一张照片是**一段身体**，里面可能同时有好几件。
 	var shot_what := str(p.get("shot_slot", ""))
-	if half != "":
+	# 没看清之前**不列**具体部位（那等于剧透），只说拍了哪一半。
+	var half := str(p.get("half", ""))
+	if not clear_enough:
+		shot_what = half if half != "" else "?"
+	elif half != "":
 		shot_what += " · " + half
 	shot.text = _tf("album.shot", [shot_what], "偷拍 · %s")
+	shot.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	shot.add_theme_font_size_override("font_size", 10)
 	shot.add_theme_color_override("font_color", Color(0.66, 0.70, 0.78))
 	vb.add_child(shot)
@@ -650,11 +656,26 @@ func _make_photo_card(i: int, grid: Node) -> void:
 	vb.add_child(note)
 
 	if clear_enough:
-		var it := OutfitData.get_item(RunData.true_item(slot))
+		# ★ 第四十三轮：一张照片里可能同时有好几件 —— 擦亮后**逐件列出来**。
+		#   报的是**照片里显示的那件**（用户口径），不是原貌那件：
+		#   照片可能正好拍到原貌，也可能只是同一个暴露档位的别的件。
+		var parts := []
+		for e in p.get("items", []):
+			var d: Dictionary = e
+			var s := str(d.get("slot", ""))
+			var shown := str(d.get("shown", ""))
+			# 每件的格式（部位 →「衣物名」）是可编辑的，见 phone.album.piece
+			parts.append(_tf("album.piece",
+				[str(OutfitData.SLOT_NAMES.get(s, s)),
+				 str(OutfitData.get_item(shown).get("name", "?"))],
+				"%s→「%s」"))
 		var got := Label.new()
-		got.text = _tf("album.cleared",
-			[OutfitData.SLOT_NAMES.get(slot, slot), it.get("name", "?")],
-			"✓ 看清了 · %s →「%s」")
+		if parts.is_empty():
+			got.text = _t("album.cleared_head", "✓ 看清了")
+		else:
+			got.text = _tf("album.cleared",
+				[_t("album.list_sep", "、").join(parts)],
+				"✓ 看清了 · %s")
 		got.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		got.add_theme_font_size_override("font_size", 10)
 		got.add_theme_color_override("font_color", Color(0.48, 0.86, 0.64))
@@ -693,7 +714,15 @@ func _wipe(i: int) -> void:
 	var c := clarity_of(i)
 	if c >= ScenarioData.PHOTO_CLEAR_AT and not GameData.photos_revealed.has(i):
 		GameData.photos_revealed.append(i)
-		slot_revealed.emit(str(p.get("slot", "")))
+		# ★ 第四十三轮：一张照片里可能同时有好几件 —— 逐件看**有没有真的拍到原貌**。
+		#   · 拍到原貌（`is_true`）→ 等于白捡一处还原（emit slot_revealed）
+		#   · 没拍到（只是同一个暴露档位的别的件）→ **不算还原** ——
+		#     否则「已还原」的语义会被照片的误导带偏（准备室那处仍然是个「?」）。
+		for e in p.get("items", []):
+			var d: Dictionary = e
+			var s := str(d.get("slot", ""))
+			if s != "" and bool(d.get("is_true", false)):
+				slot_revealed.emit(s)
 
 	rebuild()
 	changed.emit()
@@ -706,7 +735,10 @@ func _apply_clarity(mat: ShaderMaterial, c: float, i: int) -> void:
 	mat.set_shader_parameter("glare_at",
 		Vector2(0.20 + 0.30 * float(i % 3) * 0.5, 0.22 + 0.12 * float(i % 2)))
 
-# ---- 照片的 SubViewport：把本局原貌的那一层渲染成一张「偷拍」 ----
+# ---- 照片的 SubViewport：把这张照片里的那几层渲染成一张「偷拍」 ----
+#   ★ 第四十三轮：一张照片是一段**半身**（上半身 / 下半身），里面可能同时有几件。
+#     取景框按半身取（`photo_focus_half`），衣物叠**照片里记的那件**
+#     （`shown`，暴露值最接近原貌的那件）—— 不是原貌本身。
 func _ensure_photo_subs() -> void:
 	var key := "%d-%d-%d" % [RunData.run_index, RunData.seed_value, RunData.photos.size()]
 	if key == _photo_key and _photo_subs.size() == RunData.photos.size():
@@ -721,8 +753,7 @@ func _ensure_photo_subs() -> void:
 
 func _make_photo_subviewport(i: int) -> SubViewport:
 	var p := RunData.photo_at(i)
-	var slot := str(p.get("slot", ""))
-	var focus := ScenarioData.photo_focus(slot)
+	var focus := ScenarioData.photo_focus_half(str(p.get("half", "")))
 
 	var sv := SubViewport.new()
 	sv.size = Vector2i(PHOTO_VW, PHOTO_VH)
@@ -731,15 +762,18 @@ func _make_photo_subviewport(i: int) -> SubViewport:
 	sv.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	add_child(sv)
 
-	# 照片里是 DoL 的小人：基础层 + 这个部位的原貌层，一起按取景框裁进小视口。
+	# 照片里是这个小人的基础层 + 这张照片拍到的每一层，一起按取景框裁进小视口。
 	var scale := float(PHOTO_VW) / maxf(1.0, focus.size.x)
 	var off := -focus.position * scale
 	var full := DolDoll.frame_size() * scale
 
 	var eq: Dictionary = {}
-	var id := RunData.true_item(slot)
-	if id != "":
-		eq[slot] = id
+	for e in p.get("items", []):
+		var d: Dictionary = e
+		var s := str(d.get("slot", ""))
+		var id := str(d.get("shown", ""))
+		if s != "" and id != "":
+			eq[s] = id
 	for L in DolDoll.plan(eq):
 		var layer := TextureRect.new()
 		layer.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

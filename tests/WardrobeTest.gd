@@ -46,6 +46,7 @@ func _ready() -> void:
 	_test_true_presets()
 	_test_bg_overrides()
 	_test_question_order()
+	_test_photos_v2()
 	_test_underwear_gate()
 	_test_tattoo_multi()
 	_test_true_pool()
@@ -1053,6 +1054,170 @@ func _test_question_order() -> void:
 	ProfileData.reset_all()
 
 # ------------------------------------------------------------
+#  相册（第四十三轮重写）
+#
+#  用户口径：「相册里图片的照片只会出现眼镜，发型，上衣，下装，鞋子这五类，
+#            并且可能会同时出现，如出现下半身时可以同时有下装和鞋子，
+#            但不能有头发眼镜，上半身可以同时有眼镜发型上衣，但不能有鞋子，
+#            擦亮后应同时显示多个服装，照片中的服装选取与原貌的暴露值相近的服装，
+#            发型与原貌保持一致，照片数量每局开始时有三个，每轮增加两个」
+# ------------------------------------------------------------
+const PHOTO_SEEDS := 12
+
+func _test_photos_v2() -> void:
+	print("\n-- 相册：五类槽位 / 半身分组 / 相邻暴露值 / 每轮 +2 张 --")
+
+	_check("相册只收这五类：" + str(ScenarioData.PHOTO_SLOTS),
+		(ScenarioData.PHOTO_SLOTS as Array).size() == 5
+		and ScenarioData.PHOTO_SLOTS.has("glasses") and ScenarioData.PHOTO_SLOTS.has("hair")
+		and ScenarioData.PHOTO_SLOTS.has("top") and ScenarioData.PHOTO_SLOTS.has("bottom")
+		and ScenarioData.PHOTO_SLOTS.has("shoes"))
+	_check("上半身组 = 眼镜 / 发型 / 上衣",
+		ScenarioData.PHOTO_UPPER == ["glasses", "hair", "top"])
+	_check("下半身组 = 下装 / 鞋子",
+		ScenarioData.PHOTO_LOWER == ["bottom", "shoes"])
+	_check("开局 3 张、每轮 +2 张",
+		ScenarioData.PHOTO_COUNT_START == 3 and ScenarioData.PHOTO_COUNT_PER_LEVEL == 2)
+
+	# ---- 开局张数 ----
+	ProfileData.reset_all()
+	RunData.start_new_run(31415)
+	_check("★ 开局正好 3 张（实际 %d）" % RunData.photos.size(),
+		RunData.photos.size() == ScenarioData.PHOTO_COUNT_START)
+
+	# ---- 逐种子核对每张照片的合法性 ----
+	var bad := []
+	var multi := 0        # 统计「一张照片里同时有多件」出现了几次
+	var saw_upper := 0
+	var saw_lower := 0
+	var all_slots := {}
+	for k in PHOTO_SEEDS:
+		ProfileData.reset_all()
+		RunData.start_new_run(50000 + k * 7919)
+		for i in RunData.photos.size():
+			var p: Dictionary = RunData.photos[i]
+			var half := str(p.get("half", ""))
+			var items: Array = p.get("items", [])
+			if half == ScenarioData.PHOTO_HALF_UPPER:
+				saw_upper += 1
+			elif half == ScenarioData.PHOTO_HALF_LOWER:
+				saw_lower += 1
+			else:
+				bad.append("半身标记非法：" + half)
+			if items.is_empty():
+				bad.append("第 %d 张一件都没有" % i)
+			if items.size() > 1:
+				multi += 1
+			var group: Array = ScenarioData.PHOTO_UPPER \
+				if half == ScenarioData.PHOTO_HALF_UPPER else ScenarioData.PHOTO_LOWER
+			var other: Array = ScenarioData.PHOTO_LOWER \
+				if half == ScenarioData.PHOTO_HALF_UPPER else ScenarioData.PHOTO_UPPER
+			for e in items:
+				var d: Dictionary = e
+				var s := str(d.get("slot", ""))
+				var shown := str(d.get("shown", ""))
+				all_slots[s] = true
+				# ① 必须是这五类之一
+				if not ScenarioData.PHOTO_SLOTS.has(s):
+					bad.append("出现了不该有的槽位：" + s)
+				# ② 必须属于它那一组，且**不能**是对面那组
+				if not group.has(s):
+					bad.append("[%s] 的 %s 不属于这一组" % [half, s])
+				if other.has(s):
+					bad.append("[%s] 混进了对面那组：%s" % [half, s])
+				# ③ 头发 / 眼镜 不能出现在下半身；鞋子不能出现在上半身
+				if half == ScenarioData.PHOTO_HALF_LOWER and (s == "hair" or s == "glasses"):
+					bad.append("下半身出现了头发 / 眼镜：" + s)
+				if half == ScenarioData.PHOTO_HALF_UPPER and s == "shoes":
+					bad.append("上半身出现了鞋子")
+				# ④ 照片里那件必须存在、且属于该槽位
+				var it: Dictionary = OutfitData.get_item(shown)
+				if it.is_empty() or str(it.get("slot", "")) != s:
+					bad.append("%s 里记的 %s 不是该槽位的物品" % [s, shown])
+					continue
+				# ⑤ 发型必须与原貌一致
+				if s == "hair" and shown != RunData.true_item("hair"):
+					bad.append("发型与原貌不一致：%s vs %s" % [shown, RunData.true_item("hair")])
+				# ⑥ 其余各件必须是「暴露值与原貌最接近」的
+				if s != "hair":
+					var te := int(OutfitData.get_item(RunData.true_item(s)).get("exposure", 0))
+					var se := int(it.get("exposure", 0))
+					var best := 999
+					for x in OutfitData.get_items_for_slot(s):
+						best = mini(best, absi(int((x as Dictionary).get("exposure", 0)) - te))
+					if absi(se - te) != best:
+						bad.append("%s 选了 e%d，原貌 e%d（最优差 %d，实际差 %d）" % [
+							s, se, te, best, absi(se - te)])
+
+	_check("★ %d 个种子：每张照片都符合全部约束（问题 %d 条）" % [PHOTO_SEEDS, bad.size()],
+		bad.is_empty())
+	if not bad.is_empty():
+		for m in bad.slice(0, 6):
+			print("      · " + m)
+	_check("上半身与下半身都出现过（不是一个偏的随机）",
+		saw_upper > 0 and saw_lower > 0)
+	_check("★ 确实出现过「一张照片里同时有好几件」（%d 张）" % multi, multi > 0)
+	_check("照片里出现过的槽位只有那五类：" + str(all_slots.keys()),
+		all_slots.size() <= ScenarioData.PHOTO_SLOTS.size())
+
+	# ---- 每轮 +2 张（累加、旧照片保留）----
+	ProfileData.reset_all()
+	RunData.start_new_run(271828)
+	var first_ids := []
+	for p in RunData.photos:
+		first_ids.append(str(p.get("start_clarity", "")) + str(p.get("half", "")))
+	var expect := ScenarioData.PHOTO_COUNT_START
+	var count_ok := true
+	var kept_ok := true
+	for li in range(1, OutfitData.level_count()):
+		RunData.advance_level()
+		expect += ScenarioData.PHOTO_COUNT_PER_LEVEL
+		if RunData.photos.size() != expect:
+			count_ok = false
+		# 旧照片必须原样保留（累加而不是重抽）
+		for i in first_ids.size():
+			var now: Dictionary = RunData.photos[i]
+			if str(now.get("start_clarity", "")) + str(now.get("half", "")) != first_ids[i]:
+				kept_ok = false
+	_check("★ 每轮 +2 张：3 → %d（逐轮核对）" % expect, count_ok)
+	_check("★ 旧照片原样保留（累加，不是重抽）", kept_ok)
+	_check("推进到最后一轮后共 %d 张（实际 %d）" % [
+		3 + 2 * (OutfitData.level_count() - 1), RunData.photos.size()],
+		RunData.photos.size() == 3 + 2 * (OutfitData.level_count() - 1))
+
+	# ---- 取景框：半身框的比例要与照片视口接近（否则画面留黑边）----
+	var vp_ratio := 108.0 / 158.0
+	for h in [ScenarioData.PHOTO_HALF_UPPER, ScenarioData.PHOTO_HALF_LOWER]:
+		var r: Rect2 = ScenarioData.photo_focus_half(h)
+		var ratio := r.size.x / r.size.y
+		_check("★ %s 的取景框比例与照片视口接近（%.3f vs %.3f）" % [h, ratio, vp_ratio],
+			absf(ratio - vp_ratio) < 0.05)
+
+	# ---- 擦亮：只有「真拍到原貌」的槽位才算已还原 ----
+	ProfileData.reset_all()
+	RunData.start_new_run(161803)
+	var true_hits := 0
+	var miss_hits := 0
+	for i in RunData.photos.size():
+		var p: Dictionary = RunData.photos[i]
+		for e in p.get("items", []):
+			var d: Dictionary = e
+			var s := str(d.get("slot", ""))
+			var is_true: bool = bool(d.get("is_true", false))
+			var really_true: bool = str(d.get("shown", "")) == RunData.true_item(s)
+			if is_true != really_true:
+				true_hits = -1        # 标记出错
+			if is_true:
+				true_hits += 1
+			elif s != "hair":
+				miss_hits += 1
+	_check("★ `is_true` 与「显示的是不是原貌那件」完全一致",
+		true_hits >= 0)
+	_check("照片确实可能**没**拍到原貌（说明「相近」不是每次都命中原貌）",
+		miss_hits > 0 or true_hits > 0)
+	ProfileData.reset_all()
+
+# ------------------------------------------------------------
 #  原貌候选池（多轮制的基础）
 # ------------------------------------------------------------
 func _test_true_pool() -> void:
@@ -1407,7 +1572,8 @@ func _test_run_randomization() -> void:
 		RunData.start_new_run(9000 + int(bid.hash() % 1000))
 		for i in RunData.photos.size():
 			var ph: Dictionary = RunData.photo_at(i)
-			if ScenarioData.photo_focus(str(ph["slot"])) == Rect2():
+			# ★ 第四十三轮：取景框按**半身**取（照片是一段身体，不是一处特写）
+			if ScenarioData.photo_focus_half(str(ph.get("half", ""))) == Rect2():
 				bad_photo += 1
 			if int(ph["max_wipes"]) < 1:
 				bad_photo += 1
@@ -3148,7 +3314,11 @@ func _test_phone_text() -> void:
 		# ★ 第十三轮删掉了备忘录的「第三条 · 这一轮」——内容整局不变，
 		#   所以 memo.level_body / forced_item / forced_none / forced_sep 都不再使用。
 		"notes.head_round": 1, "notes.q_line": 1, "notes.a_line": 1,
-		"album.hint": 2, "album.shot": 1, "album.cleared": 2, "album.wipe": 1,
+		# ★ 第四十三轮：一张照片可能同时拍到好几件 —— `cleared` 只带 1 个占位符
+		#   （拼好的列表），每件的格式与分隔符另开两条（piece 2 个 / list_sep 0 个）。
+		"album.hint": 2, "album.shot": 1, "album.cleared": 1,
+		"album.cleared_head": 0, "album.piece": 2, "album.list_sep": 0,
+		"album.wipe": 1,
 	}
 	var wrong: Array = []
 	for path in expect:

@@ -1524,6 +1524,13 @@ func clue_text(slot: String, item_id: String) -> String:
 		d = "看不真切"
 	return frame_of(slot) % d
 
+# 照片的取景框 —— 按**半身**取（第四十三轮起照片是一段身体，不是一处特写）
+func photo_focus_half(half: String) -> Rect2:
+	return PHOTO_FOCUS_HALF.get(half,
+		Rect2(0, 0, DolDoll.frame_size().x, DolDoll.frame_size().y))
+
+# 旧门面：按槽位取景。第四十三轮起没有调用点了（照片不再按槽位裁），
+# 保留是为了不破坏外部可能的引用。
 func photo_focus(slot: String) -> Rect2:
 	return PHOTO_FOCUS.get(slot, Rect2(0, 0, DolDoll.frame_size().x, DolDoll.frame_size().y))
 
@@ -1536,35 +1543,49 @@ func photo_focus(slot: String) -> Rect2:
 # ============================================================
 
 # 会出现在相册里的槽位（挑视觉上最有辨识度的那些）
-# ★ 下架的槽位（earrings / robe）由 RunData._roll_photos() 用 slot_enabled() 滤掉，
-#   写在这里是为了将来恢复时不用再改；第二十六轮补上整件式的 dress。
-const PHOTO_SLOTS := [
-	"hair", "headgear", "glasses", "earrings", "makeup", "piercing",
-	"tattoo", "neckwear", "top", "bottom", "dress", "shoes", "robe",
-]
+#
+# ★ 第四十三轮（用户口径）：「相册里图片的照片只会出现眼镜，发型，上衣，下装，鞋子这五类」。
+#   所以这里从原来的 13 类收窄成 **5 类** —— 脖子 / 刺青 / 妆容 / 穿环 / 帽子 /
+#   成装 / 外袍 都不再出现在照片里（它们仍走情报台那条线）。
+#   ★ 下架的槽位由 RunData._roll_photos() 用 slot_enabled() 兜一层，
+#     写在这里是为了将来恢复时不用再改。
+const PHOTO_SLOTS := ["glasses", "hair", "top", "bottom", "shoes"]
 
-# ★ 第三十一轮（用户口径）：「相册记录的是平时的衣服，不一定是一整套 ——
-#   可能只有上半身或下半身」。照片仍然是一个部位的特写（本来就只是局部记录），
-#   这里额外标明它属于哪一半 —— 一眼能看出「手头掌握的是上半身还是下半身的底」。
-const PHOTO_HALF := {
-	"hair": "上半身", "headgear": "上半身", "glasses": "上半身", "earrings": "上半身",
-	"makeup": "上半身", "piercing": "上半身", "tattoo": "上半身", "neckwear": "上半身",
-	"top": "上半身", "dress": "全身", "robe": "全身",
-	"bottom": "下半身", "shoes": "下半身",
-}
+# 一张照片要么拍**上半身**、要么拍**下半身**，两组不混 —— 用户口径：
+#   「如出现下半身时可以同时有下装和鞋子，但不能有头发眼镜，
+#     上半身可以同时有眼镜发型上衣，但不能有鞋子」
+# 一张照片从它那一组里**随机取子集**（至少 1 件）—— 「可能会同时出现」。
+const PHOTO_UPPER := ["glasses", "hair", "top"]
+const PHOTO_LOWER := ["bottom", "shoes"]
 
-const PHOTO_COUNT := 5              # 每局相册里的照片数
+const PHOTO_HALF_UPPER := "上半身"
+const PHOTO_HALF_LOWER := "下半身"
+
+# 照片数量 —— 用户口径：「照片数量每局开始时有三个，每轮增加两个」。
+#   ★ 「增加」按**累加**理解：第 1 轮 3 张 → 第 2 轮 5 张 → 第 3 轮 7 张 → 第 4 轮 9 张。
+#     旧照片保留（已擦亮的不白擦），每过一轮只追加 2 张。
+const PHOTO_COUNT_START := 3
+const PHOTO_COUNT_PER_LEVEL := 2
+
 const PHOTO_WIPE_STEP := 0.25       # 每次擦掉反光提升的清晰度
 const PHOTO_CLEAR_AT := 0.70        # 清晰度达到这个值才能认出来
 
-# 每张照片「取景」在小人画布上的哪一块
-# （全身照太小，所以按槽位裁一个特写 —— 更像个偷拍的人凑近了拍）
-# ★ 坐标是**小人取景框**里的像素位置，见 data/doll_au.json 的 size。
-#   第三十七轮起只剩 AU 一套美术（取景框 68×203），这份就是照它标定的。
-#   标定依据 —— 烘好后的实际 bbox：
-#     头 26..59 × 15..48、眼 32..49 × 33..42、嘴 41..44 × 43..44、
-#     躯干 26..59 × 47..187、上衣 26..59 × 52..102、下装 23..62 × 83..124、
-#     鞋 26..60 × 161..189、颈饰 39..46 × 48..53、帽子 12..68 × 0..26。
+# 每张照片「取景」在小人画布上的哪一块。
+# ★ 第四十三轮：不再按槽位裁特写，而是**按半身**裁 —— 一张照片是一段身体。
+#   坐标是**小人取景框**里的像素位置（见 data/doll_au.json 的 size，AU 是 68×203）。
+#   标定依据（烘好后的实际 bbox）：
+#     头 26..59 × 15..48、眼 32..49 × 33..42、上衣 26..59 × 52..102、
+#     下装 23..62 × 83..124、鞋 26..60 × 161..189。
+#   ★ 两个框都是 68×99（比例 0.687），与照片视口 108×158 的比例一致 —— 不留黑边。
+#     上半身框到 y=101：上衣下摆（102）刚好卡在边上，像「凑近了拍」；
+#     下半身框到 y=177：鞋底（189）被切掉一截，也是同样的意思。
+const PHOTO_FOCUS_HALF := {
+	PHOTO_HALF_UPPER: Rect2(0, 2, 68, 99),
+	PHOTO_HALF_LOWER: Rect2(0, 78, 68, 99),
+}
+
+# 旧的「按槽位裁特写」表 —— 第四十三轮起照片不再按槽位取景，这张表只留给
+# 那些还想要「某一处特写」的场合（目前没有调用点，保留以免以后要用）。
 const PHOTO_FOCUS := {
 	"hair": Rect2(16, 8, 50, 60),
 	"headgear": Rect2(14, 0, 54, 32),
@@ -1773,7 +1794,12 @@ const DEFAULT_PHONE := {
 		"title": "相册",
 		"hint": "（%d/%d 看清了）糊掉的部分擦不掉就永远看不清 —— 底片就那样。",
 		"shot": "偷拍 · %s",
-		"cleared": "✓ 看清了 · %s →「%s」",
+		# ★ 第四十三轮：一张照片可能同时拍到好几件 —— cleared 只带 1 个占位符
+		#   （拼好的列表），每件的格式与分隔符单独可编辑。
+		"cleared": "✓ 看清了 · %s",
+		"cleared_head": "✓ 看清了",
+		"piece": "%s→「%s」",
+		"list_sep": "、",
 		"dead": "✗ 底片救不回来了",
 		"wipe": "🧽 擦掉反光（还剩 %d 次）",
 	},

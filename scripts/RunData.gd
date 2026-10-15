@@ -135,9 +135,16 @@ func resume_run(seed_in: int, run_index_in: int, li: int, cleared: int) -> void:
 	level_index = clampi(li, 0, level_count() - 1)
 	cleared_levels = maxi(0, cleared)
 	_roll_forced_items(level_index)
-	# ★ 第四十轮：上面 start_new_run 是按第 1 关算的原貌，而存档可能停在第 N 关。
-	#   若那一关配了「按关覆写」，这里要补一次（重算 + 原貌真的变了才重建情报）。
+	# ★ 第四十轮：上面 start_new_run 是按第 1 轮算的原貌，而存档可能停在第 N 轮。
+	#   若那一轮配了「按关覆写」，这里要补一次（重算 + 原貌真的变了才重建情报）。
 	_maybe_apply_level_preset()
+	# ★ 第四十三轮：照片是「开局 3 张 + 每轮 2 张」——
+	#   而 start_new_run 只生成了开局那 3 张，存档停在第 N 轮时要把缺的补上。
+	#   （照片不存盘：它完全由种子 + 轮次决定，重算即可复现。）
+	var need: int = ScenarioData.PHOTO_COUNT_START \
+		+ ScenarioData.PHOTO_COUNT_PER_LEVEL * level_index
+	if photos.size() < need:
+		_append_photos(need - photos.size())
 
 	GameData.run_index = run_index
 	GameData.level_index = level_index
@@ -422,41 +429,133 @@ func _build_clues() -> void:
 
 # 本局手机相册：随机挑几个槽位，配上「拍糊了的照片」
 # 每张照片有自己的起始清晰度与可擦次数 —— 有的擦两下就看清，有的一辈子看不清
+# ============================================================
+#  本局手机相册（第四十三轮重写）
+#
+#  用户口径：「相册里图片的照片只会出现眼镜，发型，上衣，下装，鞋子这五类，
+#            并且可能会同时出现，如出现下半身时可以同时有下装和鞋子，
+#            但不能有头发眼镜，上半身可以同时有眼镜发型上衣，但不能有鞋子，
+#            擦亮后应同时显示多个服装，照片中的服装选取与原貌的暴露值相近的服装，
+#            发型与原貌保持一致，照片数量每局开始时有三个，每轮增加两个」
+#
+#  落到数据上是这么几条：
+#    · 一张照片 = **一段身体**（上半身 / 下半身），不是一处特写；
+#    · 上半身组 = 眼镜 / 发型 / 上衣；下半身组 = 下装 / 鞋子 —— 两组不混；
+#    · 一张照片从它那一组里**随机取子集**（至少 1 件）→「可能会同时出现」；
+#    · 每件衣服取「暴露值与原貌那件**最接近**」的那件（并列随机，**含原貌本身**）
+#      —— 所以照片可能正好拍到原貌，也可能只是同一个暴露档位的别的件；
+#    · **发型例外**：直接就是原貌那件（用户口径「发型与原貌保持一致」）；
+#    · 数量：开局 3 张，之后**每过一轮追加 2 张**（累加，旧照片保留）。
+# ============================================================
 func _roll_photos() -> void:
 	photos = []
-	# 下架的槽位不进相册 —— 否则会抽到一张「拍的是外袍」但画面上什么都没有的照片
-	var pool: Array = []
-	for s in ScenarioData.PHOTO_SLOTS:
-		# ★ 第三十九轮：妙妙工具也不进相册（它是你的道具，不是「偷拍到的 A」）
-		if OutfitData.slot_enabled(str(s)) and not OutfitData.is_manual_slot(str(s)):
-			pool.append(s)
-	# 洗牌
-	for i in range(pool.size() - 1, 0, -1):
-		var j := _rng.randi() % (i + 1)
-		var t = pool[i]
-		pool[i] = pool[j]
-		pool[j] = t
+	_append_photos(ScenarioData.PHOTO_COUNT_START)
 
-	var n: int = mini(ScenarioData.PHOTO_COUNT, pool.size())
+# 追加 n 张照片（开局与每轮推进都走它）
+#   ★ 每张照片基于**当前**的原貌生成 —— 所以「按背景逐轮换原貌」时，
+#     新一轮追加的照片拍的就是新的样子；旧照片保留（累加）。
+func _append_photos(n: int) -> void:
 	for i in n:
-		var slot := str(pool[i])
-		var start := 0.10 + _rng.randf() * 0.45          # 0.10 ~ 0.55
-		var wipes := 1 + _rng.randi() % 3                # 1 ~ 3 次
-		var notes: Array = ScenarioData.PHOTO_NOTES
-		photos.append({
-			"index": i,
+		photos.append(_make_photo())
+
+func _make_photo() -> Dictionary:
+	var half: String = ScenarioData.PHOTO_HALF_UPPER if _rng.randi() % 2 == 0 \
+		else ScenarioData.PHOTO_HALF_LOWER
+	var group: Array = ScenarioData.PHOTO_UPPER if half == ScenarioData.PHOTO_HALF_UPPER \
+		else ScenarioData.PHOTO_LOWER
+
+	# ---- 从这一组里随机取子集（至少 1 件）----
+	var cand := []
+	for s in group:
+		var slot := str(s)
+		# 下架的槽位不进相册（否则会出现「拍的是外袍」但画面上什么都没有）
+		if not OutfitData.slot_enabled(slot):
+			continue
+		if OutfitData.is_manual_slot(slot):
+			continue
+		cand.append(slot)
+	if cand.is_empty():
+		return {}
+	# 洗牌后取前 k 件，k ∈ [1, cand.size()]
+	for i in range(cand.size() - 1, 0, -1):
+		var j := _rng.randi() % (i + 1)
+		var t = cand[i]
+		cand[i] = cand[j]
+		cand[j] = t
+	var k: int = 1 + _rng.randi() % cand.size()
+
+	var picked := []
+	for i in k:
+		var slot := str(cand[i])
+		# ★ 发型与原貌保持一致（不参与「暴露值相近」的挑选）
+		var shown := true_item(slot) if slot == "hair" else _shown_item_near(slot)
+		if shown == "":
+			continue
+		picked.append({
 			"slot": slot,
-			"note": str(notes[_rng.randi() % notes.size()]),
-			"start_clarity": start,
-			"max_wipes": wipes,
-			# 擦满之后能到什么清晰度 —— 低于阈值就是一张废片
-			"final_clarity": minf(1.0, start + float(wipes) * ScenarioData.PHOTO_WIPE_STEP),
-			# 只存槽位名 —— 「偷拍 · 」那个前缀属于界面文案，由手机从
-			# ScenarioData.PHONE["album"]["shot"] 里取，这样才改得动。
-			"shot_slot": str(OutfitData.SLOT_NAMES.get(slot, slot)),
-			# ★ 第三十一轮：这张照片属于上半身还是下半身（界面会把两段拼起来）
-			"half": str(ScenarioData.PHOTO_HALF.get(slot, "")),
+			"shown": shown,                       # 照片里显示的这件
+			# ★ 照片里显示的是不是原貌那件 —— 擦亮后**只有真的拍到原貌**的槽位
+			#   才算「已还原」（否则「已还原」的语义会被照片的误导带偏）。
+			"is_true": shown == true_item(slot),
 		})
+	if picked.is_empty():
+		return {}
+
+	var start := 0.10 + _rng.randf() * 0.45          # 0.10 ~ 0.55
+	var wipes := 1 + _rng.randi() % 3                # 1 ~ 3 次
+	var notes: Array = ScenarioData.PHOTO_NOTES
+	var note := str(notes[_rng.randi() % notes.size()])
+	var slots := []
+	var names := []
+	for e in picked:
+		var s := str((e as Dictionary)["slot"])
+		slots.append(s)
+		names.append(str(OutfitData.SLOT_NAMES.get(s, s)))
+
+	return {
+		"index": photos.size(),
+		"half": half,
+		"items": picked,                          # ★ 这张照片里都有什么
+		"slots": slots,                           # 便于外部遍历
+		# 兼容字段：老代码按「一张照片一个槽位」读过这两个 —— 现在取第一件。
+		"slot": slots[0],
+		"shot_slot": "、".join(names),
+		"note": note,
+		"start_clarity": start,
+		"max_wipes": wipes,
+		# 擦满之后能到什么清晰度 —— 低于阈值就是一张废片
+		"final_clarity": minf(1.0, start + float(wipes) * ScenarioData.PHOTO_WIPE_STEP),
+	}
+
+# 这一槽位「照片里显示哪件」—— 取暴露值与原貌那件**最接近**的。
+#   ★ 含原貌本身：所以照片确实可能正好拍到原貌（用户口径选的就是这个）。
+#   ★ 并列时随机取一个，保证每张照片不完全一样。
+func _shown_item_near(slot: String) -> String:
+	var true_id := true_item(slot)
+	var true_e := int(OutfitData.get_item(true_id).get("exposure", 0))
+	var best := -1
+	var tied := []
+	for it in OutfitData.get_items_for_slot(slot):
+		var d: Dictionary = it
+		var e := int(d.get("exposure", 0))
+		var diff: int = absi(e - true_e)
+		if best < 0 or diff < best:
+			best = diff
+			tied = [str(d.get("id", ""))]
+		elif diff == best:
+			tied.append(str(d.get("id", "")))
+	if tied.is_empty():
+		return ""
+	return str(tied[_rng.randi() % tied.size()])
+
+# 照片里这件是不是原貌那件（擦亮时用来决定要不要标「已还原」）
+func photo_item_is_true(p: Dictionary, slot: String) -> bool:
+	for e in p.get("items", []):
+		var d: Dictionary = e
+		if str(d.get("slot", "")) == slot:
+			return bool(d.get("is_true", false))
+	return false
+
 
 # ============================================================
 #  查询
@@ -609,8 +708,12 @@ func advance_level() -> void:
 	ProfileData.add_gain(gain)
 	cleared_levels += 1
 	level_index += 1
-	_roll_forced_items(level_index)      # 新的一关，重新抽强制装备
+	_roll_forced_items(level_index)      # 新的一轮，重新抽强制装备
 	_maybe_apply_level_preset()          # ★ 第四十轮：这一轮配了原貌覆写就换人
+	# ★ 第四十三轮（用户口径「每轮增加两个」）：新一轮**追加** 2 张照片。
+	#   ★ 放在 _maybe_apply_level_preset() **之后** —— 新照片要拍的是**这一轮**的样子。
+	#   ★ 累加而不是重抽：旧照片保留（已经擦亮的不白擦）。
+	_append_photos(ScenarioData.PHOTO_COUNT_PER_LEVEL)
 	GameData.level_index = level_index
 	GameData.cleared_levels = cleared_levels
 	GameData.acceptance = acceptance

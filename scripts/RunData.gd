@@ -29,6 +29,9 @@ var run_index: int = 0                 # 第几局（从 1 开始）
 var seed_value: int = 0                # 本局随机种子
 var background_id: String = ""
 var true_app: Dictionary = {}          # slot -> item id（本局的 A）
+# ★ 第四十轮：本局的**基础原貌** —— 不含「按关覆写」（`true_presets.by_level`）那一层。
+#   整局只算一次，按关覆写只在这一关临时顶替它。见 _roll_true_appearance()。
+var base_true_app: Dictionary = {}
 var clues: Array = []                  # 本局的 18 条外貌情报（由原貌拼出来）
 
 var level_index: int = 0               # 当前关卡（0 起）
@@ -63,6 +66,8 @@ func _ready() -> void:
 # ============================================================
 func start_new_run(seed_in: int = -1, start_level: int = 0) -> void:
 	run_index += 1
+	# ★ 第四十轮：新的一局 → 基础原貌要重算（旧的属于上一局，不能留）
+	base_true_app = {}
 
 	if seed_in >= 0:
 		seed_value = seed_in
@@ -77,6 +82,14 @@ func start_new_run(seed_in: int = -1, start_level: int = 0) -> void:
 	background_id = str(ids[_rng.randi() % ids.size()])
 	_bg = ScenarioData.get_background(background_id)
 
+	# ★ 第四十轮：`level_index` 必须**先**设好，再抽原貌 ——
+	#   因为原貌现在要看「本关有没有按关覆写」（`true_presets.by_level[level_index]`）。
+	#   以前这一行在后面（抽完原貌才设），于是「从选关面板直接进第 3 关」时，
+	#   `_roll_true_appearance()` 看到的还是上一局残留的 level_index，会取错那一关的覆写。
+	#   默认（没配任何覆写）不影响随机序列 —— 那时原貌的抽法与以前逐字节相同。
+	level_index = clampi(start_level, 0, level_count() - 1)
+	cleared_levels = level_index
+
 	_roll_true_appearance()
 	_build_clues()
 	_roll_photos()
@@ -84,8 +97,6 @@ func start_new_run(seed_in: int = -1, start_level: int = 0) -> void:
 	# 固定种子下的截图与测试因此保持完全可复现。
 	_roll_interrogator_trait()
 
-	level_index = clampi(start_level, 0, level_count() - 1)
-	cleared_levels = level_index
 	_roll_forced_items(level_index)
 
 	GameData.reset_run_state()
@@ -113,6 +124,9 @@ func resume_run(seed_in: int, run_index_in: int, li: int, cleared: int) -> void:
 	level_index = clampi(li, 0, level_count() - 1)
 	cleared_levels = maxi(0, cleared)
 	_roll_forced_items(level_index)
+	# ★ 第四十轮：上面 start_new_run 是按第 1 关算的原貌，而存档可能停在第 N 关。
+	#   若那一关配了「按关覆写」，这里要补一次（重算 + 原貌真的变了才重建情报）。
+	_maybe_apply_level_preset()
 
 	GameData.run_index = run_index
 	GameData.level_index = level_index
@@ -275,36 +289,108 @@ func _roll_interrogator_trait() -> void:
 		return
 	interrogator_trait_id = str(ids[_rng.randi() % ids.size()])
 
-# 每局随机生成 A 的原貌：每个槽位从候选池里抽一件
-# （只抽玩家能看到的槽位 —— 下架的槽位不参与，否则会凭空多出一处对不上的原貌）
-# ★ 第三十九轮：换成 `auto_slots()` —— 把「妙妙工具」也排掉。它是玩家手动揣的道具，
+# 每局随机生成 A 的原貌。
+#
+# 三条来源，按优先级（第四十轮加了前两条，都在 story_editor 的「原貌」页签里配）：
+#   ① `true_presets.by_level[i]` 有值 → **第 i 关固定用这一套**（切关时换，见 advance_level）
+#   ② `true_presets.pool` 非空       → 从这一池**整套**里随机抽一套（而不是逐槽位乱抽）
+#   ③ 以上都没有                     → 老逻辑：每个槽位从 TRUE_POOL 里独立抽一件
+#
+# ★ 第四十轮的关键设计：`base_true_app`（本局的基础原貌）。
+#   ② 与 ③ 算出来的那一套只算**一次**、存在 `base_true_app` 里，整局不变；
+#   ① 只在这一关**临时**顶替它。
+#   于是「第 2 关配了覆写、第 3 关没配」时，第 3 关会**回到基础那套**，
+#   而不是粘着第 2 关的样子 —— （第一版就是错的，端到端探针抓出来的：
+#   第 3 关还在用第 2 关的 top_highneck。）
+#
+# ★ 只抽玩家能看到的槽位（下架的排除）。
+# ★ 第三十九轮：用 `auto_slots()` —— 把「妙妙工具」也排掉。它是玩家手动揣的道具，
 #   不是 A 的原貌；抽进去会让情报台问一句「他带着尼古喵尾吗」，那是说不通的。
 func _roll_true_appearance() -> void:
-	true_app = {}
+	# 基础原貌：整局只算一次
+	if base_true_app.is_empty():
+		base_true_app = _roll_base_appearance()
+	# 本关有覆写 → 顶替；否则用基础那套
+	var by_level: Array = ScenarioData.true_preset_by_level()
+	if level_index < by_level.size() and not (by_level[level_index] as Dictionary).is_empty():
+		true_app = _apply_preset(by_level[level_index])
+	else:
+		true_app = base_true_app.duplicate(true)
+	_normalize_true_exclusive()
+
+# 不含「按关覆写」的原貌：随机池整套抽，没池就逐槽位抽。
+#   ★ 只在 `_roll_true_appearance()` 里被调一次（结果存进 base_true_app）。
+func _roll_base_appearance() -> Dictionary:
+	var pool: Array = ScenarioData.true_preset_pool()
+	if not pool.is_empty():
+		return _apply_preset(pool[_rng.randi() % pool.size()])
+	var out := {}
 	for slot in OutfitData.auto_slots():
-		var pool: Array = OutfitData.TRUE_POOL.get(slot, [])
-		if pool.is_empty():
+		var cand: Array = OutfitData.TRUE_POOL.get(slot, [])
+		if cand.is_empty():
 			continue
-		true_app[slot] = str(pool[_rng.randi() % pool.size()])
-	# ★ 第二十七轮：互斥归一化 —— 成装与上装 / 下装三者只能有一个非空件。
-	#   原貌是**逐槽位独立抽**的，不归一化就会出现「原貌既有吊带成装、又有高领长袖衬衫」，
-	#   而这两件在装备层根本穿不到一起（见 OutfitData.EXCLUSIVE_GROUPS）。
-	#   那会让两边说法打架：情报台 / 相册按 `true_app` 说「他记得你穿着高领长袖」，
-	#   渲染 / 反差判定却按 `equipped`（成装赢了、上装被清空）—— 玩家会看到自相矛盾的一局。
-	#   规则与 `WardrobeModel._normalize_exclusive()` 完全一致：按声明顺序取第一个非空件。
-	#   注意这里**不消耗随机数**，所以抽签流不受影响。
+		out[slot] = str(cand[_rng.randi() % cand.size()])
+	return out
+
+# 把一份「原貌预设」铺成完整的原貌。
+#   ★ 预设里**只写了几件也算数** —— 没写到的槽位继续按老逻辑从 TRUE_POOL 抽，
+#     所以「只想钉死上衣和下装」这种用法是允许的。
+#   ★ 写成空件（「（不穿）」）是**有效**的指定，会覆盖掉池子里的随机结果。
+func _apply_preset(preset_in: Dictionary) -> Dictionary:
+	var slots: Dictionary = preset_in.get("slots", {})
+	var out := {}
+	for slot in OutfitData.auto_slots():
+		var s := str(slot)
+		if slots.has(s):
+			out[s] = str(slots[s])
+			continue
+		var cand: Array = OutfitData.TRUE_POOL.get(s, [])
+		if cand.is_empty():
+			continue
+		out[s] = str(cand[_rng.randi() % cand.size()])
+	return out
+
+# 互斥归一化 —— 成装与上装 / 下装三者只能有一个非空件。
+#   原貌不管是抽的还是预设写的，都可能出现「成装 + 长裤」这种穿不到一起的组合。
+#   那会让两边说法打架：情报台 / 相册按 `true_app` 说「他记得你穿着高领长袖」，
+#   渲染 / 反差判定却按 `equipped`（成装赢了、上装被清空）—— 玩家会看到自相矛盾的一局。
+#
+#   ★ 第四十轮修正：`EXCLUSIVE_GROUPS` 是**嵌套**的 `[["dress"], ["top","bottom"]]` ——
+#     每一项是「一组」而不是一个槽位。老版本这里写的是 `for s in group`，
+#     拿到的 `s` 是子数组 `["dress"]`，`str(s)` 变成 `'["dress"]'` 这种字符串，
+#     `true_app.get(...)` 永远查不到 → **这段从来没有真正生效过**（是一段假防御）。
+#     现在按「左右两组」的正确写法重写，语义与 `WardrobeModel._normalize_exclusive()` 一致：
+#     两边都占着 → 左边（声明在前的，也就是成装）赢。
+#   ★ 这里**不消耗随机数**，所以抽签流不受影响。
+func _normalize_true_exclusive() -> void:
 	for g in OutfitData.EXCLUSIVE_GROUPS:
-		var group := g as Array
-		var occupied := ""
-		for s in group:
-			var slot := str(s)
-			var it: Dictionary = OutfitData.get_item(str(true_app.get(slot, "")))
-			if it.is_empty() or OutfitData.is_bare(it):
-				continue
-			if occupied == "":
-				occupied = slot
-			else:
-				true_app[slot] = OutfitData.bare_id_of(slot)
+		var pair := g as Array
+		if pair.size() < 2:
+			continue
+		var left := pair[0] as Array
+		var right := pair[1] as Array
+		if _true_group_live(left) and _true_group_live(right):
+			_true_blank_group(right)          # 两边都占着 → 左边赢（成装优先）
+		elif _true_group_live(left):
+			_true_blank_group(right)
+		elif _true_group_live(right):
+			_true_blank_group(left)
+
+# 这组槽位里有没有「实体衣物」（非空件）
+func _true_group_live(slots: Array) -> bool:
+	for s in slots:
+		var it: Dictionary = OutfitData.get_item(str(true_app.get(str(s), "")))
+		if not it.is_empty() and not OutfitData.is_bare(it):
+			return true
+	return false
+
+# 把这组槽位全部换成各自的空件
+func _true_blank_group(slots: Array) -> void:
+	for s in slots:
+		var slot := str(s)
+		var bid := OutfitData.bare_id_of(slot)
+		if bid != "":
+			true_app[slot] = bid
 
 # 按本局原貌现场拼出外貌情报（文案与来源都随局变化）
 # ★ 第三十九轮：同样走 `auto_slots()` —— 妙妙工具不进情报（它是你自己的道具）。
@@ -513,11 +599,26 @@ func advance_level() -> void:
 	cleared_levels += 1
 	level_index += 1
 	_roll_forced_items(level_index)      # 新的一关，重新抽强制装备
+	_maybe_apply_level_preset()          # ★ 第四十轮：这一关配了原貌覆写就换人
 	GameData.level_index = level_index
 	GameData.cleared_levels = cleared_levels
 	GameData.acceptance = acceptance
 	level_advanced.emit()
 
+# ★ 第四十轮：切关时重算原貌 —— 这一关配了「按关覆写」就用它，
+#   没配就**回到本局的基础原貌**（`base_true_app`），不是粘着上一关的样子。
+#
+#   ★ 情报要不要重建，看原貌**真的变了没有**：
+#     两关之间都没配覆写时 true_app 不变 → 不重建（免得白算一遍、也不动玩家进度）。
+#     原貌真的换了，情报必须跟着换 —— 否则情报台还在说「他颈侧有一小片纹路」，
+#     而人已经换了一身。相册不用重建：照片只记槽位，显示时现查原貌，自动跟上。
+#   ★ 已还原的槽位（IntelDesk.revealed / GameData.revealed_slots）按**槽位**记，
+#     不按物品，所以换原貌后依然成立，玩家不用重新查一遍。
+func _maybe_apply_level_preset() -> void:
+	var before := true_app.duplicate(true)
+	_roll_true_appearance()
+	if str(before) != str(true_app):
+		_build_clues()
 # 本局失败 → 回到**本轮开始**（第二十一轮）
 #
 #  ★ 旧规则是 fail_run()：任何一关失败 → 整局作废，重抽背景与原貌。

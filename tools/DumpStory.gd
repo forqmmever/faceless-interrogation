@@ -40,8 +40,20 @@ func _ready() -> void:
 		"forced_rules": ScenarioData.FORCED_RULES_EXPORT(),
 		"qte_plan": ScenarioData.QTE_PLAN_EXPORT(),
 		"defects": ScenarioData.DEFECTS_EXPORT(),
-		# catalog 是**只读目录**（全部衣物 / 标签 / 槽位），
+		# ★ 第四十轮新增的两段（都在 story_editor 里可改）：
+		#   item_overrides —— 服装数值覆写：{物品 id: {exposure, acceptance_req}}
+		#                     只写「改过的那几件」，没写的用代码内置值。
+		#   true_presets   —— 原貌预设：{pool: [整套...], by_level: [每关一套...]}
+		#                     pool 非空 = 开局从这些整套里随机抽一套（而不是逐槽位乱抽）；
+		#                     by_level[i] 非空 = 第 i 关强制换成这一套。
+		#                     两处都空 = 完全走原来的随机逻辑（默认就是这个）。
+		"item_overrides": ScenarioData.ITEM_OVERRIDES_EXPORT(),
+		"true_presets": ScenarioData.TRUE_PRESETS_EXPORT(),
+		# catalog 是**只读目录**（全部衣物 / 标签 / 槽位 / 原貌池），
 		# 给编辑器做下拉与勾选用 —— 游戏本身不读它。
+		# ★ 第四十轮起里面多带两样供编辑器用：
+		#   true_pool —— 每槽位的原貌候选（编辑器做「符合原貌」提示与一键套用）
+		#   base_values —— 每件的**代码内置**数值（编辑器要显示「改了什么」）
 		"catalog": ScenarioData.CATALOG_EXPORT(),
 		"backgrounds": bgs,
 		"traits": ScenarioData.INTERROGATOR_TRAITS,

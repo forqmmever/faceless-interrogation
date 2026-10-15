@@ -408,7 +408,15 @@ func defects() -> Array:
 #                 不标 = 盖得严实，穿在它底下的内衣既不算暴露值也不算反差值。
 # bare          : ★ 「（不穿）」那一类空件 —— 穿上它等于这一层没有东西，
 #                 里面的内衣就是最外层（用户口径里的「直接外穿」），照算。
-const ITEMS := [
+# ★ 第三十九轮改：`const ITEMS` → `static var ITEMS`。
+#   为什么必须改：新增了「服装数值可从 data/story.json 覆写」这条通路
+#   （见 apply_item_overrides），而 `const` 是编译期只读、运行时改不了。
+#   选 `static var` 而不是普通 `var` 的原因：本文件里有 15 处 **static func**
+#   在读 ITEMS，静态上下文访问不到实例成员。`static var` 两边都能用，
+#   而且全项目原有的 `OutfitData.ITEMS` 写法**一行都不用改**。
+#   ⚠ 覆写是**原地改这一张表**（不是换一张新的），所以只有在第一次读之前
+#     调过 `_ensure_items()` 的地方才看得到新值 —— 见该函数的说明。
+const ITEMS_BASE := [
 	# ================= 发型（无「不戴」选项，始终有头发）=================
 	{"id": "hair_short", "name": "利落短发", "slot": "hair", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
 	{"id": "hair_braid", "name": "侧编辫", "slot": "hair", "exposure": 0, "acceptance_req": 1, "contrast": 1, "covers": [], "tags": []},
@@ -844,6 +852,114 @@ const ITEMS := [
 	{"id": "tool_tail", "name": "尼古喵尾", "slot": "tool", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": [], "desc": "喵什么错都没有"},
 ]
 
+# ============================================================
+#  运行期物品表（第四十轮）
+#
+#  初始 = `ITEMS_BASE` 的深拷贝；`data/story.json` 的 `item_overrides`
+#  段可以在运行期原地覆盖其中任意几件的 `exposure` / `acceptance_req`。
+#
+#  ★ 为什么用 `static var` 而不是 `var`：本文件有 15 处 static func 在读它。
+#  ★ 为什么覆写要「原地改」而不是「换一张新表」：
+#    全项目有 33 处直接写 `OutfitData.ITEMS`（不做函数调用）。
+#    换表的话那些引用点会拿到旧表；原地改（`ITEMS[i][field] = v`）则全都自动跟上。
+#  ★ 唯一的时序要求：**必须在第一次读 ITEMS 之前应用覆写**。
+#    由 `ScenarioData` 在它自己 _ready()（读完 story.json）里调
+#    `OutfitData.apply_item_overrides(...)` 来保证 —— ScenarioData 的 autoload
+#    顺序在 OutfitData 之后，那时 static var 已经初始化好了。
+#    另外每个用到 ITEMS 的 static func 顶部都调一次 `_ensure_items()` 兜底
+#    （防止有人绕过 autoload 直接用静态函数，比如测试里）。
+# ============================================================
+static var ITEMS: Array = ITEMS_BASE.duplicate(true)
+
+static var _items_ready: bool = false
+static var _applied_overrides: Dictionary = {}   # 真正生效过的覆写（供界面/测试查）
+
+# 兜底：把「数值覆写还没应用」这件事补上。
+#   ★ 正常路径是 ScenarioData 在读完 story.json 之后主动调 apply_item_overrides()。
+#     这里只是给「绕过 autoload 直接用静态函数」的场合（测试里常见）兜一道。
+#   ★ 拿不到 ScenarioData 或它还没读完 story 时**不标记完成**，下次再试 ——
+#     否则会在「story 尚未加载」的那一刻把空覆写当成最终结果，覆写就永远丢了。
+static func _ensure_items() -> void:
+	if _items_ready:
+		return
+	var loop := Engine.get_main_loop()
+	if loop == null or not (loop is SceneTree):
+		return
+	var sd: Node = (loop as SceneTree).root.get_node_or_null("ScenarioData")
+	if sd == null:
+		return
+	# ScenarioData.story_from_file 为 false 表示它还没读完（或没打算读）story.json
+	if not bool(sd.get("story_from_file")):
+		return
+	_items_ready = true
+	var ov: Variant = sd.call("item_overrides_override")
+	apply_item_overrides((ov as Dictionary) if typeof(ov) == TYPE_DICTIONARY else {})
+
+# 应用「服装数值覆写」。第四十轮新增，由 ScenarioData 在读完 story.json 后调用。
+#   overrides 形如 { "top_plain": {"exposure": 3, "acceptance_req": 4}, ... }
+#   ★ 只认 exposure 与 acceptance_req 两个字段 —— 其余字段（槽位 / 标签 / 贴图）
+#     改了会让贴图与门控对不上，编辑器也不开放它们。
+#   ★ 未知 id、非数字值、越界值一律跳过（宁可少改，也不要让一份坏数据把游戏弄崩）。
+static func apply_item_overrides(overrides: Dictionary) -> void:
+	# ★ 这里**不能**调 _ensure_items()（那会反过来去拉 ScenarioData 的覆写，
+	#   与「ScenarioData 正在调我」形成一层无谓的递归）。
+	#   直接标记「覆写已经应用过」即可。
+	_items_ready = true
+	_applied_overrides = {}
+	if overrides.is_empty():
+		return
+	var by_id := {}
+	for it in ITEMS:
+		by_id[str(it.get("id", ""))] = it
+	var applied := 0
+	for raw_id in overrides.keys():
+		var id := str(raw_id)
+		if not by_id.has(id):
+			push_warning("item_overrides 里有未知物品 id「%s」，已跳过" % id)
+			continue
+		var patch: Variant = overrides[raw_id]
+		if typeof(patch) != TYPE_DICTIONARY:
+			continue
+		var it: Dictionary = by_id[id]
+		var rec := {}
+		for field in ["exposure", "acceptance_req"]:
+			if not (patch as Dictionary).has(field):
+				continue
+			var v: Variant = (patch as Dictionary)[field]
+			if typeof(v) != TYPE_INT and typeof(v) != TYPE_FLOAT:
+				push_warning("item_overrides[%s][%s] 不是数字，已跳过" % [id, field])
+				continue
+			var n := int(v)
+			# 暴露值允许 -1 ~ 12（1 是「换装环节的难度」，12 是留给以后加档的余量）；
+			# 接受度允许 0 ~ 99（它是个门槛，没有理论上限，给个宽松的护栏即可）
+			if field == "exposure" and (n < -1 or n > 12):
+				push_warning("item_overrides[%s].exposure = %d 超出 -1~12，已跳过" % [id, n])
+				continue
+			if field == "acceptance_req" and (n < 0 or n > 99):
+				push_warning("item_overrides[%s].acceptance_req = %d 超出 0~99，已跳过" % [id, n])
+				continue
+			it[field] = n
+			rec[field] = n
+		if not rec.is_empty():
+			_applied_overrides[id] = rec
+			applied += 1
+	if applied > 0:
+		# 索引缓存是「从 ITEMS 现算」的，覆写之后必须重建，否则按 id / 槽位查还是旧值
+		_invalidate_item_index()
+	print("[OutfitData] 服装数值覆写：%d 件生效" % applied)
+
+# 已生效的覆写（编辑器 / 测试用）
+static func applied_item_overrides() -> Dictionary:
+	return _applied_overrides.duplicate(true)
+
+# 把 ITEMS 恢复成内置表（测试用：一个用例改完数值后清干净）
+static func reset_items_to_base() -> void:
+	ITEMS = ITEMS_BASE.duplicate(true)
+	_applied_overrides = {}
+	_items_ready = true
+	_invalidate_item_index()
+
+
 # ---------- 关卡进度 ----------
 # acceptance_gain : 通关后接受度提升值
 # contrast_req    : 进入质问环节所需的最低反差值（低于此值会被直接识破）
@@ -1254,13 +1370,17 @@ func forced_groups_at(li: int) -> Array:
 # ---------- 查询接口 ----------
 # ★ 索引缓存：这两张表以前是**每次线性扫 ITEMS**（102 件）——
 #   换装界面的贪心/DP 一次要问几万遍，实测能把测试拖到超时。
-#   ITEMS 是 const、运行期只读，所以这里缓存一次就够。
-var _by_slot: Dictionary = {}
-var _by_id: Dictionary = {}
+#   ★ 第四十轮：ITEMS 不再是 const（支持数值覆写），所以**覆写之后必须重建**
+#     —— 见 _invalidate_item_index()。
+# ★ 第四十轮：这三张缓存改成 static var —— apply_item_overrides() 是 static func，
+#   实例成员它够不着。实例方法读 static var 完全合法，所以调用点不用改。
+static var _by_slot: Dictionary = {}
+static var _by_id: Dictionary = {}
 
 func _build_index() -> void:
 	if not _by_id.is_empty():
 		return
+	_ensure_items()
 	for it in ITEMS:
 		var id := str(it.get("id", ""))
 		_by_id[id] = it
@@ -1268,6 +1388,12 @@ func _build_index() -> void:
 		if not _by_slot.has(slot):
 			_by_slot[slot] = []
 		_by_slot[slot].append(it)
+
+# 丢掉索引缓存与满值缓存，下次访问时重建（数值覆写之后调）
+static func _invalidate_item_index() -> void:
+	_by_slot = {}
+	_by_id = {}
+	_stat_max = {}
 
 func get_items_for_slot(slot: String) -> Array:
 	if not slot_enabled(slot):
@@ -1287,7 +1413,7 @@ func exposure_cap(acceptance: int) -> int:
 # ---------- 三个数值的「满值」----------
 #  卡片上那 7 颗点要按「这件东西的最大量级」切档，量表也要知道量程。
 #  满值**从 ITEMS 现算**并缓存 —— 以后改物品数值不用回来改常量表。
-var _stat_max: Dictionary = {}
+static var _stat_max: Dictionary = {}
 
 func stat_max_of(field: String) -> int:
 	if _stat_max.is_empty():

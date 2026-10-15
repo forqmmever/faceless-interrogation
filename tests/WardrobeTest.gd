@@ -42,6 +42,8 @@ func _ready() -> void:
 	_test_slots()
 	_test_disabled_slots()
 	_test_manual_slot_tool()
+	_test_item_overrides()
+	_test_true_presets()
 	_test_underwear_gate()
 	_test_tattoo_multi()
 	_test_true_pool()
@@ -656,6 +658,201 @@ func _max_exposure_of(slot: String) -> int:
 	for it in OutfitData.get_items_for_slot(slot):
 		mx = maxi(mx, int(it.get("exposure", 0)))
 	return mx
+
+# ------------------------------------------------------------
+#  服装数值覆写（第四十轮）
+#
+#  用户口径：「生成服装的暴露度和接受度编辑器」。
+#  纯编辑器是不够的 —— 数值原本写死在 OutfitData.gd 的 ITEMS 里，
+#  必须有一条「story.json 改得动它」的通路。这个用例测的就是那条通路：
+#  apply_item_overrides() 覆盖之后，**所有**读 ITEMS 的地方都看得到新值。
+# ------------------------------------------------------------
+func _test_item_overrides() -> void:
+	print("\n-- 服装数值覆写（暴露度 / 接受度）--")
+	OutfitData.reset_items_to_base()
+	var pid := "top_plain"
+	var base_exp := int(OutfitData.get_item(pid).get("exposure", -99))
+	var base_acc := int(OutfitData.get_item(pid).get("acceptance_req", -99))
+	_check("起点是内置值（exposure %d / acceptance_req %d）" % [base_exp, base_acc],
+		base_exp >= 0 and base_acc >= 0)
+
+	# ---- 覆写生效 ----
+	OutfitData.apply_item_overrides({pid: {"exposure": base_exp + 3, "acceptance_req": base_acc + 2}})
+	_check("★ 覆写后 get_item() 拿到新值",
+		int(OutfitData.get_item(pid).get("exposure", -99)) == base_exp + 3
+		and int(OutfitData.get_item(pid).get("acceptance_req", -99)) == base_acc + 2)
+	# 索引缓存必须跟着重建 —— 否则按槽位查还是旧的那一份
+	var via_slot := false
+	for it in OutfitData.get_items_for_slot("top"):
+		if str(it.get("id", "")) == pid:
+			via_slot = (int(it.get("exposure", -99)) == base_exp + 3)
+	_check("★ 按槽位查（走索引缓存）也是新值 —— 缓存重建了", via_slot)
+	_check("applied_item_overrides() 记下了这条", 
+		OutfitData.applied_item_overrides().has(pid))
+
+	# ---- 数值真的参与判定（不是只改了个显示值）----
+	var m := WardrobeModel.new(OutfitData, {}, OutfitData.LEVELS)
+	m.reset_for_level(99, 0, {}, [])
+	m.set_ids("top", [pid])
+	_check("★ 生效后的暴露值进了模型（改数值真的改判定）",
+		m.total_exposure() >= base_exp + 3)
+
+	# ---- 坏数据一律跳过，不能把游戏弄崩 ----
+	OutfitData.reset_items_to_base()
+	OutfitData.apply_item_overrides({
+		"__no_such_item__": {"exposure": 5},          # 未知 id
+		pid: {"exposure": 999},                        # 越界
+		"top_lace": {"exposure": "不是数字"},           # 类型不对
+		"top_crop": {"slot": "bottom"},                # 改槽位 —— 不该被接受
+	})
+	_check("未知 id / 越界值 / 非数字 / 改槽位 全部被跳过（只作用于 exposure 与 acceptance_req）",
+		int(OutfitData.get_item(pid).get("exposure", -99)) == base_exp
+		and OutfitData.applied_item_overrides().is_empty())
+	_check("改槽位那一条被忽略后，top_crop 还在它原本的槽位",
+		str(OutfitData.get_item("top_crop").get("slot", "")) == "top")
+
+	# ---- 还原 ----
+	OutfitData.reset_items_to_base()
+	_check("reset_items_to_base() 能还原成内置值",
+		int(OutfitData.get_item(pid).get("exposure", -99)) == base_exp
+		and OutfitData.applied_item_overrides().is_empty())
+
+	# ---- 默认状态：文件里没写这一段时间，什么都不改 ----
+	OutfitData.apply_item_overrides({})
+	_check("空覆写 = 不做任何改动",
+		int(OutfitData.get_item(pid).get("exposure", -99)) == base_exp)
+	OutfitData.reset_items_to_base()
+
+# ------------------------------------------------------------
+#  原貌预设（第四十轮）
+#
+#  用户口径：「每局每关游戏的原貌编辑器，能够从已有的服装选择组成原貌」。
+#  两条路：随机池（整套抽）+ 按关覆写（切关换人）。
+#  ★ 这里直接测 `_apply_preset()` —— 它才是「从已有服装组成原貌」的落地函数，
+#    不依赖磁盘上的 story.json。
+# ------------------------------------------------------------
+func _test_true_presets() -> void:
+	print("\n-- 原貌预设（随机池 / 按关覆写）--")
+	var slots: Array = OutfitData.auto_slots()
+
+	# ---- 默认：文件里两处都空 → 完全走老逻辑 ----
+	_check("默认没有随机池", ScenarioData.true_preset_pool().is_empty())
+	var by_lv: Array = ScenarioData.true_preset_by_level()
+	_check("默认的按关覆写里每一关都是「不覆写」（空字典）",
+		by_lv.size() == OutfitData.level_count()
+		and by_lv.all(func(x): return (x as Dictionary).is_empty()))
+
+	# ---- 一套里只写几件也算数 ----
+	ProfileData.reset_all()
+	RunData.start_new_run(20261011)
+	var one := {"name": "只钉上衣", "slots": {"top": "top_plain"}}
+	var app: Dictionary = RunData._apply_preset(one)
+	_check("★ 预设里指定的槽位就是它（top → top_plain）",
+		str(app.get("top", "")) == "top_plain")
+	_check("没写到的槽位照样补全（覆盖全部 %d 个槽位）" % slots.size(),
+		app.size() == slots.size())
+	_check("没写到的槽位取自原貌候选池",
+		(OutfitData.TRUE_POOL.get("hair", []) as Array).has(str(app.get("hair", ""))))
+
+	# ---- 指定空件也是有效指定（「他就是不穿下装」）----
+	var bare_one := {"name": "空件", "slots": {"bottom": "bottom_none"}}
+	var app2: Dictionary = RunData._apply_preset(bare_one)
+	_check("指定空件（「不穿下装」）会被照实采用",
+		str(app2.get("bottom", "")) == "bottom_none")
+
+	# ---- 同一份预设、同一个种子 → 结果可复现 ----
+	ProfileData.reset_all()
+	RunData.start_new_run(777)
+	var a1: Dictionary = RunData._apply_preset(one)
+	ProfileData.reset_all()
+	RunData.start_new_run(777)
+	var a2: Dictionary = RunData._apply_preset(one)
+	_check("同一预设 + 同一种子 → 结果完全一致（可复现）",
+		str(a1) == str(a2))
+
+	# ---- 互斥归一化：一套里同时写了成装与上装 → 只留成装 ----
+	var clash := {"name": "冲突", "slots": {"dress": "dress_maid", "top": "top_plain", "bottom": "bottom_mini"}}
+	var app3: Dictionary = RunData._apply_preset(clash)
+	RunData.true_app = app3.duplicate()
+	RunData._normalize_true_exclusive()
+	var dress_solid: bool = not OutfitData.is_bare(OutfitData.get_item(str(RunData.true_app.get("dress", ""))))
+	_check("★ 一套里「成装 + 上装 + 下装」并写时，归一化后只留成装",
+		dress_solid
+		and OutfitData.is_bare(OutfitData.get_item(str(RunData.true_app.get("top", ""))))
+		and OutfitData.is_bare(OutfitData.get_item(str(RunData.true_app.get("bottom", "")))))
+
+	# ---- 预设清洗：非法项被丢掉（不存在的物品 / 槽位对不上）----
+	var dirty := {
+		"pool": [
+			{"name": "好套", "slots": {"top": "top_plain"}},
+			{"name": "坏套", "slots": {"top": "__no_such__"}},
+			{"name": "错槽", "slots": {"bottom": "top_plain"}},
+			{"name": "空套", "slots": {}},
+			null,
+		],
+		"by_level": [{"name": "第1关", "slots": {"hair": "hair_short"}}, null, null, null],
+	}
+	ScenarioData._true_presets = dirty
+	var cleaned: Array = ScenarioData.true_preset_pool()
+	_check("★ 清洗后被丢掉 4 项，只剩「好套」1 套（实际 %d）" % cleaned.size(),
+		cleaned.size() == 1 and str(cleaned[0].get("name", "")) == "好套")
+	var lv2: Array = ScenarioData.true_preset_by_level()
+	_check("按关覆写保留位置：第 1 关有值，其余 3 关是空",
+		not (lv2[0] as Dictionary).is_empty()
+		and (lv2[1] as Dictionary).is_empty()
+		and (lv2[2] as Dictionary).is_empty()
+		and (lv2[3] as Dictionary).is_empty())
+
+	# ---- ★ 未配覆写的关必须「回到基础原貌」，不能粘着上一关 ----
+	#   这个 bug 是端到端探针抓出来的：第 2 关配了覆写、第 3 关没配，
+	#   第 3 关却还在用第 2 关的衣服（true_app 被覆写覆盖后就丢了基础那套）。
+	#   修法：基础原貌（base_true_app）整局只算一次，按关覆写只临时顶替它。
+	ScenarioData._true_presets = {
+		"pool": [{"name": "基础套", "slots": {"top": "top_longsleeve"}}],
+		"by_level": [{}, {"name": "第2关", "slots": {"top": "top_highneck"}}, {}, {}],
+	}
+	ProfileData.reset_all()
+	RunData.start_new_run(4242)
+	var t1 := str(RunData.true_item("top"))
+	RunData.advance_level()
+	var t2 := str(RunData.true_item("top"))
+	RunData.advance_level()
+	var t3 := str(RunData.true_item("top"))
+	_check("★ 第 1 关（未配）用随机池那套：" + t1, t1 == "top_longsleeve")
+	_check("★ 第 2 关（配了覆写）换成覆写那套：" + t2, t2 == "top_highneck")
+	_check("★ 第 3 关（未配）**回到基础那套**，不粘着第 2 关：" + t3, t3 == "top_longsleeve")
+	_check("基础原貌整局只算一次（第 1 关与第 3 关一致）", t1 == t3)
+
+	# ---- 从选关面板直接进第 2 关 → 开局就该用那一关的覆写 ----
+	#   ★ level_index 必须**先**设好再抽原貌（以前它在抽完之后才设，会取错关卡）
+	ProfileData.reset_all()
+	RunData.start_new_run(4242, 1)
+	_check("★ 直接进第 2 关时开局原貌就是覆写那套：" + str(RunData.true_item("top")),
+		str(RunData.true_item("top")) == "top_highneck")
+
+	# ---- 换原貌时情报要跟着换（条数不变、文案跟着新原貌）----
+	ProfileData.reset_all()
+	RunData.start_new_run(4242)
+	var clue_before := ""
+	for c in RunData.clues:
+		if str((c as Dictionary).get("slot", "")) == "top":
+			clue_before = str((c as Dictionary).get("text", ""))
+	RunData.advance_level()
+	var clue_after := ""
+	for c in RunData.clues:
+		if str((c as Dictionary).get("slot", "")) == "top":
+			clue_after = str((c as Dictionary).get("text", ""))
+	_check("★ 切关换原貌后情报文案跟着换（不是还说着旧的那件）",
+		clue_before != "" and clue_after != "" and clue_before != clue_after)
+	_check("情报条数不变（还是每个可覆写槽位一条）",
+		RunData.clues.size() == OutfitData.auto_slots().size())
+
+	# ★ 收尾必须清干净：上面反复调了 advance_level()，而它会
+	#   `ProfileData.add_gain()` —— 接受度是**跨局保留**的，不 reset 就会污染后面所有用例
+	#   （实测：不清的话，后面「开局接受度 = START_ACCEPTANCE」当场挂）。
+	ScenarioData._true_presets = {}
+	ProfileData.reset_all()
+	RunData.base_true_app = {}
 
 # ------------------------------------------------------------
 #  原貌候选池（多轮制的基础）

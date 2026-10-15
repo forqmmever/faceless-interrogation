@@ -1645,10 +1645,10 @@ tools/
   phone_editor.html      # ★ 可视化手机编辑器（单文件网页，改三个短信界面 / 备忘录 / 相册 / 备注 / 外壳）
   build_phone_editor.py  # 把 data/story.json 内嵌进手机编辑器的内置快照
   DumpStory.tscn/.gd     # 把 ScenarioData 当前数据导出成 data/story.json
-  editor_smoke.js        # 文本编辑器的冒烟测试（Node + DOM 桩，166 项，含反向用例）
+  editor_smoke.js        # 文本编辑器的冒烟测试（Node + DOM 桩，204 项，含反向用例）
   phone_editor_smoke.js  # 手机编辑器的冒烟测试（Node + DOM 桩，97 项，含反向用例）
 tests/
-  WardrobeTest.tscn/.gd  # 换装 + 数据层单元测试（509 项断言）
+  WardrobeTest.tscn/.gd  # 换装 + 数据层单元测试（535 项断言）
   TestRunner.tscn/.gd    # 端到端测试（906 项断言）
   Screenshot.tscn/.gd    # 真实渲染截图脚本（43 张）
 screenshots/             # 各阶段渲染截图 + 流程总览图
@@ -1750,7 +1750,9 @@ ScenarioData.gd 里的 DEFAULT_* 常量   ← 出厂兜底文本
 | `forced_rules[]` | 每关的强制穿着：`{mode: none/random/fixed, rules: [{pick: all/any, items: [...]}]}` | 👗 强制穿着 | **每关一条** |
 | `qte_plan[]` | 每道题的 QTE：`{qte: auto/none/expression/interference/combo, delay: 秒}` | ⏱ QTE 计划 | **全局一套**（按题号对齐） |
 | `defects[]` | 身体缺陷：`{id, name, slot_hint, cover_tags[]}` | 🩹 身体缺陷 | **全局一套** |
-| `catalog` | **只读目录**（158 件衣物 / 4 个标签 / 19 个槽位 + `manual_slots` 名单），给编辑器做下拉与勾选用；**游戏不读它** | （不用手改） | 全局 |
+| `item_overrides` | ★ 服装数值覆写：`{物品 id: {exposure, acceptance_req}}` —— **只写改过的那几件**，没写的用代码内置值 | 👕 服装数值 | **全局一套** |
+| `true_presets` | ★ 原貌预设：`{pool: [{name, slots}], by_level: [{name, slots} \| null]}` —— 两处都空 = 走原来的随机逻辑 | 🎭 原貌 | pool 全局 / by_level 每关一条 |
+| `catalog` | **只读目录**（158 件衣物 / 4 个标签 / 19 个槽位 + `manual_slots` 名单 + `base_values` 内置值 + `true_pool` 原貌池），给编辑器做下拉与勾选用；**游戏不读它** | （不用手改） | 全局 |
 | `backgrounds[]` | 每套背景的 `intro` / `levels` / `cards` / `questions` / `facts` / `sms` / `companion_questions` / `blind_questions` / `interference_lines` | 背景页各节 | 每套背景一份 |
 | `backgrounds[].endings` | 结局文案 **27 条**（一眼认出 / 身份暴露 / 怀疑度满 / 一关收场 / 结果浮层 / 大覆盖层） | 🎬 结局文案 | **每个背景一套** |
 | `traits[]` | 审问者性情（撒谎 / 回避的代价、反馈文案、手机备忘录三条） | 🎭 审问者性情 | 全局 |
@@ -1761,6 +1763,15 @@ ScenarioData.gd 里的 DEFAULT_* 常量   ← 出厂兜底文本
 > 会给每套背景补上 `endings` 键（`_fill_endings()`）。所以导出的 story.json 里
 > 四套背景各带 27 条，编辑器打开就能各自独立地改；某套背景漏写了某个键，
 > 只有那个键退回模板（逐键覆盖，不是整段替换）。
+
+> **★ 第四十轮起，服装数值也走这条「覆写」路子了**。以前 `exposure` / `acceptance_req`
+> 写死在 `scripts/OutfitData.gd` 的 `ITEMS` 里，改一个数就得动代码 + 重跑测试。
+> 现在 story.json 的 `item_overrides` 段可以在**运行期覆盖**它们：
+> `ScenarioData` 读完文件后调 `OutfitData.apply_item_overrides()`，
+> 原地改 `ITEMS` 这张表 —— 改完存盘、重启游戏即生效，不用重编译、不用重烘贴图。
+>
+> 同理，`true_presets` 让「A 的原貌」不再只能是随机抽的：
+> 你可以在编辑器里手工设计几套、让游戏从里面抽，也可以逐关指定。
 
 ## 手机编辑器（三个短信界面 / 备忘录 / 相册 / 备注 / 外壳）
 
@@ -2504,6 +2515,146 @@ if GameData.carried_tool(TOOL_TAIL_ID) \
   `catalog.manual_slots` 过滤，**不再要求妙妙工具写外貌情报句式与来源**
   （它不进情报，要求它写是错的）
 
+### 第四十轮：服装数值编辑器 + 原貌编辑器
+
+用户口径：
+
+> 「生成服装的暴露度和接受度编辑器，以及每局每关游戏的原貌编辑器，
+> 能够从已有的服装选择组成原貌」
+
+**① 为什么「纯做个编辑器」是做不到的**
+
+服装的暴露度与接受度，原本**写死在 `scripts/OutfitData.gd` 的 `ITEMS` 里**。
+一个 HTML 编辑器无论多好看，也没法在运行期改到它 —— 必须先给数据打通一条路。
+所以这轮真正的工作量在**游戏侧**，编辑器只是这条路的一个界面。
+
+两条新通路（都写进 `data/story.json`）：
+
+| 新段 | 作用 | 谁读它 |
+|---|---|---|
+| `item_overrides` | 服装数值覆写：`{物品 id: {exposure, acceptance_req}}` | `OutfitData.apply_item_overrides()` |
+| `true_presets` | 原貌预设：`{pool: [整套...], by_level: [每关一套...]}` | `RunData._roll_true_appearance()` |
+
+**② 把 `const ITEMS` 改成 `static var` —— 这步是被逼的**
+
+`const` 是编译期只读，运行期改不了。但直接把 `const` 换成普通 `var` 也不行：
+`OutfitData.gd` 里有 **15 处 `static func`** 在读 `ITEMS`（`bare_id_of` / `sheer_items` /
+`gate_dependents` …），而静态上下文访问不到实例成员。
+
+解法是 `static var`：静态函数能用、实例方法也能用、运行期还能改。
+好处是**全项目 33 处 `OutfitData.ITEMS` 的写法一行都不用动**。
+
+配套两点：
+- 覆写是**原地改这一张表**（`ITEMS[i][field] = v`），不是换一张新表 ——
+  那些「直接读 `OutfitData.ITEMS` 不做函数调用」的地方才会自动看到新值。
+- 三张索引/满值缓存（`_by_slot` / `_by_id` / `_stat_max`）也跟着改成 `static var`，
+  否则 `_invalidate_item_index()` 这个静态函数够不着它们。覆写后必须重建索引，
+  不然「按槽位查物品」拿到的还是旧值。
+
+**③ 时序问题：谁先谁后**
+
+autoload 顺序是 `GameData → OutfitData → ScenarioData → …`，
+也就是说 **`OutfitData` 就绪时 `story.json` 还没读**。所以覆写不能放在它自己的 `_ready()` 里，
+而是由 `ScenarioData._load_story()` 读完文件后**反调** `OutfitData.apply_item_overrides()`。
+
+再给每个入口加一道 `_ensure_items()` 兜底（给「绕过 autoload 直接用静态函数」的场合）。
+★ 这里有个坑：拿不到 ScenarioData 或 story 还没加载时，**不能标记「已完成」** ——
+否则会在「story 尚未加载」的那一瞬间把空覆写当成最终结果，覆写就永远丢了。
+
+**④ 原貌的三级优先**
+
+```gdscript
+① true_presets.by_level[本关] 有值  →  该关固定用这一套（切关时换，见 advance_level）
+② true_presets.pool 非空            →  从这一池**整套**里随机抽一套
+③ 以上都没有                        →  老逻辑：逐槽位从 TRUE_POOL 独立抽一件
+```
+
+**默认就是 ③**，所以不配这个东西时，游戏行为和以前一字不差。
+
+两个设计上的取舍：
+
+- **「一套里只写几件也算数」** —— 没写到的槽位继续按老逻辑随机抽。
+  这样「只想钉死上衣和下装」是允许的，不必每次都填满 14 个槽位。
+- **写空件（「（不穿）」）是有效指定**，会覆盖掉随机结果 ——
+  「他就是不穿下装」也是一种原貌。
+
+`by_level` 生效时，切关会换原貌并**重建情报**（否则情报台还在说「他颈侧有一片纹路」，
+而人已经换了一身）。相册不用重建：照片只记槽位，显示时现查原貌，自动跟上；
+已还原的槽位也是按槽位记的，所以换原貌后依然成立，玩家不用重查一遍。
+
+**⑤ ★ 顺带修掉一段「从没生效过的假防御」**
+
+`RunData._normalize_true_exclusive()` 原本声称要防「原貌既有成装又有上装」。
+但 `EXCLUSIVE_GROUPS` 是**嵌套**的 `[["dress"], ["top", "bottom"]]`，
+而它写的是 `for s in group` —— 拿到的 `s` 是子数组 `["dress"]`，
+`str(s)` 变成 `'["dress"]'` 这种字符串，`true_app.get()` **永远查不到**。
+
+也就是说：这段代码一次都没生效过。它的注释还写着「当前 TRUE_POOL 里 dress 只放空件，
+所以这段平时不触发，是纯防御」—— 真相是**它根本不工作**。
+
+现在按模型层 `WardrobeModel._normalize_exclusive()` 的正确写法重写（分左右两组判）。
+
+> ★ 这个 bug 是「给新功能写测试」时顺带测出来的 —— 测试里构造了一套
+> 「dress + top + bottom 全写」的预设，断言归一化后只留成装，结果当场挂了。
+> **又一次印证：给新代码写测试的价值往往不在于测新代码本身。**
+
+**⑤b ★ 另一个 bug：未配覆写的关会「粘着」上一关的样子**
+
+第一版 `_maybe_apply_level_preset()` 在「这一关没配覆写」时**直接 return**、不动 `true_app`。
+于是「第 2 关配了覆写、第 3 关没配」时，第 3 关**继续用第 2 关的衣服**。
+
+正确语义是「没配 = 不干预 = 回到本局的基础原貌」。修法是引入 `base_true_app`：
+
+```
+_roll_true_appearance()
+  ├─ base_true_app 为空 → 算一次（池/逐槽位，不含按关覆写），整局不变
+  ├─ 本关有覆写 → true_app = 覆写那套
+  └─ 否则       → true_app = base_true_app
+```
+
+切关时重算，并且**只在原貌真的变了时才重建情报**。
+
+> ★ 这个 bug 是**端到端探针**抓出来的 —— 手写一份带覆写的 story.json、跑真实流程、
+> 打印三关的 top/bottom/shoes，第 3 关的结果一眼就不对。
+> **单元测试当时是绿的**：它只测了 `_apply_preset()` 这个纯函数，没测「切关」这条时间线。
+> 教训：**纯函数测试测不出时间线上的 bug**。
+
+**⑤c ★ 顺带修掉：`level_index` 设置得太晚**
+
+它原先在 `_roll_true_appearance()` **之后**才赋值，而原貌现在要看「本关有没有覆写」——
+于是「从选关面板直接进第 3 关」时会取到上一局残留的关卡号。
+已把 `level_index` 提到抽原貌之前（默认无覆写时随机序列逐字节不变），
+`resume_run()` 改完关卡后补一次重算（存档可能停在第 N 关）。
+
+**⑥ 编辑器：`story_editor.html` 新增两个页签**
+
+**👕 服装数值**
+
+- 按槽位分组列出全部 158 件，每行两个数字输入框（暴露度 / 接受度）
+- 灰字显示**代码内置值**、改过的行标黄、单行 `↺` 与顶上「全部还原」两档回退
+- 搜索框 + 「只看改过的」过滤；下架槽位照列但压暗（改了暂时没效果，恢复那一栏就生效）
+- ★ 写入时**与内置值相同就删掉这个字段** —— 保证「没改过的东西不在 story.json 里留痕」
+
+**🎭 原貌**
+
+- 两种模式切换：「① 随机池」（可加 / 复制 / 删多套，每套逐槽位下拉）
+  与「② 按关覆写」（4 关各一份，可「按原貌池一键填满」或改回「不覆写」）
+- 下拉里带 `★` 的是本来就在原貌候选池里的款（选它更接近 A 会穿的东西，但不强制）
+- 实时显示「这一套指定了几个槽位 / 共几个」
+- 导航角标直接显示 `N 件改过` / `池 N 套 · 按关 N 关`
+
+校验新增两段：未知 id / 越界值 / 非数字 / 槽位对不上 / 「与内置值相同（多余的）」/
+按关项数与关卡数不符 / 「按关覆写会让 A 逐关变化」的提示。
+
+为了支持这两个页签，`catalog` 导出多了两样：`base_values`（代码内置值，用来标「改过」）
+与 `true_pool`（原貌候选池，用来做 ★ 标记与一键填满）。
+
+**⑦ 坏数据一律跳过，不是崩**
+
+手改坏一份 JSON 不该让游戏起不来。覆写里出现未知 id、非数字、越界值
+（暴露值 −1~12、接受度 0~99）、或者试图改槽位 —— 全部跳过并 `push_warning`。
+测试里专门有一个用例把四种坏数据一起喂进去，断言「什么都没被改」。
+
 ## 位置
 
 本项目已从 C 盘迁移至 D 盘：
@@ -2558,7 +2709,7 @@ PROJ="D:/WorkBuddy/2026-10-11-09-19-59"
 # 直接启动游戏
 "$GODOT" --path "$PROJ"
 
-# 换装 + 数据层单元测试（509 项断言）
+# 换装 + 数据层单元测试（535 项断言）
 "$GODOT" --headless --fixed-fps 60 --path "$PROJ" res://tests/WardrobeTest.tscn --quit-after 2400
 
 # 端到端测试（906 项断言）
@@ -2567,7 +2718,7 @@ PROJ="D:/WorkBuddy/2026-10-11-09-19-59"
 # 真实渲染并抓取各阶段截图到 screenshots/（43 张，约 4 分钟）
 "$GODOT" --fixed-fps 60 --path "$PROJ" res://tests/Screenshot.tscn
 
-# 文本编辑器冒烟测试（166 项，需要 node）
+# 文本编辑器冒烟测试（204 项，需要 node）
 node tools/editor_smoke.js
 
 # 手机编辑器冒烟测试（97 项，需要 node；先刷一遍内置快照）
@@ -2698,9 +2849,9 @@ python tools/build_phone_editor.py && node tools/phone_editor_smoke.js
 
 ## 测试
 
-两套 Godot 无头测试（**1415 项断言** = 509 + 906）+ 两套编辑器冒烟测试（**263 项** = 166 + 97）：
+两套 Godot 无头测试（**1441 项断言** = 535 + 906）+ 两套编辑器冒烟测试（**301 项** = 204 + 97）：
 
-**`tests/WardrobeTest.tscn`** —— 换装 + 数据层单元测试（509 项断言）
+**`tests/WardrobeTest.tscn`** —— 换装 + 数据层单元测试（535 项断言）
 - 槽位体系完整性（18 槽位 / zorder 递增 / 每个可见槽位 ≥2 件 / id 唯一 / slot 合法 / 默认装备可解析）
 - 下架槽位的契约（`DISABLED_SLOTS`：界面/原貌/情报/相册/强制池都看不到它，但数据与贴图一件不少）
 - **内衣内裤的曝光门控**：`see`（sheer / cutout）与 `bare` 的逐件标注、三条路逐一验证
@@ -2847,9 +2998,9 @@ python tools/build_phone_editor.py && node tools/phone_editor_smoke.js
   **结果是精确最优解**（任何单槽位替换都无法再拉高反差）、**次级目标也到位**（同反差下不再留下可改的原貌部位）、
   **连点两次幂等**、开局即原貌时一键必须把强制装备穿上
 
-**`tools/editor_smoke.js`** —— 文本编辑器冒烟测试（166 项，Node + 极简 DOM 桩）
+**`tools/editor_smoke.js`** —— 文本编辑器冒烟测试（204 项，Node + 极简 DOM 桩）
 把 `tools/story_editor.html` 里的脚本真正跑起来，验证：数据能载入、**校验结果为 0 错误 0 提醒**、
-**13 个视图都能渲染**（首页 / 性情 / 全局 / **数值 / 界面文案 / 结局 ×2 套背景 / 关卡 / 强制穿着 / QTE 计划 / 缺陷** / 背景 ×2）、
+**15 个视图都能渲染**（首页 / 性情 / 全局 / **数值 / 界面文案 / 结局 ×2 套背景 / 关卡 / 强制穿着 / QTE 计划 / 缺陷 / 服装数值 / 原貌** / 背景 ×2）、
 **101 个预览全部可渲染**、字段定义无缺漏、`toJSON → parse` 往返无损；
 **新增字段检查**：4 套背景的 `interrogator_gender` / `companion.*` 合法、每条短信的 `level` 是合法整数、
 **每关恰好一条短信解锁**、**短信 level 与 `facts` 顺序逐关对齐**、
@@ -2859,6 +3010,9 @@ python tools/build_phone_editor.py && node tools/phone_editor_smoke.js
 **档案题能改第 4 项「沉默」**；
 **第二轮新增的三页**：`story.rules` 有 **31 项**且和 `DEFAULT_RULES` 同构、`story.ui` 共 **79 条**、
 结局页 **27 条**、**每套背景各存一份 27 条 `endings`**、
+**第四十轮新增的两页**（服装数值 / 原貌）：覆写与预设两段都能读能写、
+「改回内置值就自动删条目」成立、四种坏数据全被跳过、预设「只写几件也算数」、
+按关覆写的项数与关卡数不符会提醒、两页都能往返无损；
 **第二轮新增的四页**（关卡 / 强制穿着 / QTE 计划 / 缺陷）：四段都在、`catalog` 带齐
 158 件衣物 + 标签池、`itemById` / `pickItemOpts` 能查到东西；
 **加一关不报错**、**反差要求倒退会提醒**、**反差要求超过理论上界会提醒**；
@@ -2895,7 +3049,7 @@ python tools/build_phone_editor.py && node tools/phone_editor_smoke.js
 `level` 与 `facts` 顺序打乱…… 断言校验器**必须报错或提醒**（防止校验器形同虚设）。
 另外单独断言**状态栏里的 `🔋78%` 不会被误报成占位符**。
 
-当前状态：**换装与数据层 509/509、端到端 906/906、文本编辑器冒烟 166/166、手机编辑器冒烟 97/97
+当前状态：**换装与数据层 535/535、端到端 906/906、文本编辑器冒烟 204/204、手机编辑器冒烟 97/97
 全部通过（共 1608 项断言）**。
 
 ## 截图
@@ -2978,6 +3132,21 @@ python tools/build_phone_editor.py && node tools/phone_editor_smoke.js
 > 另外踩过一个坑：拍完开始界面之后，`_show_title()` 把换装界面藏了起来，
 > 而 `_hide_title()` **不会**把它重新显示 —— 所以那之后必须显式 `wardrobe.show()`，
 > 否则 01~12 全拍成空屏。
+
+> ★ **第四十轮发现的第四个坑：这几张图对「Godot 的资源导入缓存」敏感**。
+> 起因是排查时发现 `19_expression_qte` / `20_leak_exposed` 与上一次提交的版本不同，
+> 一路二分（先还原 `RunData`、再还原 `OutfitData` + `ScenarioData`、最后连
+> `story.json` 也还原成 HEAD 版），**结果代码全部回到 HEAD、这两张图依然不同** ——
+> 说明差异**不是代码改动引起的**，而是环境层面的：跑过 `godot --import` 之后
+> 导入缓存被刷新，字体图集的烘焙结果随之改变，文字边缘的亚像素抗锯齿因此略有差异。
+>
+> 判据（用得上，记下来）：
+> 1. **同一份代码连跑三次 → 完全一致**（说明渲染本身是确定性的，不是"随机"）；
+> 2. 差异是**稀疏的点状**（把 diff 降采样成字符画能看出是文字边缘），不是整块 UI 不同；
+> 3. 该镜头的 `_plog` 状态输出（题目序号 / 进度 / 可见性）**逐字相同**。
+>
+> 三条同时成立 = 文字抗锯齿层面的差异，不必当成回归。**不要为此去改 gameplay 代码** ——
+> 第四十轮差点就为了这两张图去翻 `RunData` 的随机流，实际白忙一场。
 
 ## 后续可扩展方向
 - ~~**流程数据可编辑（轮数 / 问题数 / QTE 类型与时机 / 强制穿着组合 / 缺陷遮挡）**~~ 已完成（第二十三轮）：

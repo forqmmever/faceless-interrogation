@@ -2279,9 +2279,20 @@ func _load_story() -> void:
 	_forced_ov = (d.get("forced_rules", []) as Array) if typeof(d.get("forced_rules", null)) == TYPE_ARRAY else []
 	_qte_plan_ov = (d.get("qte_plan", []) as Array) if typeof(d.get("qte_plan", null)) == TYPE_ARRAY else []
 	_defects_ov = (d.get("defects", []) as Array) if typeof(d.get("defects", null)) == TYPE_ARRAY else []
+	# ★ 第四十轮新增的两段（都可为空 → 空 = 用代码内置值）：
+	#   item_overrides —— 服装数值覆写（暴露度 / 接受度）
+	#   true_presets   —— 原貌预设（随机池 + 按关覆写）
+	_item_ov = (d.get("item_overrides", {}) as Dictionary) \
+		if typeof(d.get("item_overrides", null)) == TYPE_DICTIONARY else {}
+	_true_presets = (d.get("true_presets", {}) as Dictionary) \
+		if typeof(d.get("true_presets", null)) == TYPE_DICTIONARY else {}
 
 	story_from_file = true
 	_fill_endings()
+	# ★ 第四十轮：数据读完就把服装数值覆写应用掉 —— 必须在这里做，
+	#   因为 OutfitData 的 autoload 顺序在本文件**之前**（它 _ready 时 story 还没读），
+	#   而全项目有 33 处直接读 `OutfitData.ITEMS`，必须在那之前把值改好。
+	OutfitData.apply_item_overrides(_item_ov)
 
 # ---------- 第二十三轮：可编辑的三段 ----------
 # 读取一律走这三个门面 —— OutfitData / Interrogation 只认它们，
@@ -2290,6 +2301,9 @@ var _levels_ov: Array = []
 var _forced_ov: Array = []
 var _qte_plan_ov: Array = []
 var _defects_ov: Array = []
+# ★ 第四十轮
+var _item_ov: Dictionary = {}
+var _true_presets: Dictionary = {}
 
 func levels_override() -> Array:
 	_ensure_story()
@@ -2298,6 +2312,84 @@ func levels_override() -> Array:
 func forced_rules_override() -> Array:
 	_ensure_story()
 	return _forced_ov
+
+# 服装数值覆写（第四十轮）—— {item_id: {exposure, acceptance_req}}
+func item_overrides_override() -> Dictionary:
+	_ensure_story()
+	return _item_ov
+
+# 原貌预设（第四十轮）—— {pool: [{name, slots}], by_level: [{name, slots} | null]}
+func true_presets_override() -> Dictionary:
+	_ensure_story()
+	return _true_presets
+
+# 这一份原貌预设里「随机池」那部分（去掉空项 —— 池子里不该有「不覆写」这个概念）
+func true_preset_pool() -> Array:
+	_ensure_story()
+	var out := []
+	for e in _sanitize_presets(_true_presets.get("pool", [])):
+		if not (e as Dictionary).is_empty():
+			out.append(e)
+	return out
+
+# 这一份原貌预设里「按关覆写」那部分 —— 长度对齐关卡数，没配的关是 {}（= 不覆写）
+#   ★ 必须保留位置，所以这里**不能**过滤空项。
+func true_preset_by_level() -> Array:
+	_ensure_story()
+	var raw: Array = _sanitize_presets(_true_presets.get("by_level", []))
+	var out := []
+	for i in OutfitData.level_count():
+		out.append(raw[i] if i < raw.size() else {})
+	return out
+
+# 预设的清洗：只留「slots 是字典且非空」的那些，并统一成 {name, slots} 形状。
+#   ★ 编辑器可能留下 null / 空对象（「这一关不覆写」），这里一律转成空字典，
+#     由调用方判断「空 = 不覆写」。
+func _sanitize_presets(raw: Variant) -> Array:
+	var out := []
+	if typeof(raw) != TYPE_ARRAY:
+		return out
+	for e in (raw as Array):
+		if typeof(e) != TYPE_DICTIONARY:
+			out.append({})          # null / 非字典 → 空（= 不覆写）
+			continue
+		var slots: Variant = (e as Dictionary).get("slots", null)
+		if typeof(slots) != TYPE_DICTIONARY or (slots as Dictionary).is_empty():
+			out.append({})
+			continue
+		var clean := {}
+		for k in (slots as Dictionary).keys():
+			var s := str(k)
+			var iid := str((slots as Dictionary)[k])
+			# 只留「这件真的存在于那个槽位」的项 —— 一份手改坏的预设不该让游戏崩
+			var it: Dictionary = OutfitData.get_item(iid)
+			if it.is_empty() or str(it.get("slot", "")) != s:
+				continue
+			clean[s] = iid
+		if clean.is_empty():
+			out.append({})
+			continue
+		out.append({
+			"name": str((e as Dictionary).get("name", "")),
+			"slots": clean,
+		})
+	return out
+
+# 导出用（DumpStory）：把当前生效的覆写与预设原样交出去
+func ITEM_OVERRIDES_EXPORT() -> Dictionary:
+	return item_overrides_override()
+
+func TRUE_PRESETS_EXPORT() -> Dictionary:
+	var ov := true_presets_override()
+	# ★ pool 导出时过滤空项；by_level 保留位置（见 true_preset_by_level 的说明）
+	var pool := []
+	for e in _sanitize_presets(ov.get("pool", [])):
+		if not (e as Dictionary).is_empty():
+			pool.append(e)
+	return {
+		"pool": pool,
+		"by_level": true_preset_by_level(),
+	}
 
 # 身体缺陷表（第二十三轮外置）—— 每项 {id, name, slot_hint, cover_tags}
 func defects_override() -> Array:
@@ -2374,7 +2466,25 @@ func CATALOG_EXPORT() -> Dictionary:
 		# ★ 第三十九轮：告诉编辑器哪些槽位是「只能手动装备」的（界面上看得到，
 		#   但不参与原貌 / 强制 / 一键达标 / 反差统计）。目前只有 tool 一栏。
 		"manual_slots": OutfitData.MANUAL_SLOTS.duplicate(),
+		# ★ 第四十轮新增两样，都是给「服装数值编辑器 / 原貌编辑器」用的：
+		#   base_values —— 每件的**代码内置**数值。编辑器拿它跟 items 里的当前值
+		#                  对比，就能标出「这一件被覆写改过」并支持一键还原。
+		#                  注意 items 里已经是**应用过覆写之后**的值。
+		#   true_pool    —— 每槽位的原貌候选（TRUE_POOL）。原貌编辑器用它做
+		#                  「这一件符不符合 A 的原貌」的提示与「一键套用原貌」。
+		"base_values": _catalog_base_values(),
+		"true_pool": OutfitData.TRUE_POOL.duplicate(true),
 	}
+
+# 每件物品的**代码内置**数值（不读运行期那份 —— 它可能已被覆写改过）
+func _catalog_base_values() -> Dictionary:
+	var out := {}
+	for it in OutfitData.ITEMS_BASE:
+		out[str(it.get("id", ""))] = {
+			"exposure": int(it.get("exposure", 0)),
+			"acceptance_req": int(it.get("acceptance_req", 0)),
+		}
+	return out
 
 # 第 li 道题的 QTE 计划；没写这一道 → 返回空字典（调用方按「自动」处理）
 func qte_plan_at(li: int) -> Dictionary:

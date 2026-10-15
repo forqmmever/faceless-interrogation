@@ -216,6 +216,26 @@
 			]
 		}
 	],
+	"item_overrides": {
+
+	},
+	"true_presets": {
+		"pool": [],
+		"by_level": [
+			{
+
+			},
+			{
+
+			},
+			{
+
+			},
+			{
+
+			}
+		]
+	},
 	"catalog": {
 		"items": [
 			{
@@ -2053,7 +2073,713 @@
 		],
 		"manual_slots": [
 			"tool"
-		]
+		],
+		"base_values": {
+			"hair_short": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"hair_braid": {
+				"exposure": 0,
+				"acceptance_req": 1
+			},
+			"hair_long": {
+				"exposure": 0,
+				"acceptance_req": 2
+			},
+			"hair_up": {
+				"exposure": 0,
+				"acceptance_req": 5
+			},
+			"head_none": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"head_hat": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"head_hood": {
+				"exposure": 0,
+				"acceptance_req": 3
+			},
+			"head_veil": {
+				"exposure": 1,
+				"acceptance_req": 9
+			},
+			"glasses_none": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"glasses_round": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"glasses_cateye": {
+				"exposure": 0,
+				"acceptance_req": 3
+			},
+			"glasses_square": {
+				"exposure": 0,
+				"acceptance_req": 5
+			},
+			"ear_none": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"ear_stud": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"ear_hoop": {
+				"exposure": 1,
+				"acceptance_req": 4
+			},
+			"ear_diamond": {
+				"exposure": 1,
+				"acceptance_req": 8
+			},
+			"makeup_none": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"makeup_light": {
+				"exposure": 0,
+				"acceptance_req": 1
+			},
+			"makeup_heavy": {
+				"exposure": 1,
+				"acceptance_req": 6
+			},
+			"makeup_lip": {
+				"exposure": 0,
+				"acceptance_req": 3
+			},
+			"makeup_blush": {
+				"exposure": 0,
+				"acceptance_req": 2
+			},
+			"makeup_freckles": {
+				"exposure": 0,
+				"acceptance_req": 4
+			},
+			"piercing_none": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"piercing_multi": {
+				"exposure": 1,
+				"acceptance_req": 2
+			},
+			"piercing_lip": {
+				"exposure": 2,
+				"acceptance_req": 7
+			},
+			"piercing_nose": {
+				"exposure": 3,
+				"acceptance_req": 10
+			},
+			"tattoo_none": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"tattoo_neck": {
+				"exposure": 2,
+				"acceptance_req": 3
+			},
+			"tattoo_cheek": {
+				"exposure": 2,
+				"acceptance_req": 6
+			},
+			"tattoo_thigh": {
+				"exposure": 2,
+				"acceptance_req": 8
+			},
+			"tattoo_heart": {
+				"exposure": 2,
+				"acceptance_req": 8
+			},
+			"tattoo_paw": {
+				"exposure": 2,
+				"acceptance_req": 8
+			},
+			"tattoo_bitch": {
+				"exposure": 2,
+				"acceptance_req": 9
+			},
+			"tattoo_freeuse": {
+				"exposure": 2,
+				"acceptance_req": 9
+			},
+			"tattoo_slave": {
+				"exposure": 2,
+				"acceptance_req": 9
+			},
+			"tattoo_cumrag": {
+				"exposure": 2,
+				"acceptance_req": 10
+			},
+			"neck_none": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"neck_collar": {
+				"exposure": 0,
+				"acceptance_req": 1
+			},
+			"neck_scarf": {
+				"exposure": 0,
+				"acceptance_req": 2
+			},
+			"neck_choker": {
+				"exposure": 1,
+				"acceptance_req": 6
+			},
+			"neck_spiked": {
+				"exposure": 2,
+				"acceptance_req": 8
+			},
+			"neck_ringed": {
+				"exposure": 1,
+				"acceptance_req": 6
+			},
+			"neck_lace": {
+				"exposure": 1,
+				"acceptance_req": 4
+			},
+			"neck_chain": {
+				"exposure": 2,
+				"acceptance_req": 7
+			},
+			"neck_freeuse": {
+				"exposure": 2,
+				"acceptance_req": 7
+			},
+			"top_none": {
+				"exposure": 9,
+				"acceptance_req": 11
+			},
+			"top_highneck": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"top_plain": {
+				"exposure": 1,
+				"acceptance_req": 0
+			},
+			"top_longsleeve": {
+				"exposure": 2,
+				"acceptance_req": 2
+			},
+			"top_sheer": {
+				"exposure": 7,
+				"acceptance_req": 6
+			},
+			"top_lace": {
+				"exposure": 6,
+				"acceptance_req": 6
+			},
+			"top_corset": {
+				"exposure": 8,
+				"acceptance_req": 9
+			},
+			"top_crop": {
+				"exposure": 5,
+				"acceptance_req": 5
+			},
+			"top_offshoulder": {
+				"exposure": 6,
+				"acceptance_req": 6
+			},
+			"top_school_navy": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"top_school_green": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"top_sailor_white": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"top_sailor_navy": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"top_bustier": {
+				"exposure": 7,
+				"acceptance_req": 7
+			},
+			"top_lolita": {
+				"exposure": 6,
+				"acceptance_req": 6
+			},
+			"top_keyhole": {
+				"exposure": 6,
+				"acceptance_req": 6
+			},
+			"top_mesh": {
+				"exposure": 8,
+				"acceptance_req": 9
+			},
+			"top_virginkiller": {
+				"exposure": 6,
+				"acceptance_req": 9
+			},
+			"top_turtleneck": {
+				"exposure": 3,
+				"acceptance_req": 8
+			},
+			"top_tank": {
+				"exposure": 3,
+				"acceptance_req": 3
+			},
+			"top_tube": {
+				"exposure": 4,
+				"acceptance_req": 5
+			},
+			"top_swim": {
+				"exposure": 4,
+				"acceptance_req": 5
+			},
+			"top_leathercrop": {
+				"exposure": 5,
+				"acceptance_req": 6
+			},
+			"top_chain": {
+				"exposure": 7,
+				"acceptance_req": 8
+			},
+			"top_graphiccrop": {
+				"exposure": 8,
+				"acceptance_req": 8
+			},
+			"top_towel": {
+				"exposure": 9,
+				"acceptance_req": 10
+			},
+			"top_bedsheet": {
+				"exposure": 9,
+				"acceptance_req": 10
+			},
+			"bra_plain": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"bra_lace": {
+				"exposure": 4,
+				"acceptance_req": 5
+			},
+			"bra_none": {
+				"exposure": 6,
+				"acceptance_req": 8
+			},
+			"bra_microkini": {
+				"exposure": 4,
+				"acceptance_req": 8
+			},
+			"bra_pasties": {
+				"exposure": 5,
+				"acceptance_req": 9
+			},
+			"bra_bikini": {
+				"exposure": 4,
+				"acceptance_req": 5
+			},
+			"bra_latex": {
+				"exposure": 8,
+				"acceptance_req": 9
+			},
+			"bra_seethrough": {
+				"exposure": 9,
+				"acceptance_req": 10
+			},
+			"bra_tape": {
+				"exposure": 9,
+				"acceptance_req": 10
+			},
+			"gloves_none": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"gloves_leather": {
+				"exposure": 1,
+				"acceptance_req": 0
+			},
+			"gloves_lace": {
+				"exposure": 1,
+				"acceptance_req": 3
+			},
+			"gloves_oper": {
+				"exposure": 2,
+				"acceptance_req": 7
+			},
+			"acc_none": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"acc_locket": {
+				"exposure": 0,
+				"acceptance_req": 2
+			},
+			"acc_anklet": {
+				"exposure": 0,
+				"acceptance_req": 4
+			},
+			"acc_shackle": {
+				"exposure": 1,
+				"acceptance_req": 6
+			},
+			"acc_belt": {
+				"exposure": 1,
+				"acceptance_req": 4
+			},
+			"panties_thong": {
+				"exposure": 5,
+				"acceptance_req": 5
+			},
+			"panties_janties": {
+				"exposure": 5,
+				"acceptance_req": 6
+			},
+			"bottom_none": {
+				"exposure": 9,
+				"acceptance_req": 11
+			},
+			"bottom_longskirt": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"bottom_trousers": {
+				"exposure": 1,
+				"acceptance_req": 0
+			},
+			"bottom_knee": {
+				"exposure": 3,
+				"acceptance_req": 3
+			},
+			"bottom_mini": {
+				"exposure": 7,
+				"acceptance_req": 7
+			},
+			"bottom_pleat": {
+				"exposure": 5,
+				"acceptance_req": 5
+			},
+			"bottom_cut": {
+				"exposure": 6,
+				"acceptance_req": 6
+			},
+			"bottom_school_navy": {
+				"exposure": 6,
+				"acceptance_req": 6
+			},
+			"bottom_school_green": {
+				"exposure": 3,
+				"acceptance_req": 3
+			},
+			"bottom_sailor_white": {
+				"exposure": 3,
+				"acceptance_req": 3
+			},
+			"bottom_sailor_navy": {
+				"exposure": 3,
+				"acceptance_req": 3
+			},
+			"bottom_hotpants": {
+				"exposure": 6,
+				"acceptance_req": 6
+			},
+			"bottom_slit": {
+				"exposure": 6,
+				"acceptance_req": 6
+			},
+			"bottom_fishnet": {
+				"exposure": 8,
+				"acceptance_req": 8
+			},
+			"bottom_pvc": {
+				"exposure": 6,
+				"acceptance_req": 8
+			},
+			"bottom_qipao": {
+				"exposure": 7,
+				"acceptance_req": 9
+			},
+			"bottom_pencil": {
+				"exposure": 3,
+				"acceptance_req": 4
+			},
+			"bottom_shortshort": {
+				"exposure": 4,
+				"acceptance_req": 4
+			},
+			"bottom_leathershort": {
+				"exposure": 5,
+				"acceptance_req": 6
+			},
+			"bottom_chain": {
+				"exposure": 7,
+				"acceptance_req": 8
+			},
+			"bottom_sarong": {
+				"exposure": 8,
+				"acceptance_req": 8
+			},
+			"dress_none": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"dress_sundress": {
+				"exposure": 2,
+				"acceptance_req": 2
+			},
+			"dress_eveninggown": {
+				"exposure": 2,
+				"acceptance_req": 4
+			},
+			"dress_kimono": {
+				"exposure": 3,
+				"acceptance_req": 4
+			},
+			"dress_maid": {
+				"exposure": 3,
+				"acceptance_req": 5
+			},
+			"dress_slip": {
+				"exposure": 4,
+				"acceptance_req": 5
+			},
+			"dress_nurse": {
+				"exposure": 4,
+				"acceptance_req": 6
+			},
+			"dress_cheongsam": {
+				"exposure": 5,
+				"acceptance_req": 7
+			},
+			"dress_leather": {
+				"exposure": 7,
+				"acceptance_req": 8
+			},
+			"dress_swan": {
+				"exposure": 8,
+				"acceptance_req": 9
+			},
+			"dress_transparent": {
+				"exposure": 9,
+				"acceptance_req": 11
+			},
+			"panties_plain": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"panties_lace": {
+				"exposure": 5,
+				"acceptance_req": 6
+			},
+			"panties_micro": {
+				"exposure": 6,
+				"acceptance_req": 7
+			},
+			"panties_crotchless": {
+				"exposure": 7,
+				"acceptance_req": 8
+			},
+			"panties_none": {
+				"exposure": 8,
+				"acceptance_req": 8
+			},
+			"panties_bikini": {
+				"exposure": 4,
+				"acceptance_req": 5
+			},
+			"panties_shibari": {
+				"exposure": 8,
+				"acceptance_req": 9
+			},
+			"panties_gstring": {
+				"exposure": 9,
+				"acceptance_req": 10
+			},
+			"panties_loincloth": {
+				"exposure": 9,
+				"acceptance_req": 10
+			},
+			"panties_tieside": {
+				"exposure": 9,
+				"acceptance_req": 11
+			},
+			"panties_seethrough": {
+				"exposure": 9,
+				"acceptance_req": 11
+			},
+			"panties_flatcage": {
+				"exposure": 9,
+				"acceptance_req": 10
+			},
+			"stockings_none": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"stockings_opaque": {
+				"exposure": 1,
+				"acceptance_req": 2
+			},
+			"stockings_thigh": {
+				"exposure": 2,
+				"acceptance_req": 4
+			},
+			"stockings_net": {
+				"exposure": 3,
+				"acceptance_req": 8
+			},
+			"stockings_school_navy": {
+				"exposure": 2,
+				"acceptance_req": 4
+			},
+			"stockings_school_green": {
+				"exposure": 1,
+				"acceptance_req": 2
+			},
+			"garter_lace": {
+				"exposure": 1,
+				"acceptance_req": 5
+			},
+			"garter_black": {
+				"exposure": 2,
+				"acceptance_req": 7
+			},
+			"stockings_sheer": {
+				"exposure": 5,
+				"acceptance_req": 6
+			},
+			"stockings_fishnettights": {
+				"exposure": 7,
+				"acceptance_req": 8
+			},
+			"stockings_chainnet": {
+				"exposure": 8,
+				"acceptance_req": 9
+			},
+			"stockings_sheerskin": {
+				"exposure": 9,
+				"acceptance_req": 10
+			},
+			"shoes_boots": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"shoes_heels": {
+				"exposure": 2,
+				"acceptance_req": 3
+			},
+			"shoes_school_navy": {
+				"exposure": 0,
+				"acceptance_req": 1
+			},
+			"shoes_school_green": {
+				"exposure": 0,
+				"acceptance_req": 1
+			},
+			"robe_none": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"robe_travel": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"robe_lace": {
+				"exposure": 2,
+				"acceptance_req": 4
+			},
+			"robe_leather": {
+				"exposure": 2,
+				"acceptance_req": 6
+			},
+			"tool_none": {
+				"exposure": 0,
+				"acceptance_req": 0
+			},
+			"tool_tail": {
+				"exposure": 0,
+				"acceptance_req": 0
+			}
+		},
+		"true_pool": {
+			"hair": [
+				"hair_short",
+				"hair_braid",
+				"hair_long"
+			],
+			"headgear": [
+				"head_none",
+				"head_hat"
+			],
+			"glasses": [
+				"glasses_none",
+				"glasses_round"
+			],
+			"earrings": [
+				"ear_none",
+				"ear_stud"
+			],
+			"makeup": [
+				"makeup_none",
+				"makeup_light"
+			],
+			"piercing": [
+				"piercing_none",
+				"piercing_multi"
+			],
+			"tattoo": [
+				"tattoo_none",
+				"tattoo_neck"
+			],
+			"neckwear": [
+				"neck_none",
+				"neck_collar",
+				"neck_scarf"
+			],
+			"top": [
+				"top_highneck",
+				"top_plain",
+				"top_longsleeve"
+			],
+			"bra": [
+				"bra_plain"
+			],
+			"gloves": [
+				"gloves_none",
+				"gloves_leather"
+			],
+			"accessory": [
+				"acc_none"
+			],
+			"bottom": [
+				"bottom_longskirt",
+				"bottom_trousers"
+			],
+			"dress": [
+				"dress_none"
+			],
+			"panties": [
+				"panties_plain"
+			],
+			"stockings": [
+				"stockings_none",
+				"stockings_opaque"
+			],
+			"shoes": [
+				"shoes_boots"
+			],
+			"robe": [
+				"robe_none",
+				"robe_travel"
+			]
+		}
 	},
 	"backgrounds": [
 		{

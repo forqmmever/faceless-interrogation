@@ -81,6 +81,13 @@ mainJs += `
   // ★ 第二十九轮：题库页（逐题编辑）暴露出来供冒烟检查
   questionFields, optionFields, TONE_OPTS, QUESTION_QTE_OPTS, renderQuestions, totalQuestions,
   SLOTS, POOL_IDS, TRUE_POOL, GENDERS, PLAYER_GENDER,
+  // ★ 第四十轮：服装数值页 / 原貌页
+  renderItemsEditor, renderTrueAppEditor, renderPresetList,
+  setItemOverride, effValueOf, baseValueOf, catalogItems, overriddenItemCount,
+  autoSlots, itemsOfSlot, inTruePool, presetSummary,
+  get presetMode(){ return presetMode; }, set presetMode(v){ presetMode = v; },
+  get presetSel(){ return presetSel; }, set presetSel(v){ presetSel = v; },
+  get itemFilter(){ return itemFilter; },
 };
 `;
 
@@ -120,6 +127,7 @@ try {
                    { kind: "rules" }, { kind: "ui" },
                    { kind: "endings", index: 0 }, { kind: "endings", index: 3 },
                    { kind: "levels" }, { kind: "forced" }, { kind: "qte" }, { kind: "defects" },
+                   { kind: "items" }, { kind: "trueapp" },
                    { kind: "bg", index: 0 }, { kind: "bg", index: 3 }]) {
     try { P.go(v); ok(true, "渲染 " + JSON.stringify(v)); }
     catch (e) { ok(false, "渲染 " + JSON.stringify(v) + " 抛错: " + (e && e.message)); }
@@ -638,6 +646,141 @@ try {
     const t2 = P.toJSON();
     ok(JSON.parse(t2).qte_plan[0].qte === "interference", "qte_plan 能往返");
     ok(JSON.parse(t2).catalog.items.length === 158, "catalog 能往返");
+    P.loadStory(JSON.parse(JSON.stringify(pristine)), "t.json", false);
+  }
+
+  // ============================================================
+  //  14. 服装数值 / 原貌（第四十轮新增两页）
+  // ============================================================
+  console.log("\n-- 14. 服装数值 / 原貌（第四十轮新增两页）--");
+  {
+    const S = P.story;
+    const pristine = JSON.parse(JSON.stringify(S));
+
+    // ---- 目录里带齐了编辑器要用的两样 ----
+    const cat = S.catalog || {};
+    ok(!!cat.base_values, "catalog 里有 base_values（代码内置值，用来标「改过」）");
+    ok(Object.keys(cat.base_values || {}).length === cat.items.length,
+      "base_values 覆盖全部 " + cat.items.length + " 件");
+    ok(!!cat.true_pool, "catalog 里有 true_pool（原貌候选池）");
+    ok(P.autoSlots().length === (cat.active_slots || []).length - (cat.manual_slots || []).length,
+      "autoSlots() = 可见槽位去掉只能手动的（" + P.autoSlots().length + " 个）");
+
+    // ---- 当前值 / 内置值 / 覆写 三者关系 ----
+    const probeId = "top_plain";
+    const baseExp = P.baseValueOf(probeId, "exposure");
+    ok(typeof baseExp === "number", probeId + " 有内置暴露值 = " + baseExp);
+    ok(P.effValueOf(probeId, "exposure") === baseExp, "没覆写时当前值 = 内置值");
+
+    // ---- 写一条覆写 ----
+    P.setItemOverride(probeId, "exposure", baseExp + 3);
+    ok(S.item_overrides && S.item_overrides[probeId]
+      && S.item_overrides[probeId].exposure === baseExp + 3,
+      "写入覆写后 story.item_overrides 里有这一条");
+    ok(P.effValueOf(probeId, "exposure") === baseExp + 3, "当前值跟着变成覆写值");
+    ok(P.overriddenItemCount() === 1, "改动计数 = 1（实际 " + P.overriddenItemCount() + "）");
+    P.validateNow();
+    ok(!P.issues.some(i => i.lv === "e" && i.m.includes("item_overrides")),
+      "合法的覆写不报错");
+
+    // ---- 与内置值相同 → 自动删掉这条（不在 story.json 里留痕） ----
+    P.setItemOverride(probeId, "exposure", baseExp);
+    ok(!(S.item_overrides && S.item_overrides[probeId]),
+      "改回内置值 → 这一条自动删掉，不留痕");
+    ok(P.overriddenItemCount() === 0, "改动计数归零");
+
+    // ---- 只改一个字段时，另一个字段不写入 ----
+    P.setItemOverride(probeId, "acceptance_req", 9);
+    ok(S.item_overrides[probeId].acceptance_req === 9
+      && S.item_overrides[probeId].exposure === undefined,
+      "只写被改的那个字段（另一个不落盘）");
+    P.setItemOverride(probeId, "acceptance_req", P.baseValueOf(probeId, "acceptance_req"));
+
+    // ---- 反向：未知 id / 越界值 / 类型不对 都必须报错 ----
+    S.item_overrides = { __no_such_item__: { exposure: 3 } };
+    P.validateNow();
+    ok(P.issues.some(i => i.lv === "e" && i.m.includes("不存在的物品 id")),
+      "未知物品 id 会报错");
+    S.item_overrides = { [probeId]: { exposure: 99 } };
+    P.validateNow();
+    ok(P.issues.some(i => i.lv === "e" && i.m.includes("超出")),
+      "暴露值越界会报错：" + (P.issues.filter(i => i.m.includes("超出"))[0] || {}).m);
+    S.item_overrides = { [probeId]: { exposure: "3" } };
+    P.validateNow();
+    ok(P.issues.some(i => i.lv === "e" && i.m.includes("必须是数字")), "非数字会报错");
+    S.item_overrides = { [probeId]: { exposure: baseExp } };
+    P.validateNow();
+    ok(P.issues.some(i => i.lv === "w" && i.m.includes("多余")),
+      "与内置值相同的条目会被提醒（多余的）");
+    S.item_overrides = {};
+    P.validateNow();
+    ok(!P.issues.some(i => i.m.includes("item_overrides")), "清空后校验干干净净");
+
+    // ---- 原貌页：默认状态 = 完全不覆写 ----
+    ok(P.presetSummary() === "默认", "默认状态是「默认」（两处都空）");
+    S.true_presets = { pool: [], by_level: [] };
+    P.validateNow();
+    ok(!P.issues.some(i => i.lv === "e" && i.m.includes("true_presets")),
+      "空预设不报错");
+
+    // ---- 加一套随机池、指定一个槽位 ----
+    const slot0 = P.autoSlots()[0];
+    const cand0 = P.itemsOfSlot(slot0, false);
+    ok(cand0.length > 0, slot0 + " 槽有 " + cand0.length + " 件候选");
+    const pick0 = cand0[0].id;
+    S.true_presets.pool = [{ name: "测试套", slots: { [slot0]: pick0 } }];
+    P.validateNow();
+    ok(!P.issues.some(i => i.lv === "e" && i.m.includes("true_presets")),
+      "合法的预设不报错");
+    ok(P.presetSummary().includes("池 1 套"), "导航角标统计到随机池：" + P.presetSummary());
+    ok(P.inTruePool(slot0, pick0) === ((cat.true_pool[slot0] || []).includes(pick0)),
+      "inTruePool 与 catalog.true_pool 一致");
+
+    // ---- 只写了几件也算数（不要求写满） ----
+    ok(Object.keys(S.true_presets.pool[0].slots).length === 1,
+      "一套里只写 1 个槽位也合法（没写到的交给随机）");
+
+    // ---- 反向：不存在的物品 / 槽位对不上 ----
+    S.true_presets.pool = [{ name: "坏套", slots: { [slot0]: "__no_such__" } }];
+    P.validateNow();
+    ok(P.issues.some(i => i.lv === "e" && i.m.includes("不存在的物品")), "预设引用不存在的物品会报错");
+    S.true_presets.pool = [{ name: "错槽", slots: { bottom: pick0 } }];
+    P.validateNow();
+    ok(P.issues.some(i => i.lv === "e" && i.m.includes("槽")), "把物品放进错的槽位会报错");
+
+    // ---- 按关覆写：长度与关卡数一致、null = 不覆写 ----
+    S.true_presets = { pool: [], by_level: [null, { name: "第2关", slots: { [slot0]: pick0 } }, null, null] };
+    P.validateNow();
+    ok(!P.issues.some(i => i.lv === "e" && i.m.includes("true_presets")),
+      "按关覆写（中间一关有值、其余 null）不报错");
+    ok(P.presetSummary().includes("按关 1 关"), "导航角标统计到按关覆写：" + P.presetSummary());
+    ok(P.issues.some(i => i.lv === "w" && i.m.includes("逐关变化")),
+      "按关覆写生效时会提醒「A 的样子会逐关变化」");
+
+    // ---- 按关覆写：项数与关卡数不匹配 → 提醒 ----
+    S.true_presets.by_level = [null, null];
+    P.validateNow();
+    ok(P.issues.some(i => i.lv === "w" && i.m.includes("关卡数")), "项数与关卡数不符会提醒");
+
+    // ---- 两个页签的交互路径都能走通（渲染 → 切模式 → 切选中） ----
+    P.story.true_presets = { pool: [{ name: "甲", slots: {} }, { name: "乙", slots: {} }], by_level: [null, null, null, null] };
+    P.presetMode = "pool"; P.presetSel = 1;
+    try { P.go({ kind: "trueapp" }); ok(true, "随机池模式（选中第 2 套）渲染不抛错"); }
+    catch (e) { ok(false, "随机池模式渲染抛错：" + (e && e.message)); }
+    P.presetMode = "by_level"; P.presetSel = 3;
+    try { P.go({ kind: "trueapp" }); ok(true, "按关覆写模式（选中第 4 关）渲染不抛错"); }
+    catch (e) { ok(false, "按关覆写模式渲染抛错：" + (e && e.message)); }
+    P.presetMode = "pool"; P.presetSel = 0;
+
+    // ---- 往返无损 ----
+    P.story.item_overrides = { [probeId]: { exposure: baseExp + 2, acceptance_req: 7 } };
+    P.story.true_presets = { pool: [{ name: "套1", slots: { [slot0]: pick0 } }], by_level: [null, null, null, null] };
+    const t3 = JSON.parse(P.toJSON());
+    ok(t3.item_overrides[probeId].exposure === baseExp + 2, "item_overrides 能往返");
+    ok(t3.true_presets.pool[0].slots[slot0] === pick0, "true_presets.pool 能往返");
+    ok(Array.isArray(t3.true_presets.by_level) && t3.true_presets.by_level.length === 4,
+      "true_presets.by_level 能往返");
+
     P.loadStory(JSON.parse(JSON.stringify(pristine)), "t.json", false);
   }
 

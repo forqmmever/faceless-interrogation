@@ -21,8 +21,7 @@ DRESS = ["top_plain.png", "bottom_knee.png"]
 ITEMS = [
     ("tattoo_paw_chest", "胸口爪印"),
     ("tattoo_paw_face", "脸颊爪印"),
-    ("acc_legband_belted", "搭扣腿环"),
-    ("acc_legband_leather", "皮质腿环"),
+    # ★ 第四十九轮删了两条腿环（用户口径），这里同步撤掉
     ("acc_choker_bunny", "兔女郎项圈"),
     ("acc_choker_whitney", "Whitney 的项圈"),
     ("acc_choker_leash", "带牵引绳项圈"),

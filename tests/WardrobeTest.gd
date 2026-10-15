@@ -1966,6 +1966,17 @@ func _test_assets() -> void:
 		_all_assets_exist("icons"))
 	_check("每件物品都有卡片图标", _doll_icons_complete())
 	_check("每件衣物的贴图都有可见内容（不是全透明占位图）", _doll_layers_visible())
+	# ★ 第四十九轮补的两条 —— 抓「成装只烘了上半身」那类 bug。
+	#   背景：AU 把每件成装拆成 `upper/<款>` + `lower/<款>` 两个文件，
+	#   而第三十七轮补的 8 件成装**只取了 upper 那一层**，于是护士服 / 和服
+	#   在换装界面里只有上半截 —— 这个 bug 从第三十七轮活到第四十九轮，
+	#   **期间 580 条断言一条都没响**（因为「文件存在」「有可见内容」都满足）。
+	#   所以这里改判**几何形状**：成装的贴图必须同时覆盖肩部与大腿。
+	_check("成装覆盖上+下（顶边 ≤ 72 且底边 ≥ 104）", _dress_covers_both_halves())
+	# ★ 对照断言（按「只对部分对象生效的规则要配对照」的约定）：
+	#   「短」不是一刀切禁止的 —— 上衣里本来就有露脐的短款。
+	#   没有这条，一个「所有槽位都必须延伸到 y≥104」的写歪实现也能让上面那条通过。
+	_check("对照：短款上衣确实短（露脐款底边 < 90）", _crop_tops_are_short())
 	_check("DolDoll.PACK 与图层表里的 pack 字段一致（%s）" % DolDoll.pack(),
 		str(DolDoll.info().get("pack", "")) == DolDoll.pack())
 
@@ -1991,6 +2002,90 @@ func _doll_layers_visible() -> bool:
 		return true
 	print("      全透明的图层: ", bad)
 	return false
+
+# 成装（dress 槽）的贴图必须**同时覆盖肩部与大腿** ——
+#   「一整件」这个语义落到像素上就是：顶边够高（在肩上）、底边够低（有裙摆）。
+#
+# ★ 为什么用几何而不是「文件存在 / 有内容」：
+#   AU 把每件成装拆成 `upper/<款>`（上衣）+ `lower/<款>`（裙子）两个文件。
+#   第三十七轮补的 8 件只取了 upper 那一层 —— 文件在、内容有、图标也有，
+#   所以旧断言全绿，但换装界面里护士服 / 和服只有上半截（用户第四十九轮报的）。
+#   唯一能把这种「少叠了一层」看出来的，就是贴图**实际延伸到哪里**。
+#
+# 阈值怎么定的（实测，取景框 68×203、小人鞋底 y=189）：
+#   上衣 27 件底边 76~112（最长的是长袖衬衫 112）；下装典型区段 y83..124。
+#   成装修好后底边 106~188，最低的是皮质紧身裙（106，它本来就是短裙）。
+#   所以「底边 ≥ 104」既能放过最紧的成装，又能抓住只叠 upper 的那批
+#   （它们的底边是 74~87，全在 104 以下）。
+#   顶边 72：修好后 48~69（最高是和服的领口 69），留 3 px 余量。
+const DRESS_TOP_MAX := 72
+const DRESS_BOTTOM_MIN := 104
+
+func _dress_covers_both_halves() -> bool:
+	var bad: Array = []
+	for it in OutfitData.ITEMS:
+		if str(it["slot"]) != "dress":
+			continue
+		var id := str(it["id"])
+		if bool(it.get("bare", false)):
+			continue                              # 空件（不穿成装）不参与
+		var used := _used_rect_of(id)
+		if used.size.y <= 0:
+			bad.append("%s（无贴图）" % id)
+			continue
+		var top := used.position.y
+		var bottom := used.position.y + used.size.y - 1
+		if top > DRESS_TOP_MAX or bottom < DRESS_BOTTOM_MIN:
+			bad.append("%s（y%d-%d，需 y%d-%d 以上）" % [
+				id, top, bottom, DRESS_TOP_MAX, DRESS_BOTTOM_MIN])
+	if bad.is_empty():
+		return true
+	print("      没覆盖上下两截的成装: ", bad)
+	return false
+
+# 对照断言：**短**不是一刀切禁止的 —— 上衣里本来就有露脐的短款。
+#   没有这条，一个「所有槽位都必须延伸到 y≥104」的写歪实现
+#   也能让 `_dress_covers_both_halves()` 通过。
+func _crop_tops_are_short() -> bool:
+	var bad: Array = []
+	for id in ["top_tube", "top_towel", "top_crop", "top_leathercrop"]:
+		var used := _used_rect_of(str(id))
+		if used.size.y <= 0:
+			bad.append("%s（无贴图）" % id)
+			continue
+		var bottom := used.position.y + used.size.y - 1
+		if bottom >= 90:
+			bad.append("%s（底边 %d，应 < 90）" % [id, bottom])
+	if bad.is_empty():
+		return true
+	print("      不符预期的短上衣: ", bad)
+	return false
+
+# 取一件物品**全部图层叠起来**之后的不透明范围（视口坐标）。
+#   成装是两层叠出来的，所以必须合并全部图层 —— 只看第一层会漏掉下半截。
+func _used_rect_of(id: String) -> Rect2i:
+	var root := DolDoll.root()
+	var min_x := 1 << 30
+	var min_y := 1 << 30
+	var max_x := -1
+	var max_y := -1
+	for L in DolDoll.layers_of(id):
+		var p := root + str(L.get("file", ""))
+		if not ResourceLoader.exists(p):
+			continue
+		var tex := load(p) as Texture2D
+		if tex == null:
+			continue
+		var r := tex.get_image().get_used_rect()
+		if r.size.x <= 0 or r.size.y <= 0:
+			continue
+		min_x = mini(min_x, r.position.x)
+		min_y = mini(min_y, r.position.y)
+		max_x = maxi(max_x, r.position.x + r.size.x - 1)
+		max_y = maxi(max_y, r.position.y + r.size.y - 1)
+	if max_x < 0:
+		return Rect2i(0, 0, 0, 0)
+	return Rect2i(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1)
 
 # ------------------------------------------------------------
 #  可编辑的四段（第二十三轮）

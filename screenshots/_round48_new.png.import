@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cxsjdehnlyk1y"
-path="res://.godot/imported/glasses_cateye.png-5073203850b08a5cd397540eb458a650.ctex"
+uid="uid://nug5rtjutsim"
+path="res://.godot/imported/_round48_new.png-83aad96b6de0a9737e3e8df1ecd8a326.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/dol_au/icons/glasses_cateye.png"
-dest_files=["res://.godot/imported/glasses_cateye.png-5073203850b08a5cd397540eb458a650.ctex"]
+source_file="res://screenshots/_round48_new.png"
+dest_files=["res://.godot/imported/_round48_new.png-83aad96b6de0a9737e3e8df1ecd8a326.ctex"]
 
 [params]
 

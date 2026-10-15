@@ -214,9 +214,10 @@ ITEMS = {
     "glasses_round":   [{"src": ("clothes", "face", "round"),       "tint": GOLD}],
     # ★ 第二十七轮换血：删掉「单片金链眼镜」（monocle）与「黑色墨镜」（coolshades），
     #   从 AU 图包补两副新框 —— cateye（猫眼）/ square（方框）。
-    #   三副都是 512×256 的 AU 几何 + 纯灰度蒙版（实测最大彩度 0），所以直接染色即可，
+    #   两副都是 512×256 的 AU 几何 + 纯灰度蒙版（实测最大彩度 0），所以直接染色即可，
     #   不需要 align / scale 覆盖。
-    "glasses_cateye":  [{"src": ("clothes", "face", "cateye"),      "tint": WINE}],
+    # ★ 第四十九轮：用户口径「去掉猫眼眼镜」—— `glasses_cateye` 整件删掉，
+    #   眼镜槽只剩「（不戴）/ 圆框 / 方框」三件。
     "glasses_square":  [{"src": ("clothes", "face", "square"),      "tint": DARKGREY}],
 
     # ---- 耳饰（DoL 没有耳饰槽 —— 用头部小件的**位置搬移**顶替）----
@@ -397,17 +398,15 @@ ITEMS = {
                     "alt": {"src": ("clothes", "lower", "belted"), "tint": LEATHER}}],
     # ★ 第四十八轮：按用户口径从「配饰候选」里挑的六件，全部实测为 **A 档**
     #   （新几何 512×256 + 纯灰度，最大饱和度 0.000）—— 直接用，不用 borrow 头部小件那套搬运。
-    #   · 腿环两件取 `clothes/legs/`（那是**腿上的环带**，不是袜子；袜子归 stockings 槽）。
-    #     `belted` 有 full-short / full-long 两个尺寸，取 full-long（环带更长、更像腿环）；
-    #     `leather` 只有 full。
-    #   · 颈圈四件取 `clothes/neck/`。★ 带牵引绳的两件：**绳子在 `acc.png` 那一层**，
+    #   ★ 第四十九轮：用户口径「去掉搭扣腿环 皮质腿环」——
+    #     `acc_legband_belted`（legs/belted）与 `acc_legband_leather`（legs/leather）
+    #     两条映射撤掉（物品本身也删了）。
+    #   · 四件颈圈取 `clothes/neck/`。★ 带牵引绳的两件：**绳子在 `acc.png` 那一层**，
     #     只取 full.png 会只剩一个光秃秃的圈 —— 所以写成两层（先圈后绳），
     #     和 `acc_belt` 借 `lower/.../acc` 是同一个道理。
     #     `bunnycollar` 的 acc 层只有 9×8 一小块（压在圈上），就不叠了，免得出杂点。
     #   · 四件颈圈都是纯灰度，不给 tint 会保持图包原色（银灰）；
     #     这里统一按「皮革 / 金属」两档上色，和既有颈饰的口径一致。
-    "acc_legband_belted":  [{"src": ("clothes", "legs", "belted", "full-long"), "tint": LEATHER}],
-    "acc_legband_leather": [{"src": ("clothes", "legs", "leather"), "tint": LEATHER}],
     "acc_choker_bunny":    [{"src": ("clothes", "neck", "bunnycollar"), "tint": (0.86, 0.84, 0.88)}],
     "acc_choker_leash":    [{"src": ("clothes", "neck", "collarleash"), "tint": LEATHER},
                             {"src": ("clothes", "neck", "collarleash", "acc"), "tint": LEATHER}],
@@ -504,10 +503,11 @@ ITEMS = {
     #   ★ `belly` 这个目录名与「露趾」无关（图包里就叫 belly），形状实测量过：
     #     27×23，比正装凉鞋（27×21）稍厚 —— 两双都是**露出脚趾与脚背**的凉鞋，
     #     所以它们填的正是鞋槽原来最缺的「高暴露」档。
-    #   ★ `field` 是及膝长靴（内容最高到 y=126），包得最严实 → exposure 0。
+    #   ★ `field` 是及膝长靴（内容最高到 y=126，包得最严实）；
+    #     ★ 第四十九轮按用户口径「去掉户外及膝靴」—— `shoes_field` 整件删掉，
+    #       五双变四双。
     "shoes_basketball":   [{"src": ("clothes", "feet", "basketball"),   "tint": WHITE}],
     "shoes_trainers":     [{"src": ("clothes", "feet", "trainers"),     "tint": DARKGREY}],
-    "shoes_field":        [{"src": ("clothes", "feet", "field"),        "tint": LEATHER}],
     "shoes_dress_sandal": [{"src": ("clothes", "feet", "dresssandals"), "tint": BLACK}],
     "shoes_open_sandal":  [{"src": ("clothes", "feet", "belly"),        "tint": BROWN}],
 
@@ -530,14 +530,44 @@ ITEMS = {
     # （不含纹身那 9 件 @2，它们是同一个多件槽位）。
 
     # ---- 成装（8 件）----
-    "dress_kimono":      [{"src": ("clothes", "upper", "kimonomini"),       "tint": NAVY_DARK}],
-    "dress_maid":        [{"src": ("clothes", "upper", "maid"),             "tint": DARKGREY}],
+    # ★★ 第四十九轮修一个从第三十七轮起就存在的**渲染 bug**：
+    #   用户口径：「成装里护士服和服显示上半身 不是正常显示状态」。
+    #   根因：AU 把每件成装**拆成两个文件** —— `upper/<款>`（上衣）+
+    #   `lower/<款>`（裙子）。第二十六轮做的 sundress / eveninggown 是**两层写法**
+    #   （见上面那一节），而第三十七轮补的这 8 件**只取了 upper 那一层** →
+    #   烘出来只有上半截。
+    #   实测证据（源图在全身像那一列的 y 范围，取景框 68×203、小人鞋底 y=189）：
+    #     | 款 | upper 到 y | lower 从 y | lower 到 y | 只取 upper | 叠两层 |
+    #     |---|---|---|---|---|---|
+    #     | kimonomini | 84 | 82 | 113 | y69-84（**15 px，只有腰带**） | 69-113 |
+    #     | pinknurse  | 74 | 74 | 112 | y48-74 | 48-112 |
+    #     | cheongsamshort | 87 | 85 | 122 | y49-87 | 49-122 |
+    #     | leatherdress | 85 | 82 | 106 | y51-85 | 51-106 |
+    #     | swandress | 81 | 82 | 113 | y62-81 | 62-113 |
+    #     | transparentnurse | 83 | 79 | 121 | y51-83 | 51-121 |
+    #     | maid | 127 | 81 | 178 | y49-127（上衣较长，勉强像裙子） | 49-178 |
+    #   两层的 y 范围是**精密衔接的**（74→74 / 82→82 / 85→85 / 87→85 …），
+    #   这正是「一整套被拆成两个文件」的铁证。
+    #   ★ `dress_slip`（babydoll）**不改** —— 它在 AU 里没有 `lower/` 对应目录，
+    #     upper 自身就到 y=122，本来就是完整的（实测确认）。
+    #   ★ 叠放顺序：upper 在前、lower 在后 —— 两层同属 dress 槽（z 96），
+    #     后画的盖在上面，于是「裙子压住上衣下摆」，符合常识
+    #     （eveninggown 两层在 y77-151 有重叠，正好用得上这条）。
+    "dress_kimono":      [{"src": ("clothes", "upper", "kimonomini"),       "tint": NAVY_DARK},
+                          {"src": ("clothes", "lower", "kimonomini"),       "tint": NAVY_DARK}],
+    "dress_maid":        [{"src": ("clothes", "upper", "maid"),             "tint": DARKGREY},
+                          {"src": ("clothes", "lower", "maid"),             "tint": DARKGREY}],
     "dress_slip":        [{"src": ("clothes", "upper", "babydoll"),         "tint": CREAM}],
-    "dress_nurse":       [{"src": ("clothes", "upper", "pinknurse"),        "tint": WHITE}],
-    "dress_cheongsam":   [{"src": ("clothes", "upper", "cheongsamshort"),   "tint": QIPAO}],
-    "dress_leather":     [{"src": ("clothes", "upper", "leatherdress"),     "tint": LEATHER}],
-    "dress_swan":        [{"src": ("clothes", "upper", "swandress"),        "tint": WINE}],
-    "dress_transparent": [{"src": ("clothes", "upper", "transparentnurse"), "tint": SKIN_SILK}],
+    "dress_nurse":       [{"src": ("clothes", "upper", "pinknurse"),        "tint": WHITE},
+                          {"src": ("clothes", "lower", "pinknurse"),        "tint": WHITE}],
+    "dress_cheongsam":   [{"src": ("clothes", "upper", "cheongsamshort"),   "tint": QIPAO},
+                          {"src": ("clothes", "lower", "cheongsamshort"),   "tint": QIPAO}],
+    "dress_leather":     [{"src": ("clothes", "upper", "leatherdress"),     "tint": LEATHER},
+                          {"src": ("clothes", "lower", "leatherdress"),     "tint": LEATHER}],
+    "dress_swan":        [{"src": ("clothes", "upper", "swandress"),        "tint": WINE},
+                          {"src": ("clothes", "lower", "swandress"),        "tint": WINE}],
+    "dress_transparent": [{"src": ("clothes", "upper", "transparentnurse"), "tint": SKIN_SILK},
+                          {"src": ("clothes", "lower", "transparentnurse"), "tint": SKIN_SILK}],
 
     # ---- 上衣（8 件）----
     "top_tank":        [{"src": ("clothes", "upper", "tanktop"),        "tint": KNIT_ASH}],

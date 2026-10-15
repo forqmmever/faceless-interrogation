@@ -122,26 +122,6 @@
     }
    ]
   },
-  "acc_legband_belted": {
-   "icon": "icons/acc_legband_belted.png",
-   "layers": [
-    {
-     "file": "clothes/acc_legband_belted.png",
-     "name": "acc_legband_belted",
-     "z": 105.0
-    }
-   ]
-  },
-  "acc_legband_leather": {
-   "icon": "icons/acc_legband_leather.png",
-   "layers": [
-    {
-     "file": "clothes/acc_legband_leather.png",
-     "name": "acc_legband_leather",
-     "z": 105.0
-    }
-   ]
-  },
   "acc_locket": {
    "icon": "icons/acc_locket.png",
    "layers": [
@@ -604,16 +584,6 @@
      "file": "clothes/garter_lace.png",
      "name": "garter_lace",
      "z": 66.6
-    }
-   ]
-  },
-  "glasses_cateye": {
-   "icon": "icons/glasses_cateye.png",
-   "layers": [
-    {
-     "file": "clothes/glasses_cateye.png",
-     "name": "glasses_cateye",
-     "z": 145.0
     }
    ]
   },
@@ -1205,16 +1175,6 @@
     {
      "file": "clothes/shoes_dress_sandal.png",
      "name": "shoes_dress_sandal",
-     "z": 85.0
-    }
-   ]
-  },
-  "shoes_field": {
-   "icon": "icons/shoes_field.png",
-   "layers": [
-    {
-     "file": "clothes/shoes_field.png",
-     "name": "shoes_field",
      "z": 85.0
     }
    ]

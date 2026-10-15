@@ -445,7 +445,6 @@ const ITEMS_BASE := [
 	#   三副的门槛拉开一档，保留一点「越惹眼越难穿」的梯度（戴不戴都不影响可解性，
 	#   因为 `glasses_none` 始终是 0 门槛）。
 	{"id": "glasses_round", "name": "圆框眼镜", "slot": "glasses", "exposure": 0, "acceptance_req": 0, "contrast": 3, "covers": [], "tags": []},
-	{"id": "glasses_cateye", "name": "猫眼眼镜", "slot": "glasses", "exposure": 0, "acceptance_req": 3, "contrast": 3, "covers": [], "tags": []},
 	{"id": "glasses_square", "name": "方框眼镜", "slot": "glasses", "exposure": 0, "acceptance_req": 5, "contrast": 3, "covers": [], "tags": []},
 
 	# ================= 耳饰 =================
@@ -670,8 +669,10 @@ const ITEMS_BASE := [
 	#     脚边的环带最轻（暴露 1 / 门槛 4~5）＜ 兔女郎项圈（门槛 6）
 	#     ＜ Whitney 项圈（门槛 7）＜ 带牵引绳的两件（暴露 2 / 门槛 8~9，
 	#     因为「拴着一条绳」本身就是要被人看见的）。
-	{"id": "acc_legband_belted", "name": "搭扣腿环", "slot": "accessory", "exposure": 1, "acceptance_req": 4, "contrast": 3, "covers": [], "tags": []},
-	{"id": "acc_legband_leather", "name": "皮质腿环", "slot": "accessory", "exposure": 1, "acceptance_req": 5, "contrast": 3, "covers": [], "tags": []},
+	# ★ 第四十九轮：用户口径「去掉搭扣腿环 皮质腿环」——
+	#   两件腿环**整件删掉**（连同 `dol_map` 映射与烘焙产物），只留四件颈圈。
+	#   （用户当时看了那张对照图后做的取舍：腿环在两条腿只有 8~11 px 宽的
+	#     小腿段上，观感不理想。）
 	{"id": "acc_choker_bunny", "name": "兔女郎项圈", "slot": "accessory", "exposure": 1, "acceptance_req": 6, "contrast": 4, "covers": [], "tags": []},
 	{"id": "acc_choker_whitney", "name": "Whitney 的项圈", "slot": "accessory", "exposure": 1, "acceptance_req": 7, "contrast": 5, "covers": [], "tags": []},
 	{"id": "acc_choker_leash", "name": "带牵引绳项圈", "slot": "accessory", "exposure": 2, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": []},
@@ -865,10 +866,11 @@ const ITEMS_BASE := [
 	#   鞋槽原来最缺的是**高暴露**那一头（只有细跟高跟鞋一件在 2 档），
 	#   所以补的两双凉鞋（露趾 + 露脚背）一路铺到 4 / 5 档 ——
 	#   这样配「高暴露」那套搭配时，鞋也能出一份力。
-	#   另外三双是包脚的（及膝靴 / 篮球鞋 / 运动鞋），填的是中低档。
+	#   另外三双是包脚的（篮球鞋 / 运动鞋 + 已删的及膝靴），填的是中低档。
+	# ★ 第四十九轮：用户口径「去掉户外及膝靴」—— `shoes_field` 整件删掉，
+	#   五双变四双（运动鞋 / 篮球鞋 / 两双凉鞋）。
 	{"id": "shoes_trainers", "name": "运动鞋", "slot": "shoes", "exposure": 1, "acceptance_req": 1, "contrast": 2, "covers": [], "tags": []},
 	{"id": "shoes_basketball", "name": "篮球鞋", "slot": "shoes", "exposure": 1, "acceptance_req": 2, "contrast": 3, "covers": [], "tags": []},
-	{"id": "shoes_field", "name": "户外及膝靴", "slot": "shoes", "exposure": 0, "acceptance_req": 3, "contrast": 3, "covers": [], "tags": []},
 	{"id": "shoes_dress_sandal", "name": "正装凉鞋", "slot": "shoes", "exposure": 4, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
 	{"id": "shoes_open_sandal", "name": "露趾凉鞋", "slot": "shoes", "exposure": 5, "acceptance_req": 7, "contrast": 6, "covers": [], "tags": []},
 

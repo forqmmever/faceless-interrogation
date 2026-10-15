@@ -41,7 +41,8 @@ PACK = ('assets/dol_au', 'data/doll_au.json')
 ROWS = [
     ("裸身", []),
     ("眼镜·圆框（金）", ["glasses_round"]),
-    ("眼镜·猫眼（酒红）", ["glasses_cateye"]),
+    # ★ 第四十九轮用户口径「去掉猫眼眼镜」—— `glasses_cateye` 已整件删除，
+    #   这一行撤掉（这张图是第二十七轮的一次性产物，留在这里只为可追溯）。
     ("眼镜·方框（深灰）", ["glasses_square"]),
     ("成装·吊带连衣裙", ["dress_sundress"]),
     ("成装·晚礼服", ["dress_eveninggown"]),

@@ -382,17 +382,6 @@
 				"disabled": false
 			},
 			{
-				"id": "glasses_cateye",
-				"name": "猫眼眼镜",
-				"slot": "glasses",
-				"slot_name": "眼镜",
-				"exposure": 0,
-				"contrast": 3,
-				"acceptance_req": 3,
-				"tags": [],
-				"disabled": false
-			},
-			{
 				"id": "glasses_square",
 				"name": "方框眼镜",
 				"slot": "glasses",
@@ -1283,28 +1272,6 @@
 				"disabled": false
 			},
 			{
-				"id": "acc_legband_belted",
-				"name": "搭扣腿环",
-				"slot": "accessory",
-				"slot_name": "配饰",
-				"exposure": 1,
-				"contrast": 3,
-				"acceptance_req": 4,
-				"tags": [],
-				"disabled": false
-			},
-			{
-				"id": "acc_legband_leather",
-				"name": "皮质腿环",
-				"slot": "accessory",
-				"slot_name": "配饰",
-				"exposure": 1,
-				"contrast": 3,
-				"acceptance_req": 5,
-				"tags": [],
-				"disabled": false
-			},
-			{
 				"id": "acc_choker_bunny",
 				"name": "兔女郎项圈",
 				"slot": "accessory",
@@ -2053,17 +2020,6 @@
 				"disabled": false
 			},
 			{
-				"id": "shoes_field",
-				"name": "户外及膝靴",
-				"slot": "shoes",
-				"slot_name": "鞋履",
-				"exposure": 0,
-				"contrast": 3,
-				"acceptance_req": 3,
-				"tags": [],
-				"disabled": false
-			},
-			{
 				"id": "shoes_dress_sandal",
 				"name": "正装凉鞋",
 				"slot": "shoes",
@@ -2280,10 +2236,6 @@
 			"glasses_round": {
 				"exposure": 0,
 				"acceptance_req": 0
-			},
-			"glasses_cateye": {
-				"exposure": 0,
-				"acceptance_req": 3
 			},
 			"glasses_square": {
 				"exposure": 0,
@@ -2601,14 +2553,6 @@
 				"exposure": 1,
 				"acceptance_req": 4
 			},
-			"acc_legband_belted": {
-				"exposure": 1,
-				"acceptance_req": 4
-			},
-			"acc_legband_leather": {
-				"exposure": 1,
-				"acceptance_req": 5
-			},
 			"acc_choker_bunny": {
 				"exposure": 1,
 				"acceptance_req": 6
@@ -2880,10 +2824,6 @@
 			"shoes_basketball": {
 				"exposure": 1,
 				"acceptance_req": 2
-			},
-			"shoes_field": {
-				"exposure": 0,
-				"acceptance_req": 3
 			},
 			"shoes_dress_sandal": {
 				"exposure": 4,
@@ -7320,8 +7260,6 @@
 		"acc_none": "没有一件多余的物件，干干净净",
 		"acc_locket": "锁骨上垂着一枚银质的心形吊坠",
 		"acc_belt": "腰上系着一条宽皮带，扣得很紧",
-		"acc_legband_belted": "腿上箍着一圈搭扣带子",
-		"acc_legband_leather": "大腿上勒着一圈皮质的环带",
 		"acc_choker_bunny": "脖子上是一个带扣的兔女郎项圈",
 		"acc_choker_whitney": "脖子上扣着一个刻了字的项圈",
 		"acc_choker_leash": "脖子上扣着项圈，垂着一条牵引绳",

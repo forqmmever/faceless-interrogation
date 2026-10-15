@@ -6,7 +6,7 @@ extends Node
 #  多轮制的核心：
 #    · 每一局随机抽一套背景（ScenarioData.BACKGROUNDS）
 #    · 每一局随机生成 A 的原貌（OutfitData.TRUE_POOL）
-#    · 一局最多 4 关；盘问通过 → 进入下一关（背景与原貌不变、接受度提升）
+#    · 一局最多 4 关；盘问通过 → 进入下一轮（背景与原貌不变、接受度提升）
 #    · 任何一关失败 → **回到本轮开始**（第二十一轮）：
 #      背景 / A 的原貌 / 情报 / 接受度全部不变，只把本轮里发生的事回滚。
 #      见 retry_level() 与 GameData.snapshot_level_state()。
@@ -30,15 +30,15 @@ var seed_value: int = 0                # 本局随机种子
 var background_id: String = ""
 var true_app: Dictionary = {}          # slot -> item id（本局的 A）
 # ★ 第四十轮：本局的**基础原貌** —— 不含「按关覆写」（`true_presets.by_level`）那一层。
-#   整局只算一次，按关覆写只在这一关临时顶替它。见 _roll_true_appearance()。
+#   整局只算一次，按关覆写只在这一轮临时顶替它。见 _roll_true_appearance()。
 var base_true_app: Dictionary = {}
 var clues: Array = []                  # 本局的 18 条外貌情报（由原貌拼出来）
 
-var level_index: int = 0               # 当前关卡（0 起）
-var cleared_levels: int = 0            # 本局已通过的关卡数
+var level_index: int = 0               # 当前轮次（0 起）
+var cleared_levels: int = 0            # 本局已通过的轮次数
 var photos: Array = []                 # 本局手机相册里的照片
 var interrogator_trait_id: String = "" # 本局审讯官的性情（审问者的情报）
-var forced_items: Array = []           # 本关强制装备的 item id（0 ~ 2 件）
+var forced_items: Array = []           # 本轮强制装备的 item id（0 ~ 2 件）
 
 # 当前接受度 —— 派生值，不是自己攒的。
 #   = 起始值 + 账号里跨局累积的加成（ProfileData.total_gain）
@@ -59,9 +59,9 @@ func _ready() -> void:
 # ============================================================
 #  开一局
 #
-#  start_level：从第几关开始（0 起）。选关面板点「第 N 关」时传进来。
-#  目前只开放第一关（OutfitData.OPEN_LEVELS），所以正常开局都是 0；
-#  但从这一关开始意味着**前面几关的接受度加成不补** ——
+#  start_level：从第几轮开始（0 起）。选关面板点「第 N 关」时传进来。
+#  目前只开放第一轮（OutfitData.OPEN_LEVELS），所以正常开局都是 0；
+#  但从这一轮开始意味着**前面几轮的接受度加成不补** ——
 #  开局接受度仍然只有「起始值 + 跨局累积」，这也是后三关暂时锁着的原因之一。
 # ============================================================
 func start_new_run(seed_in: int = -1, start_level: int = 0) -> void:
@@ -84,17 +84,17 @@ func start_new_run(seed_in: int = -1, start_level: int = 0) -> void:
 
 	# ★ 第四十一轮：把「本局背景的那份流程配置」灌进数据层。
 	#   用户口径：「每局游戏应该能够设置不同强制穿着，qte计划，身体缺陷，
-	#             关卡轮数，原貌」——这五项现在都挂在背景上（见 ScenarioData 的
+	#             轮次轮数，原貌」——这五项现在都挂在背景上（见 ScenarioData 的
 	#             bg_* 门面），这里落成「本局生效」的那一份。
 	#   ★ 必须在设置 level_index / 抽原貌 / 抽强制装备**之前**：
-	#     关卡覆写决定「这一局打几关」（level_index 要按它 clamp），
+	#     轮次覆写决定「这一局打几轮」（level_index 要按它 clamp），
 	#     原貌预设的「按关覆写」要按新关数对齐，强制装备按新的规则表抽。
 	OutfitData.apply_run_overrides(background_id)
 	ScenarioData.apply_run_qte_plan(background_id)
 	ScenarioData.apply_run_true_presets(background_id)
 
 	# ★ 第四十轮：`level_index` 必须**先**设好，再抽原貌 ——
-	#   因为原貌现在要看「本关有没有按关覆写」（`true_presets.by_level[level_index]`）。
+	#   因为原貌现在要看「本轮有没有按关覆写」（`true_presets.by_level[level_index]`）。
 	#   以前这一行在后面（抽完原貌才设），于是「从选关面板直接进第 3 关」时，
 	#   `_roll_true_appearance()` 看到的还是上一局残留的 level_index，会取错那一关的覆写。
 	#   默认（没配任何覆写）不影响随机序列 —— 那时原貌的抽法与以前逐字节相同。
@@ -126,7 +126,7 @@ func start_new_run(seed_in: int = -1, start_level: int = 0) -> void:
 #
 #  同一个种子 → 背景 / A 的原貌 / 外貌情报 / 相册 / 审讯官性情
 #  全部原样复现（这几样都是确定性生成的，见上面 _level_rng 那套）。
-#  再把关卡拨回存档记下的那一关，并重抽一次那一关的强制装备 ——
+#  再把轮次拨回存档记下的那一关，并重抽一次那一关的强制装备 ——
 #  _roll_forced_items 也是确定性的，所以抽出来的还是当初那几件。
 # ============================================================
 func resume_run(seed_in: int, run_index_in: int, li: int, cleared: int) -> void:
@@ -147,10 +147,10 @@ func resume_run(seed_in: int, run_index_in: int, li: int, cleared: int) -> void:
 	GameData.background_name = str(_bg.get("name", ""))
 
 # ============================================================
-#  强制装备：每关的「必须穿什么」
+#  强制装备：每轮的「必须穿什么」
 #
-#  ★ 第二十三轮改成读**每关的规则表**（OutfitData.forced_rules_at）：
-#      "none"   —— 本关没有强制要求（第 1 关就是它）；
+#  ★ 第二十三轮改成读**每轮的规则表**（OutfitData.forced_rules_at）：
+#      "none"   —— 本轮没有强制要求（第 1 关就是它）；
 #      "random" —— 沿用旧的随机抽 0~2 件高暴露（出厂默认的后三关）；
 #      "fixed"  —— 用编辑器里写死的规则，每条二选一：
 #                    {"pick": "all", "items":[...]}  这几件都要穿（一件 = 固定一件）
@@ -161,7 +161,7 @@ func resume_run(seed_in: int, run_index_in: int, li: int, cleared: int) -> void:
 #  固定种子下的截图与测试因此保持完全可复现。
 #
 #  抽不到的情况（很常见，而且是设计的一部分）：
-#    · 第一关（li == 0）**刻意不抽** —— 见下；
+#    · 第一轮（li == 0）**刻意不抽** —— 见下；
 #    · 随机数是 0；
 #    · 当前接受度穿不起任何高暴露衣物 → 池子空。
 #  接受度越高，池子越大，被塞行头的概率越高 ——
@@ -177,10 +177,10 @@ func _roll_forced_items(li: int) -> void:
 
 	if mode == OutfitData.FORCED_MODE_NONE:
 		return
-	# ★ 每局的第一关没有强制服装要求。
+	# ★ 每局的第一轮没有强制服装要求。
 	#   开局就被人按着头穿某件衣服，玩家还没搞明白「反差 / 暴露 / 缺陷」
 	#   这三件事是怎么回事，就先被罚了一次 —— 那不公平。
-	#   先让他在第一关自由地改一遍，从第二关起才开始塞行头。
+	#   先让他在第一轮自由地改一遍，从第二轮起才开始塞行头。
 	if li <= 0:
 		return
 
@@ -210,7 +210,7 @@ func _roll_forced_items(li: int) -> void:
 		var slot := str(it.get("slot", ""))
 		if used_slots.has(slot):
 			continue
-		# ★ 第三十七轮：互斥组里各挑一件 = 穿不到一起 = 本关死局。
+		# ★ 第三十七轮：互斥组里各挑一件 = 穿不到一起 = 本轮死局。
 		#   典型是「强制穿成装」+「强制穿下装」——成装一上身，下装就被清空，
 		#   两条强制要求永远无法同时满足。这里按 EXCLUSIVE_GROUPS 互斥地筛一遍。
 		var clash := false
@@ -266,7 +266,7 @@ func forced_item_ids() -> Array:
 func forced_groups_info() -> Array:
 	return forced_groups
 
-# 本关强制装备的完整说明（界面 / 覆盖层文案用）——
+# 本轮强制装备的完整说明（界面 / 覆盖层文案用）——
 # 一条规则一句话，让人一眼看出「这条是必须穿哪件、那条是几件里挑一件」。
 func forced_rule_lines() -> Array:
 	var out := []
@@ -309,7 +309,7 @@ func _roll_interrogator_trait() -> void:
 #
 # ★ 第四十轮的关键设计：`base_true_app`（本局的基础原貌）。
 #   ② 与 ③ 算出来的那一套只算**一次**、存在 `base_true_app` 里，整局不变；
-#   ① 只在这一关**临时**顶替它。
+#   ① 只在这一轮**临时**顶替它。
 #   于是「第 2 关配了覆写、第 3 关没配」时，第 3 关会**回到基础那套**，
 #   而不是粘着第 2 关的样子 —— （第一版就是错的，端到端探针抓出来的：
 #   第 3 关还在用第 2 关的 top_highneck。）
@@ -321,7 +321,7 @@ func _roll_true_appearance() -> void:
 	# 基础原貌：整局只算一次
 	if base_true_app.is_empty():
 		base_true_app = _roll_base_appearance()
-	# 本关有覆写 → 顶替；否则用基础那套
+	# 本轮有覆写 → 顶替；否则用基础那套
 	var by_level: Array = ScenarioData.true_preset_by_level()
 	if level_index < by_level.size() and not (by_level[level_index] as Dictionary).is_empty():
 		true_app = _apply_preset(by_level[level_index])
@@ -550,7 +550,7 @@ func true_item(slot: String) -> String:
 func true_appearance() -> Dictionary:
 	return true_app
 
-# 本局的关卡表（数值曲线来自 OutfitData.LEVELS —— 现在可从 story.json 编辑；
+# 本局的轮次表（数值曲线来自 OutfitData.LEVELS —— 现在可从 story.json 编辑；
 # 名字与推导形象来自背景，背景写了就覆盖）
 func levels() -> Array:
 	var names: Array = background().get("levels", [])
@@ -594,30 +594,30 @@ func exposure_cap_at(li: int) -> int:
 	return OutfitData.exposure_cap(acceptance_at(li))
 
 # ============================================================
-#  关卡推进 / 结束
+#  轮次推进 / 结束
 # ============================================================
 func is_run_complete() -> bool:
 	return level_index >= level_count()
 
-# 本关通过 → 结算并推进到下一关（背景与原貌保持不变）
+# 本轮通过 → 结算并推进到下一轮（背景与原貌保持不变）
 func advance_level() -> void:
 	if is_run_complete():
 		return
 	var gain := int(current_level().get("acceptance_gain", 0))
-	# ★ 全局保留：这一关赚到的接受度**立刻**进账号。
+	# ★ 全局保留：这一轮赚到的接受度**立刻**进账号。
 	#   这一轮就算失败、回到本轮开始重来，这部分也不会丢。
 	ProfileData.add_gain(gain)
 	cleared_levels += 1
 	level_index += 1
 	_roll_forced_items(level_index)      # 新的一关，重新抽强制装备
-	_maybe_apply_level_preset()          # ★ 第四十轮：这一关配了原貌覆写就换人
+	_maybe_apply_level_preset()          # ★ 第四十轮：这一轮配了原貌覆写就换人
 	GameData.level_index = level_index
 	GameData.cleared_levels = cleared_levels
 	GameData.acceptance = acceptance
 	level_advanced.emit()
 
-# ★ 第四十轮：切关时重算原貌 —— 这一关配了「按关覆写」就用它，
-#   没配就**回到本局的基础原貌**（`base_true_app`），不是粘着上一关的样子。
+# ★ 第四十轮：切关时重算原貌 —— 这一轮配了「按关覆写」就用它，
+#   没配就**回到本局的基础原貌**（`base_true_app`），不是粘着上一轮的样子。
 #
 #   ★ 情报要不要重建，看原貌**真的变了没有**：
 #     两关之间都没配覆写时 true_app 不变 → 不重建（免得白算一遍、也不动玩家进度）。
@@ -635,7 +635,7 @@ func _maybe_apply_level_preset() -> void:
 #  ★ 旧规则是 fail_run()：任何一关失败 → 整局作废，重抽背景与原貌。
 #    新规则只作废**这一轮** —— 他记忆里的那张脸没变，你已经查到的情报也还在，
 #    要改的只是这一轮的打扮。所以这里**不重抽任何东西**，只把「本轮里发生的事」
-#    回滚到进这一关那一刻（见 GameData.restore_level_snapshot）。
+#    回滚到进这一轮那一刻（见 GameData.restore_level_snapshot）。
 func retry_level() -> void:
 	GameData.restore_level_snapshot()
 	# 同一关、同一个种子 → 抽出来还是当初那几件；这一步只是把不变式写实
@@ -656,7 +656,7 @@ func retry_level() -> void:
 #              A 卡（只有 A 才知道的事）照实答 = 当场说漏嘴；
 #              B 卡照答才对得上档案。
 #              题面本身就是线索，得当场判断。
-#  · 新事实 —— 本关第一次问这个事实。你随口立下一种说法，它就成了你的「口径」。
+#  · 新事实 —— 本轮第一次问这个事实。你随口立下一种说法，它就成了你的「口径」。
 #  · 同行者提问 —— **不是干扰，是正式的题目**，和审讯官的题走同一套判定。
 #                  他刚听见你立下的说法，立刻抛出一个错误的版本试探你。
 #                  顺着他说 = 跟自己的口径对不上 = 前后矛盾。
@@ -665,7 +665,7 @@ func retry_level() -> void:
 #  · 旧事实复问 —— 复问**之前某一关**已经立过的那个说法。
 #                  中间隔着整整一关、夹着档案题和同行者搅局 ——
 #                  你要是记不住自己上次怎么说的，这里就会当场前后矛盾。
-#                  第 1 关没有「上一关」，复问自己就成了同一道题，
+#                  第 1 关没有「上一轮」，复问自己就成了同一道题，
 #                  于是那一关多抽一道档案题补位（仍然是 8 道）。
 #
 #  事实表有 4 条、一局 4 关，正好：
@@ -701,9 +701,9 @@ func fact_for_level(li: int) -> Dictionary:
 		return {}
 	return fs[li % fs.size()]
 
-# 本关要复问的那个「旧说法」。
+# 本轮要复问的那个「旧说法」。
 # 从**之前已经立过说法的那些事实**里确定性抽一个 ——
-# 不是固定复问上一关，所以第 1 关立下的口径到第 4 关照样可能被翻出来。
+# 不是固定复问上一轮，所以第 1 关立下的口径到第 4 关照样可能被翻出来。
 # 越往后身上背的口径越多，说错一句的代价越大。
 func recalled_fact_for_level(li: int) -> Dictionary:
 	var fs: Array = facts()
@@ -715,8 +715,8 @@ func recalled_fact_for_level(li: int) -> Dictionary:
 	return fs[r.randi() % mini(li, fs.size())]
 
 # 本局当前关能看到的短信 —— 短信是**逐关解锁**的：
-# 第 i 关解锁 level == i 的那一条，它正好揭示本关新要问的那个说法。
-# 所以「本关该怎么说」，你得在准备室先把它读出来。
+# 第 i 关解锁 level == i 的那一条，它正好揭示本轮新要问的那个说法。
+# 所以「本轮该怎么说」，你得在准备室先把它读出来。
 func sms_threads() -> Array:
 	return ScenarioData.sms_for_level(background(), level_index)
 
@@ -759,12 +759,12 @@ func photo_at(i: int) -> Dictionary:
 #  `tone`** —— 这就是用户口径里说的「不再给问题分类」。
 #
 #  出题规则（顺序 = 清单顺序，所以「排序」也是一种编辑手段）：
-#    · `level == li`         → 本关固定题，按清单顺序出；
-#    · `level == -1`（通用池）→ 用来把本关补足到 questions_per_level 道；
-#    · 标了 `recall: true` 的通用题 → 优先按本关抽到的「旧说法」挑一道，
+#    · `level == li`         → 本轮固定题，按清单顺序出；
+#    · `level == -1`（通用池）→ 用来把本轮补足到 questions_per_level 道；
+#    · 标了 `recall: true` 的通用题 → 优先按本轮抽到的「旧说法」挑一道，
 #      这样「跨关复问」仍然会发生，但复问谁、问什么改由数据决定。
 #
-#  ★ 每关到底出几道题 = 该关固定题数 + 从通用池补足到 questions_per_level。
+#  ★ 每轮到底出几道题 = 该关固定题数 + 从通用池补足到 questions_per_level。
 #    所以想精确控制某关几道题，直接把题分配到那一关（改 level）即可。
 #  ★ 旧格式（内置常量 ScenarioData.DEFAULT_BACKGROUNDS）仍然支持 ——
 #    story.json 缺失时走下面那条老路径，出厂兜底照常工作。
@@ -809,7 +809,7 @@ func _questions_for_level_v1(bg: Dictionary, li: int, count: int) -> Array:
 	for q in _sorted_by_order(fixed):
 		out.append((q as Dictionary).duplicate(true))
 
-	# 跨关复问：第 1 关没有「上一关」，不排；其余关按本关抽到的旧说法挑对应的那道。
+	# 跨关复问：第 1 关没有「上一轮」，不排；其余关按本轮抽到的旧说法挑对应的那道。
 	if li > 0:
 		var old_fid := str(recalled_fact_for_level(li).get("id", ""))
 		var new_fid := str(fact_for_level(li).get("id", ""))
@@ -819,7 +819,7 @@ func _questions_for_level_v1(bg: Dictionary, li: int, count: int) -> Array:
 					out.append((q as Dictionary).duplicate(true))
 					break
 
-	# 通用池补足到 count（洗牌后依次取，保证每关的抽样不同）
+	# 通用池补足到 count（洗牌后依次取，保证每轮的抽样不同）
 	if out.size() < count and not pool.is_empty():
 		var idx := []
 		for i in pool.size():
@@ -835,8 +835,8 @@ func _questions_for_level_v1(bg: Dictionary, li: int, count: int) -> Array:
 			out.append((pool[k] as Dictionary).duplicate(true))
 
 	# 返回全部：固定题与复问如果已经凑够（或超过）count，就以**数据为准** ——
-	# 用户显式把 8 道题都分配给了这一关，就不该再被全局的 count 砍掉。
-	# 不够时才由通用池补足。所以「每关几道题」= 固定题数，不足则补到 count。
+	# 用户显式把 8 道题都分配给了这一轮，就不该再被全局的 count 砍掉。
+	# 不够时才由通用池补足。所以「每轮几道题」= 固定题数，不足则补到 count。
 	return out
 
 # ★ 第四十一轮：按「出场序号」`order` 稳定排序。
@@ -864,7 +864,7 @@ func _sorted_by_order(list: Array) -> Array:
 		out.append(list[int(e["i"])])
 	return out
 
-# 本关出题数：全局 rules 打底，每关可以用 levels[li].questions_per_level 覆盖。
+# 本轮出题数：全局 rules 打底，每轮可以用 levels[li].questions_per_level 覆盖。
 func questions_per_level_of(li: int) -> int:
 	var lv: Dictionary = level_at_index(li)
 	var v := int(lv.get("questions_per_level", -1))
@@ -890,7 +890,7 @@ func questions_for_level(li: int, count: int) -> Array:
 
 	var new_fact := fact_for_level(li)
 	var old_fact := recalled_fact_for_level(li)
-	# 第 1 关没有「上一关」，recalled 会落到自己身上 —— 那时不排「旧事实复问」
+	# 第 1 关没有「上一轮」，recalled 会落到自己身上 —— 那时不排「旧事实复问」
 	var same: bool = old_fact.is_empty() \
 		or str(old_fact.get("id", "")) == str(new_fact.get("id", ""))
 
@@ -902,7 +902,7 @@ func questions_for_level(li: int, count: int) -> Array:
 	#   原来第 4 道是「同关复问」（同一关里把第 1 道那个事实再问一遍）——
 	#   那会让玩家在一轮之内就吃到「前后矛盾」，和「矛盾只跨轮发生」的规则冲突。
 	#   现在第 4 道改回档案题，同一关里那个事实只问一次。
-	#   第 6 道仍然是**跨关复问**（翻出前面几关立过的说法）——
+	#   第 6 道仍然是**跨关复问**（翻出前面几轮立过的说法）——
 	#   那才是唯一会构成「前后矛盾」的地方。
 	var out: Array = []
 	var ci := 0
@@ -918,7 +918,7 @@ func questions_for_level(li: int, count: int) -> Array:
 	# 第 6 道固定是盲区题 —— 档案题中间插一道「你手里完全没给信息的」，
 	# 把节奏从「翻档案」打断一下，逼你回头看手机备忘录第一条。
 	out = _push_q(out, _make_blind_question(li))
-	# 第 7 道：跨关复问（第 1 关没有上一关，那道位置让给档案题）
+	# 第 7 道：跨关复问（第 1 关没有上一轮，那道位置让给档案题）
 	if not same:
 		out = _push_q(out, _make_fact_question(old_fact, 1, r, true))
 	out = _push_q(out, _as_card_question(cards, ci))

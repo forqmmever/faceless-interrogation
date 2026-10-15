@@ -7,9 +7,9 @@ extends Node
 #    · 你在哪儿被拦下（venue / interrogator）
 #    · 你装成谁（cover_role）
 #    · 你其实是谁（true_role）
-#    · 4 道关卡的名字与「审讯官推导出的形象」
+#    · 4 道轮次的名字与「审讯官推导出的形象」
 #    · 12 条身份情报（5 条属于 B、7 条属于 A）
-#    · 8 道盘问题（每关从中确定性抽 2 道 + 2 道说法题 + 1 道同行者提问）
+#    · 8 道盘问题（每轮从中确定性抽 2 道 + 2 道说法题 + 1 道同行者提问）
 #    · 6 条同行者干扰台词
 #
 #  注意：A 的原貌**不在这里** —— 那是每局随机生成的，见 OutfitData.TRUE_POOL
@@ -38,10 +38,10 @@ const DEFAULT_BACKGROUNDS := [
 		"true_role": "北环帮的联络人",
 		"true_name": "沈棠",
 		"levels": [
-			{"name": "第一关 · 外栅栏哨位", "derived_profile": "一个赶路的行商"},
-			{"name": "第二关 · 查验棚", "derived_profile": "手续齐全的香料贩子"},
-			{"name": "第三关 · 哨所长官室", "derived_profile": "有靠山的商队领队"},
-			{"name": "第四关 · 关隘地牢前厅", "derived_profile": "即将被放行的清白旅人"},
+			{"name": "第一轮 · 外栅栏哨位", "derived_profile": "一个赶路的行商"},
+			{"name": "第二轮 · 查验棚", "derived_profile": "手续齐全的香料贩子"},
+			{"name": "第三轮 · 哨所长官室", "derived_profile": "有靠山的商队领队"},
+			{"name": "第四轮 · 关隘地牢前厅", "derived_profile": "即将被放行的清白旅人"},
 		],
 		"cards": [
 			{"id": "b_identity", "topic": "身份", "owner": "B",
@@ -401,10 +401,10 @@ const DEFAULT_BACKGROUNDS := [
 		"true_role": "刺客公会的信使",
 		"true_name": "苏绾",
 		"levels": [
-			{"name": "第一关 · 驿站门房", "derived_profile": "一个落魄的卖艺人"},
-			{"name": "第二关 · 大堂账房", "derived_profile": "靠卖唱换宿的琴师"},
-			{"name": "第三关 · 后院上房", "derived_profile": "被某位贵人召见的乐师"},
-			{"name": "第四关 · 驿丞私室", "derived_profile": "天亮就要上路的过客"},
+			{"name": "第一轮 · 驿站门房", "derived_profile": "一个落魄的卖艺人"},
+			{"name": "第二轮 · 大堂账房", "derived_profile": "靠卖唱换宿的琴师"},
+			{"name": "第三轮 · 后院上房", "derived_profile": "被某位贵人召见的乐师"},
+			{"name": "第四轮 · 驿丞私室", "derived_profile": "天亮就要上路的过客"},
 		],
 		"cards": [
 			{"id": "b_identity", "topic": "身份", "owner": "B",
@@ -730,10 +730,10 @@ const DEFAULT_BACKGROUNDS := [
 		"true_role": "宫廷密探",
 		"true_name": "陆青梧",
 		"levels": [
-			{"name": "第一关 · 侧门角房", "derived_profile": "新来的抄写文书"},
-			{"name": "第二关 · 文书房", "derived_profile": "字迹端正的低等文书"},
-			{"name": "第三关 · 内庭回廊", "derived_profile": "被某位大人点名的近侍"},
-			{"name": "第四关 · 执事厅", "derived_profile": "即将领到腰牌的府中之人"},
+			{"name": "第一轮 · 侧门角房", "derived_profile": "新来的抄写文书"},
+			{"name": "第二轮 · 文书房", "derived_profile": "字迹端正的低等文书"},
+			{"name": "第三轮 · 内庭回廊", "derived_profile": "被某位大人点名的近侍"},
+			{"name": "第四轮 · 执事厅", "derived_profile": "即将领到腰牌的府中之人"},
 		],
 		"cards": [
 			{"id": "b_identity", "topic": "身份", "owner": "B",
@@ -1059,10 +1059,10 @@ const DEFAULT_BACKGROUNDS := [
 		"true_role": "走私船的领航员",
 		"true_name": "阿沅",
 		"levels": [
-			{"name": "第一关 · 码头查验口", "derived_profile": "一个刚上岸的渔贩"},
-			{"name": "第二关 · 货栈过磅处", "derived_profile": "账目清楚的渔获商"},
-			{"name": "第三关 · 海关值房", "derived_profile": "有船东作保的老贩子"},
-			{"name": "第四关 · 值房内间", "derived_profile": "天亮就要放行的良民"},
+			{"name": "第一轮 · 码头查验口", "derived_profile": "一个刚上岸的渔贩"},
+			{"name": "第二轮 · 货栈过磅处", "derived_profile": "账目清楚的渔获商"},
+			{"name": "第三轮 · 海关值房", "derived_profile": "有船东作保的老贩子"},
+			{"name": "第四轮 · 值房内间", "derived_profile": "天亮就要放行的良民"},
 		],
 		"cards": [
 			{"id": "b_identity", "topic": "身份", "owner": "B",
@@ -1923,9 +1923,9 @@ func end_t(bg: Dictionary, key: String, dflt: String = "") -> String:
 const DEFAULT_RULES := {
 	# --- 盘问流程 ---
 	"questions_per_level": 8,          # 一关问几道
-	# ★ 第二十九轮：反差值要求曲线 —— 留空的关卡 = 上一关 + step（见 OutfitData._resolve_contrast_req）
+	# ★ 第二十九轮：反差值要求曲线 —— 留空的轮次 = 上一轮 + step（见 OutfitData._resolve_contrast_req）
 	"contrast_req_base": 24,           # 第 1 关的反差要求基线
-	"contrast_req_step": 3,           # 之后每关自增多少
+	"contrast_req_step": 3,           # 之后每轮自增多少
 	"contrast_per_exposure": 5,        # 反差值：每一档暴露度差算多少分（第三十一轮新算法）
 	"pass_suspicion": 60.0,            # 怀疑度低于它才算过
 	"contradiction_limit": 2,          # 累计几次「前后矛盾」当场识破
@@ -1987,9 +1987,9 @@ const DEFAULT_UI := {
 		"continue_btn": "⏩  继续游戏",
 		"quit_btn": "✖  退出游戏",
 		# ---- 选关面板（第二十一轮）----
-		# 点「开始游戏」之后先出这一层。四行关卡都在，锁着的只是按钮。
-		"select_title": "选择进入哪一关",
-		"select_sub": "一次一局，从选中的那一关往后走。锁着的关卡还没做完 —— 没有删除。",
+		# 点「开始游戏」之后先出这一层。四行轮次都在，锁着的只是按钮。
+		"select_title": "选择从哪一轮开始",
+		"select_sub": "一次一局，从选中的那一轮往后走。锁着的轮次还没做完 —— 没有删除。",
 		"select_open_note": "可以进入",
 		"select_locked_note": "尚未开放",
 		"select_back": "◀  返回",
@@ -2063,8 +2063,8 @@ const DEFAULT_UI := {
 		"interrogation_title": "阶段二 · 高压盘问",
 		"interrogation_sub": "按编号看每一处是干什么的",
 		"wardrobe_marks": [
-			"【换装区域】\n每个槽位各有一段分区，下面是这个部位的候选衣物卡片。\n每张卡：左边缩略图＝这件衣服穿在身上的样子；接受度不够的装扮只显示一个问号（鼠标悬停能看到还差多少）。\n卡上一行点阵 E. 暴露值；鼠标悬停能看到精确数字。\n边框：绿色＝已装备，橙红＝本关强制装备（不穿会当场被识破）。",
-			"【数值量表】\n照 Degrees of Lewdity 的读法：**七颗圆点＝量级，颜色＝档位**。点越往右越红＝越危险；反差值那条反过来，越绿越安全。\n下面那条渐变刻度上的橙色竖线是**本关阈值** —— 暴露值的上限、反差值的要求。指针是当前值：指针跑到刻线右边（暴露）或左边（反差）就是不合格。\n两条：暴露值 / 反差值。",
+			"【换装区域】\n每个槽位各有一段分区，下面是这个部位的候选衣物卡片。\n每张卡：左边缩略图＝这件衣服穿在身上的样子；接受度不够的装扮只显示一个问号（鼠标悬停能看到还差多少）。\n卡上一行点阵 E. 暴露值；鼠标悬停能看到精确数字。\n边框：绿色＝已装备，橙红＝本轮强制装备（不穿会当场被识破）。",
+			"【数值量表】\n照 Degrees of Lewdity 的读法：**七颗圆点＝量级，颜色＝档位**。点越往右越红＝越危险；反差值那条反过来，越绿越安全。\n下面那条渐变刻度上的橙色竖线是**本轮阈值** —— 暴露值的上限、反差值的要求。指针是当前值：指针跑到刻线右边（暴露）或左边（反差）就是不合格。\n两条：暴露值 / 反差值。",
 			"【换装预览】\n你现在这身打扮长什么样。点右上「原貌」可以切到 A 本人 —— 槽位名带问号的就是还没查到他那个部位的样子。",
 			"【手机】\n点它把手机拿出来。四个界面各管一件事 —— 短信写「B 该怎么说话」，相册是别人偷拍的 A，备忘录第一条是他这个人，备注是逐轮的问答记录。\n手机拿在手里的时候再点一次「玩法说明」，就会逐个讲这四个界面。",
 		],
@@ -2105,23 +2105,23 @@ const DEFAULT_ENDINGS := {
 	"caught_line": "【警告：怀疑度到达 100%】\n卫兵蜂拥而上将你当场扣押 —— 伪装彻底崩了。",
 	"success_line": "【潜伏成功】\n%s：「没有问题了，%s。你可以过去了。」\n\n你以 B 的身份通过了盘问。同行者站在一旁，什么也没说，只是看了你一眼。",
 	"arrested_line": "【潜伏失败 · 被捕】\n%s：「逮捕他。他的身份漏洞百出。」\n\n同行者始终没有揭穿你 —— 但也没打算让你过关。",
-	"result_last_hint": "这是本局最后一关。你已经把这一整段路走完了。",
+	"result_last_hint": "这是本局最后一轮。你已经把这一整段路走完了。",
 	"result_last_btn": "完成本局  ➔",
-	"result_next_hint": "本关通过。接受度提升 %d，暴露值上限随之放宽 —— 但下一关要求的反差值也更高。",
-	"result_next_btn": "进入下一关  ➔",
-	"result_recognized_hint": "他一眼就叫出了你的名字 —— 这一身没能把 A 盖住。\n回到这一关的准备室，重新改一遍打扮。",
+	"result_next_hint": "本轮通过。接受度提升 %d，暴露值上限随之放宽 —— 但下一轮要求的反差值也更高。",
+	"result_next_btn": "进入下一轮  ➔",
+	"result_recognized_hint": "他一眼就叫出了你的名字 —— 这一身没能把 A 盖住。\n回到这一轮的准备室，重新改一遍打扮。",
 	"result_recognized_btn": "重来本轮  ↺",
-	"result_fail_hint": "这一轮到此为止 —— 回到这一关的准备室重来。\n背景与他的记忆都不变，你已经查到的情报也还在。",
+	"result_fail_hint": "这一轮到此为止 —— 回到这一轮的准备室重来。\n背景与他的记忆都不变，你已经查到的情报也还在。",
 	"result_fail_btn": "重来本轮  ↺",
 	"overlay_fail_title": "💀 潜伏失败 · 本轮重来",
 	"overlay_fail_btn": "重来本轮  ↺",
-	"overlay_fail_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]进度[/color]  已通过 [b]%d[/b] / %d 关\n\n这一轮到此为止 —— 回到[color=#f0a83c]这一关的准备室[/color]重来。\n背景不变、他记忆里的那张脸不变、你已经查到的情报也都还在。\n要改的是[color=#f0a83c]这一轮的打扮[/color]，不是身份。",
+	"overlay_fail_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]进度[/color]  已通过 [b]%d[/b] / %d 轮\n\n这一轮到此为止 —— 回到[color=#f0a83c]这一轮的准备室[/color]重来。\n背景不变、他记忆里的那张脸不变、你已经查到的情报也都还在。\n要改的是[color=#f0a83c]这一轮的打扮[/color]，不是身份。",
 	"overlay_win_title": "🏁 本局通关",
 	"overlay_win_btn": "再来一局（新背景 · 新原貌）  ↺",
-	"overlay_win_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]身份[/color]  %s → 以「%s」的身份走完全程\n[color=#8a919c]成绩[/color]  4 / 4 关全部通过 ｜ 前后矛盾 [b]%d[/b] 次\n\n你把 A 藏进了 B 的皮里，一路没有露馅。\n同行者从头到尾没有揭穿你 —— 他只是把你留在了原地。",
-	"overlay_level_title": "✅ 第 %d 关通过",
-	"overlay_level_btn": "进入第 %d 关  ➔",
-	"overlay_next_body": "[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n[color=#f0a83c]下一关[/color]  %s\n接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n反差值要求提高到 [b]%d[/b]\n\n[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，你已经查到的外貌情报也还在。要改的是打扮，不是身份。[/color]",
+	"overlay_win_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]身份[/color]  %s → 以「%s」的身份走完全程\n[color=#8a919c]成绩[/color]  %d / %d 轮全部通过 ｜ 前后矛盾 [b]%d[/b] 次\n\n你把 A 藏进了 B 的皮里，一路没有露馅。\n同行者从头到尾没有揭穿你 —— 他只是把你留在了原地。",
+	"overlay_level_title": "✅ 第 %d 轮通过",
+	"overlay_level_btn": "进入第 %d 轮  ➔",
+	"overlay_next_body": "[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n[color=#f0a83c]下一轮[/color]  %s\n接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n反差值要求提高到 [b]%d[/b]\n\n[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，你已经查到的外貌情报也还在。要改的是打扮，不是身份。[/color]",
 }
 
 # ============================================================
@@ -2272,8 +2272,8 @@ func _load_story() -> void:
 	_rules = _merge_flat(DEFAULT_RULES, d.get("rules", null))
 	_ui = _merge_phone(DEFAULT_UI, d.get("ui", null))
 	# 第二十三轮新增的三段（都允许空 → 空就退回出厂兜底）：
-	#   levels       —— 一局几关 + 每关数值（编辑器可增删）
-	#   forced_rules —— 每关的强制服装规则表（固定一件 / 几件选一件的自由组合）
+	#   levels       —— 一局几轮 + 每轮数值（编辑器可增删）
+	#   forced_rules —— 每轮的强制服装规则表（固定一件 / 几件选一件的自由组合）
 	#   qte_plan     —— 每道题用哪种 QTE、几秒后出现
 	_levels_ov = (d.get("levels", []) as Array) if typeof(d.get("levels", null)) == TYPE_ARRAY else []
 	_forced_ov = (d.get("forced_rules", []) as Array) if typeof(d.get("forced_rules", null)) == TYPE_ARRAY else []
@@ -2322,21 +2322,21 @@ func item_overrides_override() -> Dictionary:
 #  第四十一轮：按背景覆写「本局的流程配置」
 #
 #  用户口径：「每局游戏应该能够设置不同强制穿着，qte计划，身体缺陷，
-#            关卡轮数，原貌」。
+#            轮次轮数，原貌」。
 #
 #  做法：这五项都可以**挂在背景上**（`backgrounds[i]`），一套背景一份。
 #        背景里写了就用它，没写就回退到全局那份 —— 所以默认（四套背景都不写）
 #        的行为与以前**逐字节相同**。
 #
-#    backgrounds[i].levels        ★ 数组长度 = **本局打几关**；第 i 项是对全局第 i 关的逐键覆写
-#    backgrounds[i].forced_rules  本局的强制穿着表（每关一条）
+#    backgrounds[i].levels        ★ 数组长度 = **本局打几轮**；第 i 项是对全局第 i 关的逐键覆写
+#    backgrounds[i].forced_rules  本局的强制穿着表（每轮一条）
 #    backgrounds[i].qte_plan      本局的 QTE 计划（按题号对齐）
 #    backgrounds[i].defects       本局的身体缺陷表
 #    backgrounds[i].true_presets  本局的原貌预设（{pool, by_level}）
 #
 #  ★ levels 的语义与另外四项**不同**：另外四项是「非空即整份取代」，
 #    而 levels 是「非空则长度定关数、逐条按索引覆写」——
-#    因为背景原先就用它覆写「每关叫什么名字 / 推导形象」（那时长度必须等于全局关数）。
+#    因为背景原先就用它覆写「每轮叫什么名字 / 推导形象」（那时长度必须等于全局关数）。
 #    现在把「长度」也赋予了意义，于是「给某套背景只配 3 关」只要写 3 条即可，
 #    而且旧数据（写满 4 条）语义不变。
 # ============================================================
@@ -2352,7 +2352,7 @@ func _bg_of(bg_id: String) -> Dictionary:
 func _as_array(v: Variant) -> Array:
 	return (v as Array) if typeof(v) == TYPE_ARRAY else []
 
-# 这套背景覆写的关卡表（空 = 用全局那份）
+# 这套背景覆写的轮次表（空 = 用全局那份）
 func bg_levels(bg_id: String) -> Array:
 	return _as_array(_bg_of(bg_id).get("levels", null))
 
@@ -2435,9 +2435,9 @@ func true_preset_pool() -> Array:
 			out.append(e)
 	return out
 
-# 这一份原貌预设里「按关覆写」那部分 —— 长度对齐关卡数，没配的关是 {}（= 不覆写）
+# 这一份原貌预设里「按关覆写」那部分 —— 长度对齐轮次数，没配的关是 {}（= 不覆写）
 #   ★ 必须保留位置，所以这里**不能**过滤空项。
-#   ★ 第四十一轮：用户口径「原貌也是按背景的四关每关都可以设置不同的」——
+#   ★ 第四十一轮：用户口径「原貌也是按背景的四关每轮都可以设置不同的」——
 #     所以「按关覆写」自然就是「在每套背景里配四关各一套」。
 func true_preset_by_level() -> Array:
 	_ensure_story()
@@ -2448,7 +2448,7 @@ func true_preset_by_level() -> Array:
 	return out
 
 # 预设的清洗：只留「slots 是字典且非空」的那些，并统一成 {name, slots} 形状。
-#   ★ 编辑器可能留下 null / 空对象（「这一关不覆写」），这里一律转成空字典，
+#   ★ 编辑器可能留下 null / 空对象（「这一轮不覆写」），这里一律转成空字典，
 #     由调用方判断「空 = 不覆写」。
 func _sanitize_presets(raw: Variant) -> Array:
 	var out := []
@@ -2504,9 +2504,9 @@ func defects_override() -> Array:
 # 导出用：把「当前生效的那一份」原样交出去（DumpStory 走这四个门面）。
 #   ★ 用当前生效值而不是出厂常量 —— 编辑器改过一轮之后再导出，
 #     导出的是**改过之后**的，不会被出厂值盖回去。
-# 导出**未解析**的关卡表（留空的那些关就保持留空）。
+# 导出**未解析**的轮次表（留空的那些关就保持留空）。
 #   ★ 第二十九轮特别注意：不能导出 OutfitData.levels() —— 那是**解析过**的运行表，
-#     自增出来的数字会被烤死，再导出就变成「每关都手写了」，自增机制等于失效。
+#     自增出来的数字会被烤死，再导出就变成「每轮都手写了」，自增机制等于失效。
 func LEVELS_EXPORT() -> Array:
 	var ov := levels_override()
 	var src: Array = ov if not ov.is_empty() else OutfitData.DEFAULT_LEVELS
@@ -2788,9 +2788,9 @@ func get_sms(bg: Dictionary, sms_id: String) -> Dictionary:
 	return {}
 
 # ---------------- 短信逐关解锁 ----------------
-# 每条短信带一个 level（0 起）——「打到第几关才解锁」。
+# 每条短信带一个 level（0 起）——「打到第几轮才解锁」。
 # 第 i 关解锁的那一条，正好揭示 facts[i] 的官方口径，
-# 也就是本关新要问的那个说法。所以信息是**渐进**给出的，
+# 也就是本轮新要问的那个说法。所以信息是**渐进**给出的，
 # 不是开局一次性全塞给你。
 func sms_level_of(sms: Dictionary) -> int:
 	return int(sms.get("level", 0))

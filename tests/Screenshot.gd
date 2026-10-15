@@ -131,7 +131,7 @@ func _viable_build(m: WardrobeModel) -> void:
 	#   求解只在「上衣 + 下装」这条路里走（截图要拍的也正是这个常规搭配）。
 	m.equipped["dress"] = "dress_none"
 
-	# ★ 本关强制装备先穿上，而且**之后不许再动这几个槽位**。
+	# ★ 本轮强制装备先穿上，而且**之后不许再动这几个槽位**。
 	#   不穿的话 evaluate() 直接判「当场识破」，截图拍出来的就是失败画面。
 	for it in m.forced_items_info():
 		m.equip(it)
@@ -394,9 +394,9 @@ func _run() -> void:
 
 	# ---------- 选关面板 ----------
 	# 第二十一轮：点「开始游戏」不再直接开局，而是先出这一层。
-	# 四行关卡都在、名字都在；锁着的那三行只是按钮灰掉、右侧写「尚未开放」。
+	# 四行轮次都在、名字都在；锁着的那三行只是按钮灰掉、右侧写「尚未开放」。
 	_plog("--- 0a: 选关面板 —— 点「开始游戏」后先出这一层 ---")
-	_plog("     四关入口都在，目前只开放第一关；其余三关锁定但没删除")
+	_plog("     四关入口都在，目前只开放第一轮；其余三关锁定但没删除")
 	_plog("     开放表：OutfitData.OPEN_LEVELS = %s" % str(OutfitData.OPEN_LEVELS))
 	main._on_title_start()
 	await _wait(16)
@@ -460,15 +460,15 @@ func _run() -> void:
 		cast0["companion"], cast0["companion_gender"], cast0["companion_relation"]])
 	var forced0 := RunData.forced_items_info()
 	if forced0.is_empty():
-		_plog("     本关强制装备：无")
+		_plog("     本轮强制装备：无")
 	else:
 		var fn := []
 		for it in forced0:
 			fn.append("%s（暴露 %d）" % [str(it.get("name", "")), int(it.get("exposure", 0))])
-		_plog("     本关强制装备（必须穿上，否则当场识破）：%s" % "、".join(fn))
+		_plog("     本轮强制装备（必须穿上，否则当场识破）：%s" % "、".join(fn))
 	_plog("     接受度 %d（起始 %d + 跨局保留 %d）" % [
 		RunData.acceptance, OutfitData.START_ACCEPTANCE, ProfileData.bonus()])
-	_plog("     本关短信 %d 条 / 全局共 %d 条（逐关解锁）" % [
+	_plog("     本轮短信 %d 条 / 全局共 %d 条（逐关解锁）" % [
 		DossierData.sms_count(), DossierData.sms_total()])
 	await _shot("01_briefing_start")
 
@@ -585,7 +585,7 @@ func _run() -> void:
 	await _wait(14)
 
 	# ---------- 手机 ----------
-	_plog("--- 3: 手机 · 备忘录（第一条：审问者是个什么人；往后还有本局的人、这一关）---")
+	_plog("--- 3: 手机 · 备忘录（第一条：审问者是个什么人；往后还有本局的人、这一轮）---")
 	phone._switch_app("memo")
 	await _wait(14)
 	await _shot("03_phone_memo")
@@ -614,7 +614,7 @@ func _run() -> void:
 		DossierData.companion_sms_count(), DossierData.companion_sms_total(),
 		DossierData.sms_count(), DossierData.sms_total()])
 	var ct: Dictionary = DossierData.companion_sms_threads()[0]
-	_plog("     本关解锁的那条：%s（%s）—— 读完学到 0 条官方口径（设计如此，他不是信息源）" % [
+	_plog("     本轮解锁的那条：%s（%s）—— 读完学到 0 条官方口径（设计如此，他不是信息源）" % [
 		str(ct.get("contact", "")), str(ct.get("id", ""))])
 	phone._open_thread(str(ct["id"]))
 	await _wait(14)
@@ -752,7 +752,7 @@ func _run() -> void:
 	m.acceptance = acc_keep
 
 	# ---------- 盘问 ----------
-	_plog("--- 13: 盘问开局（本关 8 题 = 档案 ×4 + 说法 ×3 + 同行者提问 ×1）---")
+	_plog("--- 13: 盘问开局（本轮 8 题 = 档案 ×4 + 说法 ×3 + 同行者提问 ×1）---")
 	_plog("      [s13] viable_build 开始")
 	_viable_build(m)
 	_plog("      [s13] viable_build 完成")
@@ -816,7 +816,7 @@ func _run() -> void:
 		interro.qte_container.hide()
 		await _wait(8)
 	else:
-		_plog("     !! 本关没有同行者提问，跳过")
+		_plog("     !! 本轮没有同行者提问，跳过")
 
 	# ---------- 盲区题：「完全没给信息的题」 ----------
 	#  他问一件档案里没有、短信里也没提的事。题面不指向任何卡，
@@ -851,7 +851,7 @@ func _run() -> void:
 		await _wait(8)
 		await _shot("16c_blind_feedback")
 	else:
-		_plog("     !! 本关没有盲区题，跳过")
+		_plog("     !! 本轮没有盲区题，跳过")
 
 	# ---------- 审问者的情报怎么用在 B 类题上 ----------
 	#  第 13 张的顶栏写着「性情未知」、选项上什么都没有；
@@ -1000,7 +1000,7 @@ func _run() -> void:
 	gd.contradictions = 0
 	gd.stated_facts.clear()
 
-	_plog("--- 23: 结果覆盖层 · 本关通过 → 进入下一关 ---")
+	_plog("--- 23: 结果覆盖层 · 本轮通过 → 进入下一轮 ---")
 	main._start_new_run(SHOT_SEED)
 	await _wait(14)
 	_prepare_and_enter()
@@ -1009,7 +1009,7 @@ func _run() -> void:
 	_pass_current_level()
 	await _wait(18)
 	await _shot("23_level_cleared")
-	_plog("     现在：第 %d 关 ｜ 接受度 %d" % [RunData.level_number(), RunData.acceptance])
+	_plog("     现在：第 %d 轮 ｜ 接受度 %d" % [RunData.level_number(), RunData.acceptance])
 
 	_plog("--- 24: 结果覆盖层 · 整局通关 ---")
 	main._on_overlay_pressed()

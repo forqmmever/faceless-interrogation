@@ -15,7 +15,7 @@ extends Node
 #      → 情报台（外貌还原 / 身份归类）
 #      → 换装（凑够反差、遮住缺陷、不超上限）
 #      → 盘问（按关抽题 / 同行者干扰 / 表情 QTE）
-#      → 通过 → 下一关（背景与原貌不变、接受度提升）
+#      → 通过 → 下一轮（背景与原貌不变、接受度提升）
 #      → 第 4 关通过 → 整局通关
 #      → 说漏嘴 → 本轮失败 → 回到本轮开始（换的只是这一轮的打扮）
 # ============================================================
@@ -137,8 +137,8 @@ func _test_boot() -> void:
 	main._on_title_start()
 	_check("选关面板出现", main._is_level_select_open())
 	_check("选关面板一共 4 行", main.level_select_rows.size() == OutfitData.MAX_LEVELS)
-	_check("第 1 关那行点得动", main.level_select_rows[0]["btn"].disabled == false)
-	_check("第 2 / 3 / 4 关那行点不动（暂时锁定）",
+	_check("第 1 轮那行点得动", main.level_select_rows[0]["btn"].disabled == false)
+	_check("第 2 / 3 / 4 轮那行点不动（暂时锁定）",
 		main.level_select_rows[1]["btn"].disabled == true
 		and main.level_select_rows[2]["btn"].disabled == true
 		and main.level_select_rows[3]["btn"].disabled == true)
@@ -152,7 +152,7 @@ func _test_boot() -> void:
 	_check("选关时还没开局（准备室仍藏着）", wardrobe.visible == false)
 	# 点锁定的那一关不该有反应
 	main._on_level_selected(2)
-	_check("点锁定关卡无效（面板还在，也没开局）",
+	_check("点锁定轮次无效（面板还在，也没开局）",
 		main._is_level_select_open() and wardrobe.visible == false)
 
 	# 「返回」把玩家送回开始界面，再点一次「开始游戏」还能回来
@@ -162,7 +162,7 @@ func _test_boot() -> void:
 	main._on_title_start()
 	_check("再点「开始游戏」还能回到选关面板", main._is_level_select_open())
 
-	# 点第 1 关 → 进第 1 关的准备室
+	# 点第 1 轮 → 进第 1 轮的准备室
 	main._on_level_selected(0)
 	print("\n-- 开局：一局已经开始（随机背景 + 随机原貌）--")
 	_check("选关面板收起", not main._is_level_select_open())
@@ -174,7 +174,7 @@ func _test_boot() -> void:
 	_check("局号 ≥ 1", RunData.run_index >= 1)
 	_check("已抽定背景", RunData.background_id != "")
 	_check("背景名已显示在标题栏", wardrobe.run_label.text.contains(RunData.background_name()))
-	_check("标题栏显示了关卡进度", wardrobe.run_label.text.contains("第 1 / 4 关"))
+	_check("标题栏显示了轮次进度", wardrobe.run_label.text.contains("第 1 / 4 轮"))
 
 	var m: WardrobeModel = wardrobe.model
 	_check("%d 个槽位全部有装备" % OutfitData.active_slots().size(), m.equipped.size() == OutfitData.active_slots().size())
@@ -182,7 +182,7 @@ func _test_boot() -> void:
 	_check("开局即 A 的原貌（未改动任何部位）",
 		m.matching_slots().size() == OutfitData.auto_slots().size())
 	_check("开局反差值为 0", m.total_contrast() == 0)
-	_check("第 1 关接受度 = START_ACCEPTANCE", m.acceptance == OutfitData.START_ACCEPTANCE)
+	_check("第 1 轮接受度 = START_ACCEPTANCE", m.acceptance == OutfitData.START_ACCEPTANCE)
 
 	print("\n-- 开局：原貌本身不超暴露值上限 --")
 	_check("原貌暴露值 ≤ 第 1 关上限", m.total_exposure() <= m.exposure_cap())
@@ -323,7 +323,7 @@ func _test_outfit() -> void:
 				high_req = int(it.get("acceptance_req", 0))
 				locked_slot = slot
 				locked_idx = i
-	_check("（前置）本关确实存在还没解锁的装扮", locked_slot != "" and locked_idx >= 0)
+	_check("（前置）本轮确实存在还没解锁的装扮", locked_slot != "" and locked_idx >= 0)
 	if locked_slot != "" and locked_idx >= 0:
 		wardrobe._refresh()
 		var lb: Button = wardrobe.slot_buttons[locked_slot][locked_idx]
@@ -386,14 +386,14 @@ func _test_enter_interrogation() -> void:
 	interro.set_process(false)   # 关掉自动计时，改为手工步进
 	_check("盘问已启动", interro._running == true)
 	_check("开局怀疑度 = 20 + 失误 × 3", is_equal_approx(gd.suspicion_level, 20.0))
-	_check("本关抽到 8 道题", interro.level_questions().size() == 8)
+	_check("本轮抽到 8 道题", interro.level_questions().size() == 8)
 	_check("题目都指向本局背景的档案", _questions_resolve(interro.level_questions()))
 	# ★ 第十三轮后：一轮之内不再复问同一个事实（第 4 道改回档案题），
-	#   第 6 道是盲区题，第 7 道才是跨关复问。
+	#   第 6 道是盲区题，第 7 道才是跨轮复问。
 	# ★ 第二十九轮：题序不再由代码写死 —— 它现在**等于题目清单的顺序**，
 	#   在题库页里拖一拖就能改。所以这里不再钉死开场顺序，
-	#   改为断言「本关这一批题里四种类型都出现过」。
-	_check("本关八道题里四种类型都出现了",
+	#   改为断言「本轮这一批题里四种类型都出现过」。
+	_check("本轮八道题里四种类型都出现了",
 		_count_kind(interro.level_questions(), "card") >= 1
 		and _count_kind(interro.level_questions(), "fact") >= 1
 		and _count_kind(interro.level_questions(), "companion") >= 1
@@ -402,14 +402,14 @@ func _test_enter_interrogation() -> void:
 	_check("一关里恰好 1 道盲区题（完全没给信息的题）",
 		_count_kind(interro.level_questions(), "blind") == 1)
 	_check("一关里只有 1 道同行者提问", _count_kind(interro.level_questions(), "companion") == 1)
-	_check("关卡名含背景与关号", interro.level_label.text.contains(RunData.background_name()))
+	_check("轮次名含背景与关号", interro.level_label.text.contains(RunData.background_name()))
 	_check("从第 1 题开始", interro.current_question_index == 0)
 
 	# 找一道 B 类题与一道 A 类题。
 	# 一关抽 4~5 道档案题，基本两类都有 —— 找不到就换一关（必要时换一局）。
 	#
 	# ★ 这里刻意写成「先把值算出来、再统一 _check」的形状，保证**断言条数恒定**。
-	#   以前用 if/else 分叉：走哪个分支取决于本关恰好抽到哪两道档案题，
+	#   以前用 if/else 分叉：走哪个分支取决于本轮恰好抽到哪两道档案题，
 	#   于是同一份代码会跑出两个不同的总数。铁律：_check 一律放在分支外面。
 	var b_idx := _find_question_index("B")
 	if b_idx < 0:
@@ -417,7 +417,7 @@ func _test_enter_interrogation() -> void:
 		interro._ended = false
 		interro._running = true
 		interro.is_qte_active = false
-	_check("本局存在含 B 类档案题的关卡", b_idx >= 0)
+	_check("本局存在含 B 类档案题的轮次", b_idx >= 0)
 
 	# ---- B 类题：属于 B 的档案范围 → 照答即可 ----
 	# 题目标签（「常规盘问 / 雷区」那行小字）已经删掉，这里改为直接验选项结构：
@@ -451,9 +451,9 @@ func _test_enter_interrogation() -> void:
 	# ---- A 类题：只有 A 才知道的事 → 照实答就是当场说漏嘴 ----
 	var a_idx := _find_question_index("A")
 	if a_idx < 0:
-		# 本关的档案题里没有 A 类 —— 换一关（必要时换一局）再测
+		# 本轮的档案题里没有 A 类 —— 换一关（必要时换一局）再测
 		a_idx = _goto_level_with_card_owner("A")
-	_check("本局存在含 A 类档案题的关卡", a_idx >= 0)
+	_check("本局存在含 A 类档案题的轮次", a_idx >= 0)
 
 	var a_silence_delta := 0.0
 	var a_opt_kind := ""
@@ -486,13 +486,13 @@ func _test_fact_consistency() -> void:
 	_run_a_clean_level()
 	var f0 := _find_fact_question_index(0)
 	var f1 := _find_fact_question_index(1)
-	_check("本关有 1 道新说法题 + 1 道跨关复问", f0 >= 0 and f1 >= 0)
+	_check("本轮有 1 道新说法题 + 1 道跨轮复问", f0 >= 0 and f1 >= 0)
 	if f0 < 0 or f1 < 0:
 		return
 
 	var q_new: Dictionary = interro.level_questions()[f0]
 	var q_recall: Dictionary = interro.level_questions()[f1]
-	_check("本关那两道说法题里，一道是新的、一道是复问",
+	_check("本轮那两道说法题里，一道是新的、一道是复问",
 		bool(q_new.get("recall", false)) == false
 		and bool(q_recall.get("recall", false)) == true)
 	_check("★ 一轮之内不复问同一个事实（两道题指向不同的事）",
@@ -502,11 +502,11 @@ func _test_fact_consistency() -> void:
 
 	var fid := str(q_new.get("fact", ""))
 	var canonical := DossierData.canonical_value(fid)
-	# ★ 复问指向的是**前面几关**立过的那条事实 —— 跟本关新题不是同一件事。
+	# ★ 复问指向的是**前面几轮**立过的那条事实 —— 跟本轮新题不是同一件事。
 	var rid := str(q_recall.get("fact", ""))
 	var r_canonical := DossierData.canonical_value(rid)
 
-	# ---- 本关新题：说官方口径 → 记为我的口径，不减怀疑 ----
+	# ---- 本轮新题：说官方口径 → 记为我的口径，不减怀疑 ----
 	gd.stated_facts.clear()
 	gd.contradictions = 0
 	interro._ended = false
@@ -521,8 +521,8 @@ func _test_fact_consistency() -> void:
 		is_equal_approx(gd.suspicion_level, s0))
 	_check("首次答官方口径 → 不算矛盾", gd.contradictions == 0)
 
-	# ---- 复问：说成跟前面几关不一样 → 前后矛盾 ----
-	#   先模拟「前面几关你已经立过口径」（跨关复问的前提）
+	# ---- 复问：说成跟前面几轮不一样 → 前后矛盾 ----
+	#   先模拟「前面几轮你已经立过口径」（跨轮复问的前提）
 	gd.stated_facts[rid] = r_canonical
 	gd.contradictions = 0
 	interro.is_qte_active = false
@@ -534,7 +534,7 @@ func _test_fact_consistency() -> void:
 	gd.outfit_exposure = Interrogation.EXPOSURE_QTE_FULL
 	interro._load_question(f1)
 	var other_idx := _option_index_of_value_not(r_canonical)
-	_check("复问的选项里有一个跟前面几关不同的版本", other_idx >= 0)
+	_check("复问的选项里有一个跟前面几轮不同的版本", other_idx >= 0)
 	var s1: float = gd.suspicion_level
 	interro._select_option(other_idx)
 	_check("复问改口 → 记为前后矛盾", gd.contradictions == 1)
@@ -577,7 +577,7 @@ func _test_fact_consistency() -> void:
 	# ---- 累计矛盾到上限 → 当场识破 ----
 	_run_a_clean_level()
 	var f1b := _find_fact_question_index(1)
-	_check("（前置）本关有复问题", f1b >= 0)
+	_check("（前置）本轮有复问题", f1b >= 0)
 	if f1b >= 0:
 		var rid2 := str((interro.level_questions()[f1b] as Dictionary).get("fact", ""))
 		var r_can2 := DossierData.canonical_value(rid2)
@@ -609,10 +609,10 @@ func _test_fact_consistency() -> void:
 #
 # 落在这里就是两条不变量：
 #   1) 口径（stated_facts）**跨关不清** —— 审讯官是同一个人，他记得你说过什么；
-#   2) 任何一道题（不管它是本关新加的，还是复问旧事）只要碰到**已经立过口径的事实**，
+#   2) 任何一道题（不管它是本轮新加的，还是复问旧事）只要碰到**已经立过口径的事实**，
 #      答得不一样 = 前后矛盾，累计到上限直接识破。
 #
-# 同时反向守住一条：本关**新增**的说法题必须指向一条还没问过的事实 ——
+# 同时反向守住一条：本轮**新增**的说法题必须指向一条还没问过的事实 ——
 # 不能一上来就逼玩家自相矛盾，那不成设计，成了坑。
 # ------------------------------------------------------------
 func _test_cross_level_consistency() -> void:
@@ -636,17 +636,17 @@ func _test_cross_level_consistency() -> void:
 		var n := li + 1
 		if li > 0:
 			RunData.advance_level()
-		_check("第 %d 关：口径跨关保留（没被关卡切换清掉）" % n,
+		_check("第 %d 轮：口径跨轮保留（没被轮次切换清掉）" % n,
 			gd.stated_facts.size() == stated.size())
 
 		interro._questions = RunData.questions_for_level(li, Interrogation.QUESTIONS_PER_LEVEL)
 
-		# ---- 本关新增的说法题：必须是没问过的新事 ----
+		# ---- 本轮新增的说法题：必须是没问过的新事 ----
 		var qi_new := _fact_question_index_by_recall(false)
-		_check("第 %d 关有本关新增的说法题" % n, qi_new >= 0)
+		_check("第 %d 轮有本轮新增的说法题" % n, qi_new >= 0)
 		if qi_new >= 0:
 			var fid := str((interro.level_questions()[qi_new] as Dictionary).get("fact", ""))
-			_check("第 %d 关的新说法题指向一条没立过口径的事实" % n, not stated.has(fid))
+			_check("第 %d 轮的新说法题指向一条没立过口径的事实" % n, not stated.has(fid))
 			var canon := DossierData.canonical_value(fid)
 			interro.is_qte_active = false
 			interro.interference_active = false
@@ -654,21 +654,21 @@ func _test_cross_level_consistency() -> void:
 			interro._running = true
 			interro._load_question(qi_new)
 			interro._select_option(_option_index_of_value(canon))
-			_check("第 %d 关立下口径：%s" % [n, fid],
+			_check("第 %d 轮立下口径：%s" % [n, fid],
 				str(gd.stated_facts.get(fid, "")) == canon)
 			stated[fid] = canon
 
-		# ---- 本关的复问题：必须落在「本局前几轮立过的口径」上 ----
-		#  ★ 第 1 关没有「上一关」—— 它**不该**有复问题（也就没有前后矛盾）。
+		# ---- 本轮的复问题：必须落在「本局前几轮立过的口径」上 ----
+		#  ★ 第 1 轮没有「上一轮」—— 它**不该**有复问题（也就没有前后矛盾）。
 		var qi_old := _fact_question_index_by_recall(true)
 		if li == 0:
-			_check("第 1 关没有跨关复问（也就不会在轮内自相矛盾）", qi_old < 0)
+			_check("第 1 轮没有跨轮复问（也就不会在轮内自相矛盾）", qi_old < 0)
 			continue
-		_check("第 %d 关有复问题" % n, qi_old >= 0)
+		_check("第 %d 轮有复问题" % n, qi_old >= 0)
 		if qi_old < 0:
 			continue
 		var rid := str((interro.level_questions()[qi_old] as Dictionary).get("fact", ""))
-		_check("第 %d 关的复问题落在本局前几轮立过的口径上" % n, stated.has(rid))
+		_check("第 %d 轮的复问题落在本局前几轮立过的口径上" % n, stated.has(rid))
 		if not stated.has(rid):
 			continue
 		recall_checked += 1
@@ -680,26 +680,26 @@ func _test_cross_level_consistency() -> void:
 		interro._running = true
 		interro._load_question(qi_old)
 		var wrong_idx := _option_index_of_value_not(str(stated[rid]))
-		_check("第 %d 关复问题的选项里有一个跟前面不同的版本" % n, wrong_idx >= 0)
+		_check("第 %d 轮复问题的选项里有一个跟前面不同的版本" % n, wrong_idx >= 0)
 		if wrong_idx < 0:
 			continue
 		var c_before: int = gd.contradictions
 		interro._select_option(wrong_idx)
-		_check("第 %d 关：跟本局前几轮对不上 → 记为前后矛盾" % n,
+		_check("第 %d 轮：跟本局前几轮对不上 → 记为前后矛盾" % n,
 			gd.contradictions == c_before + 1)
-		_check("第 %d 关：口径仍锁在第一次的说法上（改不回来）" % n,
+		_check("第 %d 轮：口径仍锁在第一次的说法上（改不回来）" % n,
 			str(gd.stated_facts.get(rid, "")) == str(stated[rid]))
-		_check("第 %d 关：矛盾文案点明「前后矛盾」" % n,
+		_check("第 %d 轮：矛盾文案点明「前后矛盾」" % n,
 			interro.feedback_label.text.contains("前后矛盾"))
 		# ★ 第十三轮：矛盾必须说清「跟哪一条对不上」
-		_check("第 %d 关：矛盾文案写明跟哪条对不上" % n,
+		_check("第 %d 轮：矛盾文案写明跟哪条对不上" % n,
 			interro.feedback_label.text.contains("对不上的是："))
-		_check("第 %d 关：矛盾文案同时摆出上次与这次的两种说法" % n,
+		_check("第 %d 轮：矛盾文案同时摆出上次与这次的两种说法" % n,
 			interro.feedback_label.text.contains("上次你说的是：")
 			and interro.feedback_label.text.contains("这次你说成了："))
 		interro.is_qte_active = false
 		interro.qte_container.hide()
-		gd.contradictions = 0     # 下一关重新数，免得提前撞上限
+		gd.contradictions = 0     # 下一轮重新数，免得提前撞上限
 
 	_check("第 2~4 关都有复问题参与跨关判定",
 		recall_checked == OutfitData.MAX_LEVELS - 1)
@@ -710,9 +710,9 @@ func _test_cross_level_consistency() -> void:
 	_check("整局重开后矛盾计数归零", gd.contradictions == 0)
 
 	# ---- 结构性不变量：换 20 个种子，出题编排都不许把玩家推进死胡同 ----
-	#   每关都必须是「1 道新说法题 + 至少 1 道复问题」；
+	#   每轮都必须是「1 道新说法题 + 至少 1 道复问题」；
 	#   新说法题永远问没问过的事（否则一上来就无解）；
-	#   复问题永远落在「到这一关为止已经立过口径的事实」上（否则它无从矛盾）。
+	#   复问题永远落在「到这一轮为止已经立过口径的事实」上（否则它无从矛盾）。
 	var bad_count := 0
 	var bad_size := 0
 	var bad_new := 0
@@ -739,7 +739,7 @@ func _test_cross_level_consistency() -> void:
 					olds.append(str(qd.get("fact", "")))
 				else:
 					news.append(str(qd.get("fact", "")))
-			# 第 1 关没有「上一关」，只有 1 道新说法题；第 2 关起 1 新 + 1 复问
+			# 第 1 轮没有「上一轮」，只有 1 道新说法题；第 2 轮起 1 新 + 1 复问
 			if news.size() != 1 or (li > 0 and olds.size() != 1):
 				bad_count += 1
 			if li == 0 and olds.size() != 0:
@@ -752,13 +752,13 @@ func _test_cross_level_consistency() -> void:
 				if f != this_new or asked.has(f):
 					bad_new += 1
 			var stated_so_far := asked.duplicate()
-			stated_so_far.append(this_new)     # 本关新立的也算「已经说过」
+			stated_so_far.append(this_new)     # 本轮新立的也算「已经说过」
 			for f in olds:
 				if not stated_so_far.has(f):
 					bad_old += 1
 			asked.append(this_new)
-	_check("20 个种子 × 4 关：每关都是 8 道题", bad_size == 0)
-	_check("20 个种子：第 1 关 1 道新说法、第 2 关起 1 新 + 1 跨关复问", bad_count == 0)
+	_check("20 个种子 × 4 关：每轮都是 8 道题", bad_size == 0)
+	_check("20 个种子：第 1 轮 1 道新说法、第 2 轮起 1 新 + 1 跨轮复问", bad_count == 0)
 	_check("20 个种子：新说法题永远问没问过的事（不会一上来就无解）", bad_new == 0)
 	_check("20 个种子：复问题永远落在已立过口径的事实上", bad_old == 0)
 	_check("20 个种子：一轮之内不复问同一个事实（新题 ≠ 复问题）", dup_fact == 0)
@@ -768,10 +768,10 @@ func _test_cross_level_consistency() -> void:
 	gd.improvised = 0
 	gd.stated_facts.clear()
 
-# 找本关题序里的说法题：
-#   want=false → 本关**新增**的那道（recall=false）
+# 找本轮题序里的说法题：
+#   want=false → 本轮**新增**的那道（recall=false）
 #   want=true  → 复问旧事的那道（recall=true）
-# 本关「新说法题」的下标。
+# 本轮「新说法题」的下标。
 # ★ 第二十九轮：题序现在等于「题目清单的顺序」，玩家随时可以在题库页里调 ——
 #   所以测试**不能再假设「第 2 题就是说法题」**，一律按类型现找（找不到退到 0）。
 func _new_fact_index() -> int:
@@ -805,8 +805,8 @@ func _option_index_of_value_not(val: String) -> int:
 			return i
 	return -1
 
-# 重置成一局干净的第 2 关，并读全情报、凑好伪装、进入盘问。
-# ★ 为什么是第 2 关：第 1 关没有「上一关」，不会排跨关复问 ——
+# 重置成一局干净的第 2 轮，并读全情报、凑好伪装、进入盘问。
+# ★ 为什么是第 2 轮：第 1 轮没有「上一轮」，不会排跨轮复问 ——
 #   而「前后矛盾」这件事只发生在复问上（见 RunData.questions_for_level）。
 func _run_a_clean_level() -> void:
 	main._start_new_run(20261011)
@@ -835,7 +835,7 @@ func _test_companion_question() -> void:
 	_check("同行者提问库非空", _count_kind(RunData.question_list(), "companion") >= 3)
 
 	var ci := _find_companion_question_index()
-	_check("本关题序里有同行者提问", ci >= 0)
+	_check("本轮题序里有同行者提问", ci >= 0)
 	if ci < 0:
 		return
 	var q: Dictionary = interro.level_questions()[ci]
@@ -1024,7 +1024,7 @@ func _test_recognition_on_sight() -> void:
 
 	_check("进门即被识破", interro._ended == true)
 	_check("没有进入任何一道题", interro.current_question_index == 0)
-	_check("本关判定为失败", interro._success == false)
+	_check("本轮判定为失败", interro._success == false)
 	_check("结果按钮已出现", interro.result_btn.visible == true)
 	_check("识破台词点出「怎么是你」", interro.dialogue_label.text.contains("怎么是你"))
 	_check("识破台词念出 A 的真身名", interro.dialogue_label.text.contains(RunData.true_name()))
@@ -1078,8 +1078,8 @@ func _test_phone() -> void:
 	_check("收起 → 浮层关掉", not intel.is_phone_open())
 	_check("按钮上不再报计数（「0/1」「🔒N」都删了）",
 		not intel.phone_btn.text.contains("/") and not intel.phone_btn.text.contains("🔒"))
-	# 短信是逐关解锁的 —— 第 1 关只有 1 条到手，往后每过一关再收到一条
-	_check("第 1 关只解锁 1 条短信", DossierData.sms_count() == 1)
+	# 短信是逐关解锁的 —— 第 1 轮只有 1 条到手，往后每过一关再收到一条
+	_check("第 1 轮只解锁 1 条短信", DossierData.sms_count() == 1)
 	_check("本局一共 4 条短信（一关一条）", DossierData.sms_total() == 4)
 	_check("还有 3 条没到手", DossierData.sms_locked_count() == 3)
 	_check("每局都有照片", DossierData.photo_count() > 0)
@@ -1165,10 +1165,10 @@ func _test_phone() -> void:
 	_check("备忘录写出他的喜好", mtxt.contains("喜好"))
 	_check("备忘录写出他的忌讳", mtxt.contains("忌讳"))
 	_check("备忘录还记了本局卡司", mtxt.contains("【第二条】"))
-	_check("★ 备忘录不再有「这一关」那一条（内容整局不变）",
+	_check("★ 备忘录不再有「这一轮」那一条（内容整局不变）",
 		not mtxt.contains("【第三条】"))
 	_check("备忘录篇幅很短（就是临出门记的几行）", mtxt.length() < 900)
-	_check("★ 备忘录内容不随关卡变（没有「第 N / 4 关」这类字）",
+	_check("★ 备忘录内容不随轮次变（没有「第 N / 4 关」这类字）",
 		not mtxt.contains("强制装备：") and not mtxt.contains("反差值要求"))
 
 	# ---- 审问者本人的短信（盘问里掏手机掏太多次招来的）----
@@ -1321,7 +1321,7 @@ func _test_interrogator_intel() -> void:
 	var b_idx := _find_question_index("B")
 	if b_idx < 0:
 		b_idx = _goto_level_with_card_owner("B")
-	_check("本局存在含 B 类档案题的关卡（前置）", b_idx >= 0)
+	_check("本局存在含 B 类档案题的轮次（前置）", b_idx >= 0)
 	if b_idx < 0:
 		return
 
@@ -1442,7 +1442,7 @@ func _test_blind_question() -> void:
 	interro.set_process(false)
 
 	var bi := _find_kind_index("blind")
-	_check("本关抽到了盲区题", bi >= 0)
+	_check("本轮抽到了盲区题", bi >= 0)
 	if bi < 0:
 		return
 	var q: Dictionary = interro.level_questions()[bi]
@@ -1798,7 +1798,7 @@ func _test_expression_qte() -> void:
 		interro._ended = false
 		interro._running = true
 		interro.is_qte_active = false
-	_check("本局存在含 A 类档案题的关卡（QTE 前置）", a_idx >= 0)
+	_check("本局存在含 A 类档案题的轮次（QTE 前置）", a_idx >= 0)
 	_check("这道 A 类题不在第 1 题上（第 1 题固定不出 QTE）", a_idx >= 1)
 	if a_idx <= 0:
 		return
@@ -2489,21 +2489,21 @@ func _test_suspicion_decay() -> void:
 	_check("衰减下限 = 10", is_equal_approx(GameData.SUSPICION_FLOOR, 10.0))
 	_check("基准开局怀疑度 = 20", is_equal_approx(GameData.SUSPICION_BASE, 20.0))
 
-	# 第 1 关：没有 carry → 用基准值
+	# 第 1 轮：没有 carry → 用基准值
 	gd.suspicion_carry = 0.0
 	gd.reset_level_state()
-	_check("第 1 关开局怀疑度 = 基准 20", is_equal_approx(gd.suspicion_level, 20.0))
+	_check("第 1 轮开局怀疑度 = 基准 20", is_equal_approx(gd.suspicion_level, 20.0))
 
-	# 第 2 关：上一关带着 80 分进来 → 对折成 40
+	# 第 2 轮：上一轮带着 80 分进来 → 对折成 40
 	gd.suspicion_carry = 80.0
 	gd.reset_level_state()
-	_check("★ 上一关 80 → 这一关开局 40（对折）",
+	_check("★ 上一轮 80 → 这一轮开局 40（对折）",
 		is_equal_approx(gd.suspicion_level, 40.0))
 
 	# 极低分也不会一路归零
 	gd.suspicion_carry = 12.0
 	gd.reset_level_state()
-	_check("★ 上一关 12 → 6 被下限兜住成 10",
+	_check("★ 上一轮 12 → 6 被下限兜住成 10",
 		is_equal_approx(gd.suspicion_level, GameData.SUSPICION_FLOOR))
 
 	# 通关流程里真的会写 carry
@@ -2515,12 +2515,12 @@ func _test_suspicion_decay() -> void:
 	_prepare_and_enter()
 	interro.set_process(false)
 	_pass_current_level()
-	_check("★ 本关结束时把怀疑度写进了 carry",
+	_check("★ 本轮结束时把怀疑度写进了 carry",
 		is_equal_approx(gd.suspicion_carry, 30.0))
 	main._on_overlay_pressed()
-	_check("★ 进入下一关：怀疑度按比例衰减（30 → 15）",
+	_check("★ 进入下一轮：怀疑度按比例衰减（30 → 15）",
 		is_equal_approx(gd.suspicion_level, 15.0))
-	_check("★ 衰减后的值小于上一关结束时的值",
+	_check("★ 衰减后的值小于上一轮结束时的值",
 		gd.suspicion_level < gd.suspicion_carry)
 
 	# 收尾
@@ -2564,7 +2564,7 @@ func _test_dol_style() -> void:
 	var fo := DolStyle.card_style("forced")
 	var lk := DolStyle.card_style("locked")
 	_check("已装备时是绿框", eq.border_color == DolStyle.GREEN)
-	_check("本关强制时是橙框", fo.border_color == DolStyle.ORANGE)
+	_check("本轮强制时是橙框", fo.border_color == DolStyle.ORANGE)
 	_check("未解锁时是灰框", lk.border_color == DolStyle.CARD_BORDER_DIM)
 	_check("卡片一律 1px 实线", eq.border_width_left == 1 and fo.border_width_left == 1)
 	_check("悬停换底色（照 DoL 的 :hover）",
@@ -2692,7 +2692,7 @@ func _test_dol_style() -> void:
 	var sc_e: DolStyle.Scale = wardrobe.stat_blocks["expose"]["scale"]
 	var sc_c: DolStyle.Scale = wardrobe.stat_blocks["contrast"]["scale"]
 	_check("暴露量表带阈值刻线（本关上限）", sc_e.warn_at > 0.0)
-	_check("反差点量表带阈值刻线（本关要求）", sc_c.warn_at > 0.0)
+	_check("反差点量表带阈值刻线（本轮要求）", sc_c.warn_at > 0.0)
 	_check("★ 两条刻线的相对位置不同（都落在同一个百分比就等于没画）",
 		not is_equal_approx(sc_e.warn_at / sc_e.max_value, sc_c.warn_at / sc_c.max_value))
 	_check("刻线落在条内（0 < 阈值 < 量程）",
@@ -2751,22 +2751,22 @@ func _test_shake() -> void:
 #  本轮新增：强制装备 / 短信逐关解锁 / 接受度跨局保留
 # ------------------------------------------------------------
 func _test_new_mechanics() -> void:
-	print("\n-- 强制装备：本关随机 0~2 件高暴露，换掉就当场识破 --")
+	print("\n-- 强制装备：本轮随机 0~2 件高暴露，换掉就当场识破 --")
 	ProfileData.reset_all()
 	ProfileData.add_gain(30)          # 把强制池撑大，保证抽得出来
 	var forced: Array = []
 	var first_level_clean := true
 	for k in 60:
 		RunData.start_new_run(310000 + k * 131)
-		# ★ 每局第一关没有强制服装要求
+		# ★ 每局第一轮没有强制服装要求
 		if RunData.has_forced_items():
 			first_level_clean = false
 		RunData._roll_forced_items(1)
 		if RunData.has_forced_items():
 			forced = RunData.forced_item_ids().duplicate()
 			break
-	_check("★ 每局第一关没有强制服装要求", first_level_clean)
-	_check("第 2 关起仍然会抽到强制装备（机制不是空转）", not forced.is_empty())
+	_check("★ 每局第一轮没有强制服装要求", first_level_clean)
+	_check("第 2 轮起仍然会抽到强制装备（机制不是空转）", not forced.is_empty())
 	if forced.is_empty():
 		ProfileData.reset_all()
 		return
@@ -2777,7 +2777,7 @@ func _test_new_mechanics() -> void:
 	_assign_all()
 	wardrobe._refresh()
 
-	_check("换装模型拿到了本关强制装备", m.forced_items.size() == forced.size())
+	_check("换装模型拿到了本轮强制装备", m.forced_items.size() == forced.size())
 	_check("开局不替你穿 —— 强制装备得自己动手",
 		m.missing_forced().size() == forced.size())
 	_check("没穿强制装备 → 失败理由里写明原因",
@@ -2830,9 +2830,9 @@ func _test_new_mechanics() -> void:
 			main._start_level()
 	_check("第 1~4 关解锁条数依次是 1/2/3/4", counts == [1, 2, 3, 4])
 	_check("手机按钮各关都不显示计数（字样已删）", btn_clean)
-	_check("到第 4 关全部解锁", DossierData.sms_locked_count() == 0)
+	_check("到第 4 轮全部解锁", DossierData.sms_locked_count() == 0)
 
-	# 新解锁的那条短信，正好写着本关要问的那个说法
+	# 新解锁的那条短信，正好写着本轮要问的那个说法
 	main._start_new_run(20261011)
 	var reveal_ok := true
 	for li in OutfitData.MAX_LEVELS:
@@ -2848,7 +2848,7 @@ func _test_new_mechanics() -> void:
 		if li < OutfitData.MAX_LEVELS - 1:
 			RunData.advance_level()
 			main._start_level()
-	_check("本关新解锁的短信正好揭示本关要问的官方口径", reveal_ok)
+	_check("本轮新解锁的短信正好揭示本轮要问的官方口径", reveal_ok)
 
 	print("\n-- 接受度跨局保留：整局作废也不退还 --")
 	ProfileData.reset_all()
@@ -2865,7 +2865,7 @@ func _test_new_mechanics() -> void:
 	var acc_mid := RunData.acceptance
 	main._start_new_run(555002)       # 相当于失败重开
 	_check("新一局开局带着跨局收益", RunData.acceptance == acc_mid)
-	_check("新一局仍然从第 1 关开始", RunData.level_index == 0)
+	_check("新一局仍然从第 1 轮开始", RunData.level_index == 0)
 	_check("新一局局号 +1（换背景换原貌）", RunData.run_index >= 2)
 
 	# 战绩记账
@@ -2897,14 +2897,14 @@ func _test_title_and_save() -> void:
 	main._start_new_run(20261011)
 	_check("开局写档：种子已记下", RunSave.seed_value == 20261011)
 	_check("开局写档：has_run = true", RunSave.has_run == true)
-	_check("开局写档：落在第 1 关", RunSave.level_index == 0)
+	_check("开局写档：落在第 1 轮", RunSave.level_index == 0)
 
-	# 走到第 2 关（第 1 关通过 → 覆盖层 → 进第 2 关的准备室）
+	# 走到第 2 轮（第 1 轮通过 → 覆盖层 → 进第 2 轮的准备室）
 	_prepare_and_enter()
 	_pass_current_level()
 	main._on_overlay_pressed()
-	_check("推进到第 2 关", RunData.level_number() == 2)
-	_check("第 2 关准备室写档：level_index = 1", RunSave.level_index == 1)
+	_check("推进到第 2 轮", RunData.level_number() == 2)
+	_check("第 2 轮准备室写档：level_index = 1", RunSave.level_index == 1)
 
 	# 换一身不一样的打扮 + 记一条手机进度，验证「打扮」和「手机」都能续上
 	var m: WardrobeModel = wardrobe.model
@@ -2944,19 +2944,19 @@ func _test_title_and_save() -> void:
 	RunSave.load_save()
 	_check("读档：has_run 恢复", RunSave.has_run == true)
 	_check("读档：种子恢复", RunSave.seed_value == saved_seed)
-	_check("读档：关卡恢复", RunSave.level_index == saved_level)
+	_check("读档：轮次恢复", RunSave.level_index == saved_level)
 	_check("读档：局号恢复", RunSave.run_index == saved_run)
 	_check("读档：打扮恢复（%d 个槽位）" % OutfitData.active_slots().size(), RunSave.equipped.size() == OutfitData.active_slots().size())
 	_check("读档：手机进度恢复", (RunSave.game.get("sms_read", []) as Array).has(probe_sms))
 	_check("读档：口径恢复",
 		str((RunSave.game.get("stated_facts", {}) as Dictionary).get("__probe_fact__", "")) == "probe_val")
 	_check("读档：矛盾计数恢复", int(RunSave.game.get("contradictions", 0)) == 1)
-	_check("存档摘要写明停在第 2 / 4 关", RunSave.summary().contains("第 2 / 4 关"))
+	_check("存档摘要写明停在第 2 / 4 轮", RunSave.summary().contains("第 2 / 4 轮"))
 
 	# 开始界面：有存档 → 「继续游戏」可点
 	main._show_title()
 	_check("有存档时「继续游戏」可点", main.title_continue_btn.disabled == false)
-	_check("开始界面摘要写明进度", main.title_info.text.contains("第 2 / 4 关"))
+	_check("开始界面摘要写明进度", main.title_info.text.contains("第 2 / 4 轮"))
 
 	# 模拟「关掉再打开」：内存里换成另一局，只剩磁盘上的存档
 	RunData.start_new_run(555001)
@@ -2971,13 +2971,13 @@ func _test_title_and_save() -> void:
 	main._show_title()
 	main._on_title_continue()
 	_check("继续游戏：种子还原", RunData.seed_value == saved_seed)
-	_check("继续游戏：关卡还原到第 2 关", RunData.level_index == saved_level)
+	_check("继续游戏：轮次还原到第 2 轮", RunData.level_index == saved_level)
 	_check("继续游戏：局号还原", RunData.run_index == saved_run)
 	_check("继续游戏：背景还原", RunData.background_name() == RunSave.background_name)
 	_check("继续游戏：回到准备室（标题界面收起）",
 		wardrobe.visible == true and main.title_screen.visible == false)
-	_check("继续游戏：标题栏写明第 2 关",
-		wardrobe.run_label.text.contains("第 2 / 4 关"))
+	_check("继续游戏：标题栏写明第 2 轮",
+		wardrobe.run_label.text.contains("第 2 / 4 轮"))
 	_check("继续游戏：打扮还原", _dict_eq(wardrobe.model.equipped, saved_equipped))
 	_check("继续游戏：手机进度还原", gd.sms_read.has(probe_sms))
 	_check("继续游戏：口径还原",
@@ -3140,7 +3140,7 @@ func _test_story_config() -> void:
 func _test_multi_level_flow() -> void:
 	print("\n-- 多轮流程：从第 1 关一路走到整局通关 --")
 	main._start_new_run()
-	_check("新局回到第 1 关", RunData.level_number() == 1)
+	_check("新局回到第 1 轮", RunData.level_number() == 1)
 	_check("新局：情报台按新背景重填（12 条归类 + %d 处原貌）" % OutfitData.auto_slots().size(),
 		intel.clues_done_count() == OutfitData.auto_slots().size() and intel.unassigned_count() == 0)
 	_check("新局原貌已重抽", wardrobe.model.matching_slots().size() == OutfitData.auto_slots().size())
@@ -3153,32 +3153,32 @@ func _test_multi_level_flow() -> void:
 		var n := RunData.level_number()
 		var acc_before := RunData.acceptance
 
-		_check("第 %d 关准备室可见" % n, wardrobe.visible == true)
-		_check("第 %d 关接受度 = acceptance_at(%d)" % [n, lvl],
+		_check("第 %d 轮准备室可见" % n, wardrobe.visible == true)
+		_check("第 %d 轮接受度 = acceptance_at(%d)" % [n, lvl],
 			acc_before == RunData.acceptance_at(lvl))
-		_check("第 %d 关模型接受度同步" % n, wardrobe.model.acceptance == acc_before)
-		_check("第 %d 关模型关卡索引同步" % n, wardrobe.model.level_index == lvl)
-		_check("第 %d 关反差要求 = %d" % [n, int(RunData.levels()[lvl]["contrast_req"])],
+		_check("第 %d 轮模型接受度同步" % n, wardrobe.model.acceptance == acc_before)
+		_check("第 %d 轮模型轮次索引同步" % n, wardrobe.model.level_index == lvl)
+		_check("第 %d 轮反差要求 = %d" % [n, int(RunData.levels()[lvl]["contrast_req"])],
 			wardrobe.model.contrast_requirement() == int(RunData.levels()[lvl]["contrast_req"]))
 		if lvl > 0:
-			_check("第 %d 关开局装备退回原貌（反差归零）" % n, wardrobe.model.total_contrast() == 0)
-			_check("第 %d 关情报进度跨关保留" % n,
+			_check("第 %d 轮开局装备退回原貌（反差归零）" % n, wardrobe.model.total_contrast() == 0)
+			_check("第 %d 轮情报进度跨轮保留" % n,
 				intel.clues_done_count() == OutfitData.auto_slots().size() and intel.unassigned_count() == 0)
 
 		_prepare_and_enter()
 		# 伪装必须成立 —— 断言放在这儿（调用点）而不是 _prepare_and_enter() 里，
 		# 那个辅助函数会被条件调用，放里面会让断言总数浮动。
-		_check("第 %d 关伪装成立" % n, wardrobe.model.evaluate()["verdict"] == "pass")
-		_check("第 %d 关已进入盘问" % n, interro.visible == true and wardrobe.visible == false)
-		_check("第 %d 关抽到 8 道题" % n, interro.level_questions().size() == 8)
+		_check("第 %d 轮伪装成立" % n, wardrobe.model.evaluate()["verdict"] == "pass")
+		_check("第 %d 轮已进入盘问" % n, interro.visible == true and wardrobe.visible == false)
+		_check("第 %d 轮抽到 8 道题" % n, interro.level_questions().size() == 8)
 
 		_pass_current_level()
 
 		if lvl < OutfitData.MAX_LEVELS - 1:
-			_check("第 %d 关通过 → 结果覆盖层出现" % n, main.overlay.visible == true)
-			_check("第 %d 关通过 → 按钮指向下一关" % n, main._pending_action == "next_level")
+			_check("第 %d 轮通过 → 结果覆盖层出现" % n, main.overlay.visible == true)
+			_check("第 %d 轮通过 → 按钮指向下一轮" % n, main._pending_action == "next_level")
 			main._on_overlay_pressed()
-			_check("进入第 %d 关" % (n + 1), RunData.level_number() == n + 1)
+			_check("进入第 %d 轮" % (n + 1), RunData.level_number() == n + 1)
 			_check("背景跨关不变", RunData.background_id == bg_id)
 			_check("原貌跨关不变", _dict_eq(RunData.true_appearance(), true_app))
 			_check("局号跨关不变", RunData.run_index == run_id)
@@ -3197,7 +3197,7 @@ func _test_multi_level_flow() -> void:
 			var old_run := RunData.run_index
 			main._on_overlay_pressed()
 			_check("重开后局号 +1", RunData.run_index == old_run + 1)
-			_check("重开后回到第 1 关", RunData.level_number() == 1)
+			_check("重开后回到第 1 轮", RunData.level_number() == 1)
 			# ★ 接受度跨局保留：整局通关/作废都不会把赚到的还回去
 			_check("重开后接受度 = 起始值 + 跨局保留",
 				RunData.acceptance == OutfitData.START_ACCEPTANCE + ProfileData.bonus())
@@ -3228,7 +3228,7 @@ func _test_leak_and_fail_restart() -> void:
 		interro._ended = false
 		interro._running = true
 		interro.is_qte_active = false
-	_check("本局存在含 A 类档案题的关卡", a_idx >= 0)
+	_check("本局存在含 A 类档案题的轮次", a_idx >= 0)
 	if a_idx < 0:
 		return
 
@@ -3269,7 +3269,7 @@ func _test_leak_and_fail_restart() -> void:
 
 	main._on_overlay_pressed()
 	_check("重来本轮 → 局号不变（还是同一局）", RunData.run_index == run_before)
-	_check("重来本轮 → 回到第 1 关", RunData.level_number() == 1)
+	_check("重来本轮 → 回到第 1 轮", RunData.level_number() == 1)
 	_check("重来本轮 → 接受度不退",
 		RunData.acceptance == acc_before and RunData.acceptance == OutfitData.START_ACCEPTANCE + ProfileData.bonus())
 	_check("重来本轮 → 已通过关数不变", RunData.cleared_levels == 0)
@@ -3298,21 +3298,21 @@ func _test_retry_level_semantics() -> void:
 	main._start_new_run(20261011)
 	_prepare_and_enter()
 
-	# 第 1 关：立一条口径（第 2 题就是本关的新事实）
+	# 第 1 轮：立一条口径（第 2 题就是本轮的新事实）
 	interro.set_process(false)
 	interro._load_question(_new_fact_index())
 	var f0 := str(interro._current_question().get("fact", ""))
 	interro._select_option(0)
-	_check("第 1 关立下的口径已记下", f0 != "" and gd.stated_facts.has(f0))
+	_check("第 1 轮立下的口径已记下", f0 != "" and gd.stated_facts.has(f0))
 
-	# 通过第 1 关 → 进第 2 关
+	# 通过第 1 轮 → 进第 2 轮
 	interro._finish_interrogation()
 	interro._on_result_pressed()
 	main._on_overlay_pressed()
-	_check("进入第 2 关", RunData.level_number() == 2)
-	_check("跨关保留：第 1 关的口径还在", gd.stated_facts.has(f0))
+	_check("进入第 2 轮", RunData.level_number() == 2)
+	_check("跨轮保留：第 1 轮的口径还在", gd.stated_facts.has(f0))
 
-	# 第 2 关：先摆一套能过的伪装，再立一条**本轮**口径 + 记一条问答记录
+	# 第 2 轮：先摆一套能过的伪装，再立一条**本轮**口径 + 记一条问答记录
 	_prepare_and_enter()
 	interro.set_process(false)
 	var susp_at_open: float = gd.suspicion_level
@@ -3320,7 +3320,7 @@ func _test_retry_level_semantics() -> void:
 
 	# ① 盲区题（kind == blind）—— 答完会进「备注」的问答记录
 	var blind_idx := _find_kind_index("blind")
-	_check("第 2 关有盲区题（用来验证问答记录的回滚）", blind_idx >= 0)
+	_check("第 2 轮有盲区题（用来验证问答记录的回滚）", blind_idx >= 0)
 	if blind_idx >= 0:
 		interro._load_question(blind_idx)
 		interro._select_option(0)
@@ -3330,7 +3330,7 @@ func _test_retry_level_semantics() -> void:
 	interro._load_question(_new_fact_index())
 	var f1 := str(interro._current_question().get("fact", ""))
 	interro._select_option(0)
-	_check("第 2 关立下的口径已记下", f1 != "" and gd.stated_facts.has(f1))
+	_check("第 2 轮立下的口径已记下", f1 != "" and gd.stated_facts.has(f1))
 
 	var run_before := RunData.run_index
 	var bg_before := RunData.background_id
@@ -3350,16 +3350,16 @@ func _test_retry_level_semantics() -> void:
 
 	main._on_overlay_pressed()
 
-	_check("重来本轮 → 还在第 2 关", RunData.level_number() == 2)
+	_check("重来本轮 → 还在第 2 轮", RunData.level_number() == 2)
 	_check("重来本轮 → 局号不变", RunData.run_index == run_before)
 	_check("重来本轮 → 背景不变", RunData.background_id == bg_before)
 	_check("重来本轮 → 原貌不变", _dict_eq(RunData.true_appearance(), app_before))
 	_check("重来本轮 → 接受度不退", RunData.acceptance == acc_before)
 	_check("重来本轮 → 强制装备不变", _arr_eq(RunData.forced_item_ids(), forced_before))
-	_check("重来本轮 → 第 1 关立的口径留着（跨关保留）", gd.stated_facts.has(f0))
+	_check("重来本轮 → 第 1 轮立的口径留着（跨轮保留）", gd.stated_facts.has(f0))
 	_check("重来本轮 → 本轮立的口径被回滚", not gd.stated_facts.has(f1))
 	_check("重来本轮 → 问答记录回到进关那一刻", gd.answer_log.size() == log_at_open)
-	_check("重来本轮 → 怀疑度回到本关开局值",
+	_check("重来本轮 → 怀疑度回到本轮开局值",
 		is_equal_approx(gd.suspicion_level, susp_at_open))
 	_check("重来本轮 → 情报进度保留", intel.clues_done_count() == clues_before)
 	_check("重来本轮 → 准备室可见", wardrobe.visible == true)
@@ -3557,11 +3557,11 @@ func _active_item_count() -> int:
 	return n
 
 # ------------------------------------------------------------
-# 把情报读全、归类好，然后凑一套能过本关的伪装并进入盘问。
+# 把情报读全、归类好，然后凑一套能过本轮的伪装并进入盘问。
 #
 # 注意：这个辅助函数里**不能放 _check** —— 它会被 _goto_level_with_card_owner()
 # 条件调用（只在需要换关时才调），断言总数会随局面浮动。踩过这个坑：同一份代码
-# 跑出 348 / 349 两个总数，diff 出来是「第 2 关伪装成立」时有时无。
+# 跑出 348 / 349 两个总数，diff 出来是「第 2 轮伪装成立」时有时无。
 # 需要断言的地方，在调用点自己 _check。
 func _prepare_and_enter() -> void:
 	_reveal_all()
@@ -3569,30 +3569,30 @@ func _prepare_and_enter() -> void:
 	var m: WardrobeModel = wardrobe.model
 	_build_viable(m)
 	wardrobe._refresh()
-	print("   [准备] 第 %d 关伪装：%s" % [RunData.level_number(),
+	print("   [准备] 第 %d 轮伪装：%s" % [RunData.level_number(),
 		"✅ 成立" if m.evaluate()["verdict"] == "pass" else "🚨 不成立"])
 	wardrobe._on_continue()
 
-# 让本关以「低怀疑度」收尾，并点掉结果按钮
+# 让本轮以「低怀疑度」收尾，并点掉结果按钮
 func _pass_current_level() -> void:
 	interro.set_process(false)
 	interro._running = true
 	interro._ended = false
 	gd.suspicion_level = 30.0
 	interro._finish_interrogation()
-	_check("第 %d 关判定为通过" % RunData.level_number(), interro._success == true)
+	_check("第 %d 轮判定为通过" % RunData.level_number(), interro._success == true)
 	interro._on_result_pressed()
 
 # 凑一套能过当前关的伪装：
 #   阶段一 —— 先把暴露在外的缺陷补上（允许反差不变甚至下降）
 #   阶段二 —— 在不超上限、不露缺陷的前提下，按「反差 / 暴露」效率贪心堆反差
-# 造一套「这一关过得去」的打扮。
+# 造一套「这一轮过得去」的打扮。
 #
 # ★ 第二十七轮从「贪心（先补缺陷、再按性价比堆反差）」改成**直接用游戏里那个 DP**
 #   （`auto_complete_outfit()`）：
 #     · 成装与上装 / 下装互斥之后，贪心那种「逐槽位试探」会凑出事后被拆掉的搭配；
-#     · 第 4 关的反差要求虽然重标过，但贪心本来就低估上限
-#       （同一个局面贪心 47 / DP 54），实测第 4 关直接判「伪装不成立」。
+#     · 第 4 轮的反差要求虽然重标过，但贪心本来就低估上限
+#       （同一个局面贪心 47 / DP 54），实测第 4 轮直接判「伪装不成立」。
 #   DP 正是玩家在准备室里按「🧪 一键达标」跑的那个求解器 ——
 #   用它来造测试用的伪装，才代表「玩家真的做得到」。
 func _build_viable(m: WardrobeModel) -> void:

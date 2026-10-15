@@ -96,7 +96,7 @@ func add_gain(n: int) -> void:
 	save_profile()
 
 # 一局结束（通关）→ 记一笔战绩
-# ★ 第二十一轮起，失败**不算一局结束** —— 它只作废本轮，玩家会回到本关准备室重来，
+# ★ 第二十一轮起，失败**不算一局结束** —— 它只作废本轮，玩家会回到本轮准备室重来，
 #   同一局还可能最终通关。所以失败走 note_level_failed()，不写进 runs_played，
 #   否则「打过 N 局」会被同一次失败重复计数。
 func note_run_finished(cleared: int, won: bool) -> void:

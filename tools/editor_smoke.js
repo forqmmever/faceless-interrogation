@@ -282,8 +282,10 @@ try {
   ok(noBlind.length === 0, "4 套背景都有盲区题" + (noBlind.length ? " —— 缺 " + noBlind.join("、") : ""));
   ok(badBlind.length === 0, "盲区题字段齐全、不指向任何卡 / 事实" + (badBlind.length ? " —— " + badBlind.join("; ") : ""));
   console.log("   盲区题：" + P.story.backgrounds.map(bg => bg.id + "=" + blindOf(bg).length).join("  "));
+  // ★ 第四十二轮：这个「已迁移」的占位节被删掉了（它只剩一个只读字段，没有编辑价值）。
+  //   这条断言改成**反向**的 —— 防止以后有人又把它加回来。
   const movedSec = P.bgSections(P.story.backgrounds[0]).find(s => s.key === "questions_moved");
-  ok(!!movedSec, "背景页有「盘问题目 → 已并入题库」的提示节（逐题编辑在「🗣 题库」页）");
+  ok(!movedSec, "废弃的「盘问题目 → 已并入题库」占位节已经删掉（题目统一在「🗣 题库」页编辑）");
 
   console.log("\n-- 7h. 开场介绍 intro（第十三轮新增）--");
   const noIntro = P.story.backgrounds.filter(bg => !bg.intro);

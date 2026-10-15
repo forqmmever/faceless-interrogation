@@ -8,7 +8,7 @@ extends Node
 #
 #  三值机制（原创，WTS 无此设计）：
 #    - 暴露值 (exposure)      : 每件衣服一个数值，总和有上限
-#    - 接受度 (acceptance)    : 每关后提升，决定能否装备高门槛物品
+#    - 接受度 (acceptance)    : 每轮后提升，决定能否装备高门槛物品
 #    - 反差值 (contrast)      : 与「推导形象」的差距，决定质问环节是否被直接识破
 # ============================================================
 
@@ -961,12 +961,12 @@ static func reset_items_to_base() -> void:
 	_invalidate_item_index()
 
 
-# ---------- 关卡进度 ----------
+# ---------- 轮次进度 ----------
 # acceptance_gain : 通关后接受度提升值
 # contrast_req    : 进入质问环节所需的最低反差值（低于此值会被直接识破）
 # derived_profile : 审讯官依据线索「推导出的形象」
 #
-# 一局（run）最多 4 关。数值曲线固定，关卡名与「推导形象」由本局抽到的背景
+# 一局（run）最多 4 关。数值曲线固定，轮次名与「推导形象」由本局抽到的背景
 # 提供（见 ScenarioData.BACKGROUNDS[].levels，由 RunData.levels() 合并）。
 #
 # 曲线是怎么定的：
@@ -976,7 +976,7 @@ static func reset_items_to_base() -> void:
 #   注意第 1 关不能定得太高：接受度只有 6，高反差物件大半还锁着。
 #
 # ★ 外袍下架（DISABLED_SLOTS）之后重标过一次：robe_lace 原本能贡献 5 点反差，
-#   去掉后「每关能拿到的最大反差」整体掉了 5 点左右，第 4 关尤其紧
+#   去掉后「每轮能拿到的最大反差」整体掉了 5 点左右，第 4 关尤其紧
 #   （120 个种子实测：各关最大反差下限 61 / 73 / 83 / 83）。
 #   第 4 关的 78 于是压到 73 —— 恢复外袍时记得把这一档调回去。
 #
@@ -1001,14 +1001,14 @@ static func reset_items_to_base() -> void:
 #   （seed=447514 第 4 关，强制 panties_lace + bottom_pleat，反差 72 < 73）。
 #   这两件本身反差不高，却锁死了 panties / bottom 两个槽位，降 1 点即全绿。
 #
-# ★ 第二十三轮：「一局几关」不再写死 —— `LEVELS` 变成**运行时表**，
-#   从 `data/story.json` 的 "levels" 段读（编辑器里可增删关卡、改每关的数值）。
+# ★ 第二十三轮：「一局几轮」不再写死 —— `LEVELS` 变成**运行时表**，
+#   从 `data/story.json` 的 "levels" 段读（编辑器里可增删轮次、改每轮的数值）。
 #   下面这份 DEFAULT_LEVELS 是出厂兜底；文件缺失 / 那一段为空时用它。
 const START_ACCEPTANCE := 6
 
 # 反差值要求曲线的出厂参数（编辑器「⚙️ 数值规则」里可改）
 #   · base —— 第 1 关的要求（后面留空的关都从它往上加）
-#   · step —— 每关自增多少
+#   · step —— 每轮自增多少
 const CONTRAST_REQ_BASE := 24
 const CONTRAST_REQ_STEP := 3
 
@@ -1020,25 +1020,25 @@ const CONTRAST_PER_EXPOSURE := 5
 func contrast_per_exposure() -> int:
 	return int(ScenarioData.rule_i("contrast_per_exposure", CONTRAST_PER_EXPOSURE))
 
-# ---------- 关卡开放状态（第二十一轮）----------
+# ---------- 轮次开放状态（第二十一轮）----------
 # 「开始游戏」不再直接开局，而是先让玩家在**选关面板**上挑进哪一关。
-# 目前只开放第一关 —— 其余三关在面板上看得见、但点不动。
+# 目前只开放第一轮 —— 其余三关在面板上看得见、但点不动。
 #
-# ★ 这是「暂时锁定」而不是「删除」：关卡的数值曲线、名字、题目编排
+# ★ 这是「暂时锁定」而不是「删除」：轮次的数值曲线、名字、题目编排
 #   （LEVELS / 背景的 levels）一件没动，面板也只是把它们的按钮置灰。
 #   以后要开放第 N 关，把它的下标（0 起）加进这张表就行，别处都不用改。
 const OPEN_LEVELS := [0]
 
-# 关卡表 / 关数 —— 惰性从 story.json 读一次（见 ScenarioData.levels_override）
+# 轮次表 / 关数 —— 惰性从 story.json 读一次（见 ScenarioData.levels_override）
 # ★ 第四十一轮：**本局背景可以覆写它**（见 apply_run_overrides / _bg_levels）。
 #   背景覆写的语义有两条：
-#     · 数组**长度** = 这一局打几关（所以「给某套背景只配 3 关」只要写 3 条）
+#     · 数组**长度** = 这一局打几轮（所以「给某套背景只配 3 关」只要写 3 条）
 #     · 每一条是对全局第 i 关的**逐键覆写**（数值部分：acceptance_gain / contrast_req /
 #       questions_per_level；名字与推导形象仍由 RunData.levels() 从背景里叠 —— 见那里）
 var LEVELS: Array = []
 var MAX_LEVELS: int = 0
 
-# 全局那份关卡表（不含任何背景覆写）—— 背景覆写时拿它当逐键覆写的底
+# 全局那份轮次表（不含任何背景覆写）—— 背景覆写时拿它当逐键覆写的底
 var _global_levels_cache: Array = []
 
 func global_levels() -> Array:
@@ -1066,14 +1066,14 @@ func _ensure_levels() -> void:
 		elif not DEFAULT_LEVELS.is_empty():
 			# 背景配得比全局还多 —— 多出来的关用出厂表兜底，保证每一项都有值
 			base = (DEFAULT_LEVELS[mini(i, DEFAULT_LEVELS.size() - 1)] as Dictionary).duplicate()
-		# 逐键兜底：编辑器里少写一项也不会让这一关没有数值。
+		# 逐键兜底：编辑器里少写一项也不会让这一轮没有数值。
 		# ★ contrast_req 不在这里兜底 —— 它留空是有意义的（= 自增），
 		#   由下面的 _resolve_contrast_req 统一算出来。
 		for k in ["name", "acceptance_gain", "derived_profile"]:
 			if not base.has(k) or str(base.get(k, "")) == "":
 				base[k] = DEFAULT_LEVELS[0].get(k) if k != "name" \
-					else "第 %d 关" % (i + 1)
-		# ★ 背景这一关的覆写（逐键；只认数值类的键，名字那两项交给 RunData 叠）
+					else "第 %d 轮" % (i + 1)
+		# ★ 背景这一轮的覆写（逐键；只认数值类的键，名字那两项交给 RunData 叠）
 		if i < bg.size() and typeof(bg[i]) == TYPE_DICTIONARY:
 			for k in (bg[i] as Dictionary).keys():
 				if k == "name" or k == "derived_profile":
@@ -1086,11 +1086,11 @@ func _ensure_levels() -> void:
 # ============================================================
 #  反差值要求：自增 + 可手写覆盖（★ 第二十九轮）
 #
-#  用户口径：「关卡的反差值要求自增同时也可以修改」。
+#  用户口径：「轮次的反差值要求自增同时也可以修改」。
 #
 #  约定：**留空（或 0/负数）= 自动**。
 #    · 第 1 关留空 → 用 `rules.contrast_req_base`（出厂 20）；
-#    · 后面每一关留空 → 上一关的**最终值** + `rules.contrast_req_step`（出厂 10）；
+#    · 后面每一关留空 → 上一轮的**最终值** + `rules.contrast_req_step`（出厂 10）；
 #    · 写了正数 → 直接用，并成为它后面那些关自增的新起点。
 #
 #  ★ 之所以是「以上一个手写值为锚点」而不是「统一按关号套公式」：
@@ -1099,7 +1099,7 @@ func _ensure_levels() -> void:
 #    比逼着人把每一关都手写一遍要实用。
 #
 #  ★ 解析结果写回 LEVELS[i].contrast_req，所以**下游（判定 / 界面 / 测试）读到的
-#    永远是最终值**，不需要每处都去判断「这一关是不是自动的」。
+#    永远是最终值**，不需要每处都去判断「这一轮是不是自动的」。
 # ============================================================
 func _resolve_contrast_req() -> void:
 	var base := int(ScenarioData.rule_i("contrast_req_base", CONTRAST_REQ_BASE))
@@ -1113,12 +1113,12 @@ func _resolve_contrast_req() -> void:
 			# 编辑器里留空会写成 0，所以 0 也算「没写」
 			given = int(raw)
 		if given > 0:
-			prev = given                       # 手写的值：既是本关的要求，也是后面的起点
+			prev = given                       # 手写的值：既是本轮的要求，也是后面的起点
 		else:
 			prev = prev + step if i > 0 else base
 		d["contrast_req"] = prev
 
-# 这一关的要求是「手写的」还是「自增出来的」——
+# 这一轮的要求是「手写的」还是「自增出来的」——
 # 只给界面显示用（判定与测试都只读解析后的 contrast_req）。
 func contrast_req_is_auto(li: int) -> bool:
 	_ensure_levels()
@@ -1149,7 +1149,7 @@ func reload_levels() -> void:
 #  第四十一轮：按背景覆写「本局的流程配置」
 #
 #  用户口径：「每局游戏应该能够设置不同强制穿着，qte计划，身体缺陷，
-#            关卡轮数，原貌」，并补充「原貌也是按背景的四关每关都可以设置不同的」。
+#            轮次轮数，原貌」，并补充「原貌也是按背景的四关每轮都可以设置不同的」。
 #
 #  这五项都挂在背景上（`backgrounds[i]` 下同名键），默认（背景里不写）时
 #  完全等于以前的行为。运行时由 `RunData.start_new_run()` 抽完背景后调
@@ -1162,7 +1162,7 @@ func reload_levels() -> void:
 #    「当前是哪一套背景」；而 RunData 知道。把「本局那份」灌进来，
 #    比给每个读取函数加一个 bg_id 参数干净得多（后者要改几十个调用点）。
 # ============================================================
-var _bg_levels: Array = []       # 本局背景覆写的关卡表（长度 = 本局打几关）
+var _bg_levels: Array = []       # 本局背景覆写的轮次表（长度 = 本局打几轮）
 var _bg_forced: Array = []       # 本局背景覆写的强制穿着表
 var _bg_defects: Array = []      # 本局背景覆写的缺陷表
 
@@ -1219,9 +1219,9 @@ func open_level_count() -> int:
 #  设定：有些场合你没法自己决定穿什么 —— 府里发了号衣、海关要求穿查验服、
 #        场子里给「新人」统一配的行头。这就是「强制服装要求」。
 #
-#  ★ 第二十三轮：每关的强制要求改成**一张可编辑的规则表**
+#  ★ 第二十三轮：每轮的强制要求改成**一张可编辑的规则表**
 #    （见 FORCED_RULES / forced_groups_at）。三种模式：
-#      · "none"   —— 本关没有强制要求；
+#      · "none"   —— 本轮没有强制要求；
 #      · "random" —— 沿用旧的随机抽 0~2 件高暴露（出厂默认的第 2~4 关）；
 #      · "fixed"  —— 用 rules 里写死的规则，每条规则二选一：
 #                      {"pick": "all", "items": [...]}  这几件**都要穿**（只有一件就是「固定一件」）
@@ -1247,23 +1247,23 @@ const FORCED_MODE_FIXED := "fixed"
 
 # ★★ 第二十九轮：反差值要求改成「**自增 + 可手写覆盖**」。
 #
-#   用户口径：「关卡的反差值要求自增同时也可以修改」。
+#   用户口径：「轮次的反差值要求自增同时也可以修改」。
 #
 #   规则（见 _resolve_contrast_req）：
 #     · 第 1 关写一个基线值（出厂 20）；
-#     · 后面每一关**留空** → 自动 = 上一关 + `rules.contrast_req_step`（出厂 10）；
+#     · 后面每一关**留空** → 自动 = 上一轮 + `rules.contrast_req_step`（出厂 10）；
 #     · 任何一关**写了数字** → 就用它，并且成为它后面那些关自增的新起点。
 #
 #   所以「自增」不是固定公式，而是一条**以手写值为锚点**的阶梯 ——
 #   你可以在任意一关插一个数，后面整段跟着抬起来。
 const DEFAULT_LEVELS := [
-	{"name": "第一关", "acceptance_gain": 5, "contrast_req": 24, "derived_profile": "一个不起眼的路人"},
-	{"name": "第二关", "acceptance_gain": 5, "derived_profile": "有点来头的商贩"},
-	{"name": "第三关", "acceptance_gain": 6, "derived_profile": "被人打过招呼的熟面孔"},
-	{"name": "第四关", "acceptance_gain": 0, "derived_profile": "即将被放行的清白之人"},
+	{"name": "第一轮", "acceptance_gain": 5, "contrast_req": 24, "derived_profile": "一个不起眼的路人"},
+	{"name": "第二轮", "acceptance_gain": 5, "derived_profile": "有点来头的商贩"},
+	{"name": "第三轮", "acceptance_gain": 6, "derived_profile": "被人打过招呼的熟面孔"},
+	{"name": "第四轮", "acceptance_gain": 0, "derived_profile": "即将被放行的清白之人"},
 ]
 
-# 出厂兜底的强制规则表（下标 = 第几关）。
+# 出厂兜底的强制规则表（下标 = 第几轮）。
 #   第 1 关刻意留空 —— 开局就被人按着头穿某件衣服不公平（见 RunData._roll_forced_items）；
 #   后三关沿用旧的随机抽，所以升级到「规则表」之后玩法一点没变。
 const DEFAULT_FORCED_RULES := [
@@ -1397,7 +1397,7 @@ const DEFAULT_LOADOUT := TRUE_APPEARANCE
 func forced_rng_seed_base() -> int:
 	return 40503
 
-# ---------- 每关的强制规则表 ----------
+# ---------- 每轮的强制规则表 ----------
 # 惰性从 story.json 的 "forced_rules" 段读；出厂兜底见 DEFAULT_FORCED_RULES。
 var FORCED_RULES: Array = []
 
@@ -1437,7 +1437,7 @@ func reload_forced_rules() -> void:
 	FORCED_RULES = []
 	_ensure_forced_rules()
 
-# 第 li 关的强制规则（越界夹回最后一关；关卡比规则表多时按「没有要求」处理）
+# 第 li 关的强制规则（越界夹回最后一关；轮次比规则表多时按「没有要求」处理）
 func forced_rules_at(li: int) -> Dictionary:
 	_ensure_forced_rules()
 	if FORCED_RULES.is_empty():
@@ -1514,7 +1514,7 @@ func stat_max_of(field: String) -> int:
 func is_high_exposure(item: Dictionary) -> bool:
 	return int(item.get("exposure", 0)) >= FORCED_EXPOSURE_MIN
 
-# 本关「可能被强制穿上」的物品池：高暴露 且 接受度够
+# 本轮「可能被强制穿上」的物品池：高暴露 且 接受度够
 #   ★ 排除 `bare` 的空件 —— 「强制你（不穿上衣）」不是一条说得通的指令，
 #     那是「不许穿」而不是「必须穿」，语义和强制装备相反。
 func forced_pool(acceptance: int) -> Array:
@@ -1527,7 +1527,7 @@ func forced_pool(acceptance: int) -> Array:
 		if is_manual_slot(slot):
 			continue        # ★ 第三十九轮：妙妙工具只能手动装备，永不强制
 		if locked.has(slot):
-			continue        # 见 forced_locked_out_slots()：锁死这个槽位 = 本关死局
+			continue        # 见 forced_locked_out_slots()：锁死这个槽位 = 本轮死局
 		if is_bare(it):
 			continue
 		if is_high_exposure(it) and can_equip(it, acceptance):
@@ -1536,7 +1536,7 @@ func forced_pool(acceptance: int) -> Array:
 
 # ---------- 不准被强制装备占用的槽位（第二十七轮）----------
 # 某个身体缺陷的**全部可用遮挡物**都集中在同一个槽位时，那个槽位就是它的唯一解 ——
-# 强制装备一旦锁死它，玩家就再也遮不住这处缺陷，本关直接变成死局。
+# 强制装备一旦锁死它，玩家就再也遮不住这处缺陷，本轮直接变成死局。
 #
 # ★ 现在撞上的是 `hand_tattoo`（右手背黑帮血蛇刺青）：它的 `cover_tags` 是
 #   `glove` / `long_sleeve`，而 `gloves` 槽位第二十七轮下架了 →
@@ -1581,7 +1581,7 @@ func forced_locked_out_slots() -> Array:
 	#   与它互斥的槽位**同样不能**被强制装备占用。
 	#   理由：成装与上装 / 下装互斥（见 EXCLUSIVE_GROUPS），穿上成装就会把上装清空。
 	#   而手背刺青的唯一遮挡物就在上装（手套栏下架后只剩长袖上衣）——
-	#   一旦强制穿成装，上装就永远穿不回来，本关直接死局。
+	#   一旦强制穿成装，上装就永远穿不回来，本轮直接死局。
 	#   实测：补了 8 件高暴露成装之后，120 种子 × 4 关里出现 1 例
 	#   `forced=["dress_cheongsam", "bottom_pvc"]`（成装 + 下装本身也穿不到一起）。
 	#   这条同样是**算出来的**：将来手套栏恢复，上装不再是唯一解，成装自动解锁。

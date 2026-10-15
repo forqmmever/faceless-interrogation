@@ -6,14 +6,14 @@ extends Node
 #  与 ProfileData 的分工（两者都在 user:// 下，互不干扰）：
 #    · ProfileData = **账号级元进度**：跨局累积的接受度、战绩。
 #                    它永远不清零 —— 整局失败也不退还。
-#    · RunSave     = **一局之内的进度**：打到第几关、那身打扮、手机里的进度。
+#    · RunSave     = **一局之内的进度**：打到第几轮、那身打扮、手机里的进度。
 #                    它只保留「最近一次停下的地方」，专门用来续玩。
 #
 #  为什么只存一个种子就够还原：
 #    一局的背景、A 的原貌、外貌情报、相册、审讯官性情，全部由 seed_value
 #    确定性生成（见 RunData.start_new_run / _level_rng）。所以存档只要记住
 #    种子，重放一遍就一模一样。真正需要额外记的只有三样：
-#      · 打到第几关（level_index / cleared_levels）
+#      · 打到第几轮（level_index / cleared_levels）
 #      · 玩家自己换的那身衣服（equipped）
 #      · 手机与情报的进度（读了哪几条短信、擦了哪几张照片、立过什么口径）
 #
@@ -23,7 +23,7 @@ extends Node
 #
 #  什么时候清：
 #    整局通关（4/4）就清掉 —— 「继续游戏」只在局内成立。
-#    ★ **失败不清**（第二十一轮）：失败只作废本轮，玩家会回到本关准备室重来，
+#    ★ **失败不清**（第二十一轮）：失败只作废本轮，玩家会回到本轮准备室重来，
 #      这一局还在进行中，存档当然要留着。
 #
 #  测试注意：
@@ -140,7 +140,7 @@ func load_save() -> void:
 	game = g.duplicate() if typeof(g) == TYPE_DICTIONARY else {}
 
 	has_run = bool(d.get("has_run", false)) and seed_value != 0
-	# 关卡越界（存档被改坏 / 版本对不上）→ 当没有存档，别把玩家丢进一个不存在的关卡
+	# 轮次越界（存档被改坏 / 版本对不上）→ 当没有存档，别把玩家丢进一个不存在的轮次
 	if level_index >= OutfitData.level_count():
 		has_run = false
 
@@ -193,7 +193,7 @@ func summary() -> String:
 	var bg := background_name
 	if bg == "":
 		bg = "（背景未知）"
-	return "第 %d 局 ｜ %s ｜ 停在第 %d / %d 关的准备室" % [
+	return "第 %d 局 ｜ %s ｜ 停在第 %d / %d 轮的准备室" % [
 		run_index, bg, level_index + 1, OutfitData.level_count()]
 
 # ============================================================

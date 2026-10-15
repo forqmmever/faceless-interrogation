@@ -29,7 +29,7 @@ extends Control
 #    准备室只把数字摊开（反差值多少、缺陷遮没遮、强制装备穿没穿），
 #    不下结论、不锁门。门一开、他抬眼的这一瞬间才是判决 ——
 #    不合格，他当场念出 A 的真身名：「怎么是你，<名字>。」本轮结束
-#    （第二十一轮起失败只作废本轮 —— 回到本关的准备室重来）。
+#    （第二十一轮起失败只作废本轮 —— 回到本轮的准备室重来）。
 # ============================================================
 
 signal interrogation_finished(success: bool)
@@ -153,15 +153,15 @@ var combo_index: int = 0                   # 组合干扰：已经敲对了几�
 var interference_line: String = ""         # 他这一次递的那句话（显示在干扰条上）
 
 var current_options: Array = []
-var _questions: Array = []               # 本关实际要问的题（从背景题库里抽出来的）
+var _questions: Array = []               # 本轮实际要问的题（从背景题库里抽出来的）
 var _ended: bool = false
 var _running: bool = false               # 只有开局后才驱动计时器，避免未开局时干扰抢跑
-var _success: bool = false               # 本关盘问结果
+var _success: bool = false               # 本轮盘问结果
 var _result_shown: bool = false
 var _end_reason: String = ""             # "recognized" / "exposure" / "caught" / "gameover" / ""
 
 # --- 盘问中掏手机 ---
-var phone_pulls: int = 0                 # 本关掏了几次
+var phone_pulls: int = 0                 # 本轮掏了几次
 var _phone_open: bool = false
 
 # --- UI 引用（全部代码构建）---
@@ -721,10 +721,10 @@ func start_interrogation() -> void:
 	interference_timer = interference_interval()
 	feedback_label.add_theme_color_override("font_color", Color(0.66, 0.70, 0.76))
 
-	# QTE 状态整块清掉 —— 上一关残留的面板 / 延迟不能带过来
+	# QTE 状态整块清掉 —— 上一轮残留的面板 / 延迟不能带过来
 	_cancel_qte()
 
-	# 掏手机的次数是「本关」的 —— 换了关就重新数
+	# 掏手机的次数是「本轮」的 —— 换了关就重新数
 	phone_pulls = 0
 	_close_phone()
 	if phone_btn != null:
@@ -732,7 +732,7 @@ func start_interrogation() -> void:
 	if phone_notice != null:
 		phone_notice.hide()
 
-	# 本关要问的题：从本局背景的题库里确定性抽 QUESTIONS_PER_LEVEL 道
+	# 本轮要问的题：从本局背景的题库里确定性抽 QUESTIONS_PER_LEVEL 道
 	_questions = DossierData.questions_for_level(
 		RunData.level_index, _ri("questions_per_level", QUESTIONS_PER_LEVEL))
 
@@ -741,7 +741,7 @@ func start_interrogation() -> void:
 		RunData.level_number(), RunData.level_name()]
 
 	# 怀疑度（第十三轮）：
-	#   第 1 关 = 基准值；之后各关 = 上一关带过来的 × 衰减比例。
+	#   第 1 关 = 基准值；之后各关 = 上一轮带过来的 × 衰减比例。
 	#   用 GameData 里的同一条规则重算一遍，保证直接调 start_interrogation()
 	#   的测试 / 截图脚本也拿到正确值。
 	GameData.begin_level_suspicion()
@@ -763,7 +763,7 @@ func start_interrogation() -> void:
 
 	_load_question(0)
 
-# 本关的题目（供测试与调试查看）
+# 本轮的题目（供测试与调试查看）
 func level_questions() -> Array:
 	return _questions
 
@@ -889,7 +889,7 @@ func _instant_exposure(why: String) -> void:
 
 # ---------------- 主循环 ----------------
 func _process(delta: float) -> void:
-	# 晃动要一直衰减 —— 即使这一关已经结束（识破 / 逮捕那一刻也要晃完）
+	# 晃动要一直衰减 —— 即使这一轮已经结束（识破 / 逮捕那一刻也要晃完）
 	_process_shake(delta)
 	if not _running or _ended:
 		return
@@ -1572,7 +1572,7 @@ func _record_statement(fid: String, val: String) -> bool:
 		return false
 	return val != prev
 
-# 矛盾累计到上限 → 当场识破。返回 true 表示已经结束了本关。
+# 矛盾累计到上限 → 当场识破。返回 true 表示已经结束了本轮。
 func _maybe_exposed_by_contradiction() -> bool:
 	if GameData.contradictions < _ri("contradiction_limit", CONTRADICTION_LIMIT):
 		return false
@@ -1589,7 +1589,7 @@ func _current_question() -> Dictionary:
 #  ★ 第十三轮：一轮（一关）之内**不会**出现前后矛盾 ——
 #    同一关里不会再问同一个事实第二遍（见 RunData 的出题编排），
 #    所以这里的 `first` 分支在一关里至多走一次。
-#    真正会翻车的只有「跨关复问」：翻出**前面几关**立过的说法来问。
+#    真正会翻车的只有「跨关复问」：翻出**前面几轮**立过的说法来问。
 #    「前后矛盾」的判定仍然保留在 `else` 分支里 —— 那是跨关复问走的路。
 #  轮内怀疑度只涨不跌：答对口径不再给负奖励，只写文案。
 func _answer_fact(opt: Dictionary) -> void:
@@ -2011,7 +2011,7 @@ func _finish_interrogation() -> void:
 
 	var who := RunData.interrogator()
 	var passed: bool = GameData.suspicion_level < _rf("pass_suspicion", PASS_SUSPICION)
-	# 这一关结束时的怀疑度留给下一关 —— 轮次之间按比例衰减（见 GameData.reset_level_state）
+	# 这一轮结束时的怀疑度留给下一轮 —— 轮次之间按比例衰减（见 GameData.reset_level_state）
 	GameData.suspicion_carry = GameData.suspicion_level
 	if passed:
 		dialogue_label.text = _et("success_line",
@@ -2049,19 +2049,19 @@ func _show_result(success: bool) -> void:
 			result_btn.text = _et("result_last_btn", "完成本局  ➔")
 		else:
 			result_hint.text = _et("result_next_hint",
-				"本关通过。接受度提升 %d，暴露值上限随之放宽 —— "
-				+ "但下一关要求的反差值也更高。") \
+				"本轮通过。接受度提升 %d，暴露值上限随之放宽 —— "
+				+ "但下一轮要求的反差值也更高。") \
 				% int(RunData.current_level().get("acceptance_gain", 0))
-			result_btn.text = _et("result_next_btn", "进入下一关  ➔")
+			result_btn.text = _et("result_next_btn", "进入下一轮  ➔")
 	else:
 		if _end_reason == "recognized":
 			result_hint.text = _et("result_recognized_hint",
 				"他一眼就叫出了你的名字 —— 这一身没能把 A 盖住。\n"
-				+ "回到这一关的准备室，重新改一遍打扮。")
+				+ "回到这一轮的准备室，重新改一遍打扮。")
 			result_btn.text = _et("result_recognized_btn", "重来本轮  ↺")
 		else:
 			result_hint.text = _et("result_fail_hint",
-				"这一轮到此为止 —— 回到这一关的准备室重来。\n"
+				"这一轮到此为止 —— 回到这一轮的准备室重来。\n"
 				+ "背景与他的记忆都不变，你已经查到的情报也还在。")
 			result_btn.text = _et("result_fail_btn", "重来本轮  ↺")
 

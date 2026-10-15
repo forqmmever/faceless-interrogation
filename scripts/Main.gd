@@ -6,7 +6,7 @@ extends Node
 #  一局（run）：
 #    开始界面（开始 / 继续 / 退出）
 #      ↓
-#    选关面板（4 个入口；目前只开放第一关，其余锁定 —— OutfitData.OPEN_LEVELS）
+#    选关面板（4 个入口；目前只开放第一轮，其余锁定 —— OutfitData.OPEN_LEVELS）
 #      ↓
 #    随机抽一套背景 + 随机生成 A 的原貌
 #      ↓
@@ -16,12 +16,12 @@ extends Node
 #      ├─ 开场：他抬眼，认出你 → 「怎么是你，<A 真身名>」
 #      ├─ 通过 → 第 2 关（背景与原貌不变，接受度提升、反差要求提高）
 #      ├─ 通过 → 第 3 关 … 第 4 关
-#      ├─ 任何一关失败 → **回到本轮开始**（本关的准备室，见 _retry_level）
+#      ├─ 任何一关失败 → **回到本轮开始**（本轮的准备室，见 _retry_level）
 #      └─ 第 4 关通过 → 整局结束，重新抽背景与原貌，从头再来
 #
 #  为什么这样切：
-#    「本轮失败就回本关重来」把每一次盘问都变成真赌注，又不至于让玩家
-#    把前面几关辛苦查到的情报一起赔进去 —— 他记忆里的那张脸没变，
+#    「本轮失败就回本轮重来」把每一次盘问都变成真赌注，又不至于让玩家
+#    把前面几轮辛苦查到的情报一起赔进去 —— 他记忆里的那张脸没变，
 #    要改的只是这一轮的打扮；
 #    「背景与原貌每局重抽」则保证新的一局不是背答案，而是重新推理。
 #
@@ -30,7 +30,7 @@ extends Node
 #
 #  ★ 存档分两层：
 #    ProfileData —— 账号级（跨局累积的接受度、战绩），失败也不退；
-#    RunSave     —— 局内（打到第几关、那身打扮、手机进度），供「继续游戏」。
+#    RunSave     —— 局内（打到第几轮、那身打扮、手机进度），供「继续游戏」。
 #    每进一关、每改一次打扮都写一次 RunSave，所以直接关窗口也不会丢。
 # ============================================================
 
@@ -50,7 +50,7 @@ var title_continue_btn: Button
 var title_quit_btn: Button
 
 # ---- 选关面板（第二十一轮）----
-# 「开始游戏」之后先出这一层：4 个入口，只有开放的那几关点得动。
+# 「开始游戏」之后先出这一层：4 个入口，只有开放的那几轮点得动。
 var level_select: Control
 var level_select_rows: Array = []      # [{btn, note, li}]
 var level_select_back_btn: Button
@@ -138,10 +138,10 @@ func _on_title_quit() -> void:
 #  选关面板
 #
 #  用户口径：「四关不再是点击开始后随机，而是点击开始游戏后出现进入四关的选项，
-#            目前只开放第一关，其他关暂时锁定，无需删除」
+#            目前只开放第一轮，其他关暂时锁定，无需删除」
 #
 #  · 四行都在、名字都在 —— 锁着的只是按钮（灰、点不动、右侧写「尚未开放」）；
-#  · 哪几关开放由 OutfitData.OPEN_LEVELS 说了算，这里一行代码都不用改；
+#  · 哪几轮开放由 OutfitData.OPEN_LEVELS 说了算，这里一行代码都不用改；
 #  · 点开放的那一关 → 按那一关开局（RunData.start_new_run(seed, li)）。
 # ============================================================
 func _build_level_select() -> void:
@@ -187,7 +187,7 @@ func _build_level_select() -> void:
 
 	var sub := Label.new()
 	sub.text = _ut("title.select_sub",
-		"一次一局，从选中的那一关往后走。锁着的关卡还没做完 —— 没有删除。")
+		"一次一局，从选中的那一关往后走。锁着的轮次还没做完 —— 没有删除。")
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	sub.add_theme_font_size_override("font_size", 12)
@@ -196,7 +196,7 @@ func _build_level_select() -> void:
 
 	vb.add_child(HSeparator.new())
 
-	# 关卡入口 —— 名字从 OutfitData.levels() 取（数值曲线那张表，跨背景通用）
+	# 轮次入口 —— 名字从 OutfitData.levels() 取（数值曲线那张表，跨背景通用）
 	level_select_rows = []
 	for li in OutfitData.level_count():
 		var unlocked: bool = OutfitData.level_unlocked(li)
@@ -206,7 +206,7 @@ func _build_level_select() -> void:
 
 		var btn := Button.new()
 		var lv := OutfitData.level_at(li)
-		var lv_name := str(lv.get("name", "第 %d 关" % (li + 1)))
+		var lv_name := str(lv.get("name", "第 %d 轮" % (li + 1)))
 		btn.text = "%s   ·   %s" % [lv_name, str(lv.get("derived_profile", ""))]
 		btn.custom_minimum_size = Vector2(0, 48)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -289,7 +289,7 @@ func _on_level_selected(li: int) -> void:
 
 # ---------------- 流程 ----------------
 # seed_in >= 0 时用固定种子开新局（截图与测试需要可复现的随机结果）
-# start_level：从第几关开始（选关面板传进来；0 = 第一关）
+# start_level：从第几轮开始（选关面板传进来；0 = 第一轮）
 func _start_new_run(seed_in: int = -1, start_level: int = 0) -> void:
 	RunData.start_new_run(seed_in, start_level)
 	_hide_title()
@@ -303,7 +303,7 @@ func _start_new_run(seed_in: int = -1, start_level: int = 0) -> void:
 	_intro_shown_this_run = false
 	_ensure_intro_shown()
 
-# 继续上一局：把种子、关卡、那身打扮、手机进度一起接回来
+# 继续上一局：把种子、轮次、那身打扮、手机进度一起接回来
 func _continue_run() -> void:
 	if not RunSave.has_run:
 		return
@@ -327,12 +327,12 @@ func _start_level() -> void:
 	_hide_overlay()
 	interrogation.hide()
 	wardrobe.start_level()
-	# ★ 轮次之间的怀疑度衰减：上一关结束时的值 × 比例 → 本关开局值
+	# ★ 轮次之间的怀疑度衰减：上一轮结束时的值 × 比例 → 本轮开局值
 	GameData.begin_level_suspicion()
 	# ★ 新一轮开始 → 重新拍快照（上一轮的快照就此作废）
 	GameData.snapshot_level_state()
 	RunSave.save_progress(wardrobe.model.equipped)
-	# 一关刚通过 —— 再弹一次本关的开场说明（换了一关，场景也换了）
+	# 一关刚通过 —— 再弹一次本轮的开场说明（换了一关，场景也换了）
 	_ensure_intro_shown()
 
 # ============================================================
@@ -341,7 +341,7 @@ func _start_level() -> void:
 #  用户口径：「失败后返回本轮开始」
 #
 #  与 _start_level() 的差别只有一处：**不推进关卡**，而是把本轮里发生的事
-#  回滚到进这一关那一刻（立过的说法、矛盾计数、怀疑度、问答记录）。
+#  回滚到进这一轮那一刻（立过的说法、矛盾计数、怀疑度、问答记录）。
 #  背景 / A 的原貌 / 情报进度 / 接受度 / 强制装备一概不动 ——
 #  他记忆里的那张脸没变，你已经查到的也还在，要改的只是这一轮的打扮。
 # ============================================================
@@ -395,12 +395,12 @@ func _on_interrogation_finished(success: bool) -> void:
 			_win_body(), _et("overlay_win_btn", "再来一局（新背景 · 新原貌）  ↺"), Color(0.42, 0.90, 0.62))
 		return
 
-	# 本关通过 → 推进到下一关（同一局：背景不变、原貌不变）
+	# 本轮通过 → 推进到下一轮（同一局：背景不变、原貌不变）
 	var gain := int(RunData.current_level().get("acceptance_gain", 0))
 	RunData.advance_level()
 	_pending_action = "next_level"
-	_show_overlay(_et("overlay_level_title", "✅ 第 %d 关通过") % passed_level,
-		_next_level_body(gain), _et("overlay_level_btn", "进入第 %d 关  ➔") % RunData.level_number(),
+	_show_overlay(_et("overlay_level_title", "✅ 第 %d 轮通过") % passed_level,
+		_next_level_body(gain), _et("overlay_level_btn", "进入第 %d 轮  ➔") % RunData.level_number(),
 		Color(0.42, 0.90, 0.62))
 
 func _on_overlay_pressed() -> void:
@@ -413,7 +413,7 @@ func _on_overlay_pressed() -> void:
 
 # ---------------- 覆盖层文案 ----------------
 func _level_line() -> String:
-	return "[color=#c8ccd4]第 [b]%d[/b] / %d 关[/color] ｜ [color=#8fb8f0]接受度 [b]%d[/b][/color] ｜ [color=#c8ccd4]暴露值上限 [b]%d[/b][/color]" % [
+	return "[color=#c8ccd4]第 [b]%d[/b] / %d 轮[/color] ｜ [color=#8fb8f0]接受度 [b]%d[/b][/color] ｜ [color=#c8ccd4]暴露值上限 [b]%d[/b][/color]" % [
 		RunData.level_number(), RunData.level_count(),
 		RunData.acceptance, RunData.exposure_cap_at(RunData.level_index)]
 
@@ -421,7 +421,7 @@ func _next_level_body(gain: int) -> String:
 	var lv := RunData.current_level()
 	return _et("overlay_next_body",
 		"[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n"
-		+ "[color=#f0a83c]下一关[/color]  %s\n"
+		+ "[color=#f0a83c]下一轮[/color]  %s\n"
 		+ "接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n"
 		+ "反差值要求提高到 [b]%d[/b]\n\n"
 		+ "[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，"
@@ -433,22 +433,26 @@ func _next_level_body(gain: int) -> String:
 func _fail_body() -> String:
 	return _et("overlay_fail_body",
 		"[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n"
-		+ "[color=#8a919c]进度[/color]  已通过 [b]%d[/b] / %d 关\n\n"
-		+ "这一轮到此为止 —— 回到[color=#f0a83c]这一关的准备室[/color]重来。\n"
+		+ "[color=#8a919c]进度[/color]  已通过 [b]%d[/b] / %d 轮\n\n"
+		+ "这一轮到此为止 —— 回到[color=#f0a83c]这一轮的准备室[/color]重来。\n"
 		+ "背景不变、他记忆里的那张脸不变、你已经查到的情报也都还在。\n"
 		+ "要改的是[color=#f0a83c]这一轮的打扮[/color]，不是身份。") % [
 		RunData.run_index, RunData.background_name(),
 		RunData.cleared_levels, RunData.level_count()]
 
 func _win_body() -> String:
+	# ★ 第四十二轮：「4 / 4 关」是写死的，而第四十一轮起轮数可以按背景配置 ——
+	#   所以改成动态的 %d / %d，参数用「已通过轮数 / 本局总轮数」。
+	#   （文案本身在 story.json 的 endings.overlay_win_body 里，编辑器可改。）
 	return _et("overlay_win_body",
 		"[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n"
 		+ "[color=#8a919c]身份[/color]  %s → 以「%s」的身份走完全程\n"
-		+ "[color=#8a919c]成绩[/color]  4 / 4 关全部通过 ｜ 前后矛盾 [b]%d[/b] 次\n\n"
+		+ "[color=#8a919c]成绩[/color]  %d / %d 轮全部通过 ｜ 前后矛盾 [b]%d[/b] 次\n\n"
 		+ "你把 A 藏进了 B 的皮里，一路没有露馅。\n"
 		+ "同行者从头到尾没有揭穿你 —— 他只是把你留在了原地。") % [
 		RunData.run_index, RunData.background_name(),
-		RunData.true_role(), RunData.cover_role(), GameData.contradictions]
+		RunData.true_role(), RunData.cover_role(),
+		RunData.cleared_levels, RunData.level_count(), GameData.contradictions]
 
 # ---------------- 开始界面 UI ----------------
 func _build_title() -> void:
@@ -624,7 +628,7 @@ func _hide_overlay() -> void:
 func _sync_wardrobe_to_gamedata() -> void:
 	var m: WardrobeModel = wardrobe.model
 
-	# 先清掉上一关残留的判定结果（怀疑度也在这一步复位）
+	# 先清掉上一轮残留的判定结果（怀疑度也在这一步复位）
 	GameData.reset_level_state()
 
 	GameData.acceptance = m.acceptance
@@ -651,7 +655,7 @@ func _sync_wardrobe_to_gamedata() -> void:
 	GameData.is_defect_covered = GameData.defects_covered
 
 # ============================================================
-#  开场介绍浮窗（每局 / 每关开场弹一次，可随时重新打开）
+#  开场介绍浮窗（每局 / 每轮开场弹一次，可随时重新打开）
 #
 #  用户口径：「开场会弹出一个浮动窗口介绍本局背景（可用编辑器更改）
 #            关闭后可点击按钮再次打开」
@@ -748,7 +752,7 @@ func _show_intro() -> void:
 	if title == null:
 		title = intro_layer.find_child("IntroTitle", true, false)
 	if title != null:
-		(title as Label).text = "%s ｜ 第 %d 关 · %s" % [
+		(title as Label).text = "%s ｜ 第 %d 轮 · %s" % [
 			RunData.background_name(), RunData.level_number(), RunData.level_name()]
 	intro_body.text = DossierData.intro_text()
 	intro_layer.show()

@@ -16,7 +16,7 @@ extends Control
 #      ★ 第三十一轮（用户口径）：C. 反差值那一行撤掉了 —— 反差值现在由整套搭配算，
 #        不是单件衣服的固有属性，印在卡上会误导（详见文档里「反差值」一节）。
 #    · 连续量另有一条**渐变刻度条 + 指针**，并多画一条**阈值刻线**：
-#      暴露值 → 上限；反差值 → 本关要求。跨没跨过去，看刻线左右就知道。
+#      暴露值 → 上限；反差值 → 本轮要求。跨没跨过去，看刻线左右就知道。
 #
 #  ★ 这一阶段**不替玩家下结论**。
 #    这里只把数字摊开：反差值多少、要求多少、缺陷遮没遮、强制装备穿没穿。
@@ -40,7 +40,7 @@ const SLOT_BAR_W := 3
 # 量表的**绝对量程** —— 故意不跟着阈值走。
 #   ★ 这里有个坑：如果量程取成「阈值 × 1.35」，那阈值刻线的位置就恒等于
 #     1/1.35 ≈ 74%，三条量表的刻线全落在同一个地方 —— 那条刻线等于没画。
-#     所以量程按**这个数值本身的可能范围**定，刻线才会随关卡移动
+#     所以量程按**这个数值本身的可能范围**定，刻线才会随轮次移动
 #     （第 1 关的暴露上限在 40%，到第 4 关挪到 98%，一眼看得出预算在放宽）。
 #   暴露 55 = 第 4 关上限 54 再留 1；反差 100 = 全槽位取最大能凑出 99 再留 1。
 const SCALE_MAX := {"expose": 55.0, "contrast": 100.0}
@@ -82,7 +82,7 @@ func start_run() -> void:
 	intel.reset()
 	start_level()
 
-# 进入本局当前这一关：装备退回 A 的原貌，接受度与关卡同步过来
+# 进入本局当前这一轮：装备退回 A 的原貌，接受度与轮次同步过来
 # 情报进度（已还原的外貌 / 已归类的身份）**跨关保留** —— 同一局里他还是那个人
 func start_level() -> void:
 	model.reset_for_level(RunData.acceptance, RunData.level_index, RunData.true_appearance(),
@@ -93,7 +93,7 @@ func start_level() -> void:
 		_peek_sync = true
 		peek_btn.button_pressed = false
 		_peek_sync = false
-	# 手机要跟着刷新：这一关的短信是新解锁的，手机里的列表得重算。
+	# 手机要跟着刷新：这一轮的短信是新解锁的，手机里的列表得重算。
 	intel.rebuild()
 	_refresh()
 	show()
@@ -215,13 +215,13 @@ func _build_ui() -> void:
 	bottom_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bottom.add_child(bottom_spacer)
 
-	# ---- 测试按钮：一键满足本关全部服装要求 ----
+	# ---- 测试按钮：一键满足本轮全部服装要求 ----
 	auto_btn = Button.new()
 	auto_btn.text = "一键达标"
 	auto_btn.custom_minimum_size = Vector2(96, 44)
 	auto_btn.add_theme_font_size_override("font_size", 12)
-	auto_btn.tooltip_text = ("测试用捷径（不是玩法的一部分）：自动穿好本关强制装备、"
-		+ "遮住全部身体缺陷、把反差值拉到本关要求以上，并保证暴露值不超上限。\n"
+	auto_btn.tooltip_text = ("测试用捷径（不是玩法的一部分）：自动穿好本轮强制装备、"
+		+ "遮住全部身体缺陷、把反差值拉到本轮要求以上，并保证暴露值不超上限。\n"
 		+ "求解是精确的 —— 约束下能达到的最大反差。")
 	auto_btn.pressed.connect(_on_auto_complete)
 	bottom.add_child(auto_btn)
@@ -306,7 +306,7 @@ func _build_preview(parent: HBoxContainer) -> void:
 	_add_stat_block(col, "expose", "暴露值", DolStyle.RAMP_EXPOSE, "over_bad",
 		"暴露值：这身打扮有多扎眼。跨过橙色刻线（本关上限）就会被一眼记住。")
 	_add_stat_block(col, "contrast", "反差值", DolStyle.RAMP_CONTRAST, "under_bad",
-		"反差值：你和「他记忆里的样子」差了多少。到橙色刻线（本关要求）才算够。")
+		"反差值：你和「他记忆里的样子」差了多少。到橙色刻线（本轮要求）才算够。")
 
 	col.add_child(HSeparator.new())
 
@@ -483,8 +483,8 @@ func _make_card(it: Dictionary) -> Dictionary:
 
 	# ★ 第三十一轮（用户口径）：卡上**只留一行** E. 暴露值 —— 「C. 反差值」整行去掉。
 	#   反差值不再是「单件衣服的固有属性」（第二十九轮起它由整套搭配算出来），
-	#   印在卡上反而误导：玩家会以为挑几件高反差的零件就能凑够本关要求。
-	#   本关还差多少，看左侧那条量表。
+	#   印在卡上反而误导：玩家会以为挑几件高反差的零件就能凑够本轮要求。
+	#   本轮还差多少，看左侧那条量表。
 	var e := _add_pip_line(box, "E.", DolStyle.RAMP_EXPOSE, OutfitData.stat_max_of("exposure"))
 
 	return {"btn": b, "name": name_lab, "e": e,
@@ -537,7 +537,7 @@ func _on_item_pressed(item: Dictionary) -> void:
 	if model.toggle(item):
 		_refresh()
 
-# ---- 测试按钮：一键满足本关全部服装要求 ----
+# ---- 测试按钮：一键满足本轮全部服装要求 ----
 func _on_auto_complete() -> void:
 	var rep: Dictionary = model.auto_complete_outfit()
 	_auto_msg = _auto_report_text(rep)
@@ -545,7 +545,7 @@ func _on_auto_complete() -> void:
 
 func _auto_report_text(rep: Dictionary) -> String:
 	if bool(rep.get("ok", false)):
-		return ("[color=#6fd39a]测试按钮：已满足本关全部服装要求"
+		return ("[color=#6fd39a]测试按钮：已满足本轮全部服装要求"
 			+ "（反差 %d / %d ｜ 暴露 %d / %d）[/color]") % [
 			int(rep.get("contrast", 0)), int(rep.get("contrast_req", 0)),
 			int(rep.get("exposure", 0)), int(rep.get("exposure_cap", 0))]
@@ -556,12 +556,12 @@ func _auto_report_text(rep: Dictionary) -> String:
 	for it in rep.get("missing_forced", []):
 		why.append("强制装备「%s」穿不上" % str((it as Dictionary).get("name", "")))
 	if int(rep.get("contrast", 0)) < int(rep.get("contrast_req", 0)):
-		why.append("反差 %d 达不到本关要求的 %d" % [
+		why.append("反差 %d 达不到本轮要求的 %d" % [
 			int(rep.get("contrast", 0)), int(rep.get("contrast_req", 0))])
 	if int(rep.get("exposure", 0)) > int(rep.get("exposure_cap", 0)):
 		why.append("暴露 %d 超出上限 %d" % [
 			int(rep.get("exposure", 0)), int(rep.get("exposure_cap", 0))])
-	return "[color=#f0a83c]测试按钮：尽力了，这一关仍差 %d 处 —— %s[/color]" % [
+	return "[color=#f0a83c]测试按钮：尽力了，这一轮仍差 %d 处 —— %s[/color]" % [
 		why.size(), "；".join(why)]
 
 func _on_continue() -> void:
@@ -577,7 +577,7 @@ func _refresh() -> void:
 func _update_run_label() -> void:
 	if run_label == null:
 		return
-	run_label.text = "第 %d 局 ｜ %s ｜ 第 %d / %d 关 ｜ %s" % [
+	run_label.text = "第 %d 局 ｜ %s ｜ 第 %d / %d 轮 ｜ %s" % [
 		RunData.run_index, RunData.background_name(),
 		RunData.level_number(), RunData.level_count(),
 		model.level_name()]
@@ -795,7 +795,7 @@ func _refresh_buttons() -> void:
 
 			var tip := _tip_for(it, locked, affordable)
 			if model.is_forced_id(str(it["id"])):
-				tip = "本关强制装备 —— 不穿会当场被识破\n" + tip
+				tip = "本轮强制装备 —— 不穿会当场被识破\n" + tip
 			if is_equipped:
 				tip += "\n已装备"
 			b.tooltip_text = tip
@@ -824,18 +824,18 @@ func _update_stats() -> void:
 	_refresh_stat_block("contrast", float(con_t), float(con_r), con_t < con_r)
 
 	# ---- 文字清单（这些是「有或没有」，不适合做刻度）----
-	#  ★ 用户口径（第十七轮）：这里不再重复关卡名 —— 顶部标题栏「第 1 / 4 关 ｜
-	#    第一关 · 外栅栏哨位」已经写了；悬停里那句「审讯官依据线索推导出的形象」
+	#  ★ 用户口径（第十七轮）：这里不再重复轮次名 —— 顶部标题栏「第 1 / 4 关 ｜
+	#    第一轮 · 外栅栏哨位」已经写了；悬停里那句「审讯官依据线索推导出的形象」
 	#    也一并撤掉，只留场所一行。
 	var lines := []
 	lines.append("[color=#8fb8f0]接受度 [b]%d[/b][/color]" % model.acceptance)
 	if ProfileData.bonus() > 0:
 		lines.append("[color=#6f7684]跨局保留 [b]+%d[/b]（失败也不会丢）[/color]" % ProfileData.bonus())
 
-	# 本关强制装备（0 ~ 2 件高暴露衣物，没穿 = 当场识破）
+	# 本轮强制装备（0 ~ 2 件高暴露衣物，没穿 = 当场识破）
 	var forced := model.forced_items_info()
 	if forced.is_empty():
-		lines.append("[color=#c8ccd4]【强制装备】[/color][color=#7a8290]本关没有硬性要求[/color]")
+		lines.append("[color=#c8ccd4]【强制装备】[/color][color=#7a8290]本轮没有硬性要求[/color]")
 	else:
 		var miss_ids := []
 		for m in model.missing_forced():
@@ -871,7 +871,7 @@ func _update_stats() -> void:
 
 # 量表刷新：
 #   · 点阵按**阈值**切档 —— 到上限/要求正好满 7 颗，一眼看出够没够
-#   · 刻度条的量程按数值本身的可能范围定，刻线才会随关卡移动
+#   · 刻度条的量程按数值本身的可能范围定，刻线才会随轮次移动
 #   · 数值标签在「不该越界却越了」时变红
 func _refresh_stat_block(key: String, value: float, warn: float, bad: bool) -> void:
 	var b: Dictionary = stat_blocks.get(key)
@@ -912,7 +912,7 @@ func sync_outfit_verdict() -> void:
 	GameData.defects_covered = model.exposed_defects().is_empty()
 	GameData.uncovered_defects = model.exposed_defects()
 	GameData.acceptance = model.acceptance
-	# ★ 第三十九轮：把「这一关实际携带的妙妙工具」交给 GameData —— 阶段二要用它。
+	# ★ 第三十九轮：把「这一轮实际携带的妙妙工具」交给 GameData —— 阶段二要用它。
 	#   妙妙工具（OutfitData.MANUAL_SLOTS）是**手动装备**的一栏，不进任何数值统计，
 	#   所以这里只把它的实体件 id 报出去（空件「（不携带）」不算）。
 	#   遍历 MANUAL_SLOTS 而不是写死 "tool" —— 以后这一栏加槽位不用改这里。

@@ -130,7 +130,7 @@ func get_companion_sms(id: String) -> Dictionary:
 func interrogator_sms_list() -> Array:
 	return GameData.interrogator_sms
 
-# ---------------- 强制装备（每关随机 0~2 件高暴露衣物）----------------
+# ---------------- 强制装备（每轮随机 0~2 件高暴露衣物）----------------
 func forced_items() -> Array:
 	return RunData.forced_item_ids()
 

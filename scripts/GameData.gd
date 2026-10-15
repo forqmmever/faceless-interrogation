@@ -20,17 +20,17 @@ var max_suspicion: float = 100.0
 
 # ---- 怀疑度机制（第十三轮）----
 #  · 轮内只涨不跌：所有「奖励」的负增量一律归零（见 Interrogation._add_suspicion）。
-#  · 轮次之间按比例衰减：上一关结束时带过来的怀疑度 × SUSPICION_DECAY，
-#    作为下一关的开局怀疑度。
+#  · 轮次之间按比例衰减：上一轮结束时带过来的怀疑度 × SUSPICION_DECAY，
+#    作为下一轮的开局怀疑度。
 #  · 怀疑度提升的数值整体调高了（见 Interrogation 各常量与 story.json 的性情表）。
 const SUSPICION_BASE := 20.0      # 第 1 关开局怀疑度
 const SUSPICION_DECAY := 0.5      # 轮次之间：怀疑度按此比例衰减（对折）
 const SUSPICION_FLOOR := 10.0     # 衰减后的下限（不会一路归零）
-var suspicion_carry: float = 0.0  # 上一关**通过时**的结束怀疑度（供下一关衰减用）
+var suspicion_carry: float = 0.0  # 上一轮**通过时**的结束怀疑度（供下一轮衰减用）
 
 # --- 换装系统结果（由 WardrobeModel 写入）---
-var acceptance: int = 0              # 接受度（每关后提升）
-var level_index: int = 0             # 当前关卡
+var acceptance: int = 0              # 接受度（每轮后提升）
+var level_index: int = 0             # 当前轮次
 var outfit_exposure: int = 0         # 暴露值总和
 var outfit_exposure_cap: int = 10    # 暴露值上限
 var contrast_total: int = 0          # 反差值总和
@@ -41,7 +41,7 @@ var defects_covered: bool = false
 var uncovered_defects: Array = []
 
 # --- 妙妙工具（第三十九轮）---
-# 本关**实际携带**的妙妙工具物品 id（由 Wardrobe.sync_outfit_verdict() 写入）。
+# 本轮**实际携带**的妙妙工具物品 id（由 Wardrobe.sync_outfit_verdict() 写入）。
 # 这一栏是「只能手动装备」的：它不参与原貌 / 强制 / 一键达标 / 反差统计，
 # 唯一的作用是在盘问环节生效 —— 目前是「尼古喵尾」（装备时不再提高怀疑值）。
 # ★ 不携带时是空数组；判定一律走 has_any_tool() / carried_tool()，别直接比字符串。
@@ -102,7 +102,7 @@ var plants: int = 0                  # 同行者成功种下的钉子数
 var companion_asked: int = 0         # 同行者已经反问过几次
 
 # --- 逐轮问答记录（备注界面用，第十三轮）---
-# 每条 = { level: 第几关(0起), q: 问话, answer: 你选的那个选项 }
+# 每条 = { level: 第几轮(0起), q: 问话, answer: 你选的那个选项 }
 # 备注界面只显示「当前关之前」的记录：第 1 轮为空，第 2 轮显示第 1 轮，以此类推。
 var answer_log: Array = []
 
@@ -152,7 +152,7 @@ func reset_run_state() -> void:
 	_level_snapshot = {}
 	reset_level_state()
 
-# 一关开始时调用：只清「本关」的状态
+# 一关开始时调用：只清「本轮」的状态
 # 情报进度、手机进度、以及「你说过什么」都要跨关保留 —— 同一局里他还是那个人
 func reset_level_state() -> void:
 	begin_level_suspicion()
@@ -182,7 +182,7 @@ func reset_game() -> void:
 #    · companion_asked —— 同行者在这一轮插了几次话，重来就重新数；
 #    · answer_log —— 备注回放的是「你真正走过的那一轮」，答砸的那次不该留在上面；
 #    · interrogator_sms —— 掏手机掏太多次收到的短信属于这一轮的事故；
-#    · suspicion_carry —— 回滚到进这一关时的底子，怀疑度才不会越重来越高。
+#    · suspicion_carry —— 回滚到进这一轮时的底子，怀疑度才不会越重来越高。
 #
 #  不回滚的（刻意留着）：短信进度、相册、外貌情报、身份归类、接受度、装备池。
 # ============================================================
@@ -218,7 +218,7 @@ func has_level_snapshot() -> bool:
 	return not _level_snapshot.is_empty()
 
 # 轮次之间：把怀疑度按比例衰减一次。
-#   第 1 关（没有 carry）用基准值；之后各关 = 上一关带过来的 × SUSPICION_DECAY，
+#   第 1 关（没有 carry）用基准值；之后各关 = 上一轮带过来的 × SUSPICION_DECAY，
 #   再被 SUSPICION_FLOOR 兜住下限（不会一路归零，越往后底子越差）。
 # ★ 这是**唯一**能让怀疑度降下来的地方 —— 轮内只涨不跌。
 func begin_level_suspicion() -> void:

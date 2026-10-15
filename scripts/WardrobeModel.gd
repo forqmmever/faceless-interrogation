@@ -20,13 +20,13 @@ var data: Node                       # OutfitData 实例
 # 所以**不要**再直接 `str(equipped.get(slot, ""))` —— 多件槽位上那会得到
 # `["a", "b"]` 这种字符串。一律走下面的 ids_at / id_at / set_ids / has_id。
 var equipped: Dictionary = {}        # slot -> item id（多件槽位为 Array）
-var acceptance: int = 0              # 接受度（每关后提升）
-var level_index: int = 0             # 当前关卡
+var acceptance: int = 0              # 接受度（每轮后提升）
+var level_index: int = 0             # 当前轮次
 var cleared_levels: int = 0
 var true_appearance: Dictionary = {} # 本局 A 的原貌
-var levels: Array = []               # 本局关卡表
-var forced_items: Array = []         # 本关强制装备的 item id（0 ~ 2 件，由 RunData 抽）
-var forced_groups: Array = []        # 本关的强制规则表（「几件选一件」/「固定一件」的自由组合）
+var levels: Array = []               # 本局轮次表
+var forced_items: Array = []         # 本轮强制装备的 item id（0 ~ 2 件，由 RunData 抽）
+var forced_groups: Array = []        # 本轮的强制规则表（「几件选一件」/「固定一件」的自由组合）
 # ★ 第二十七轮：被互斥「顶掉」的槽位顶掉之前穿的是什么 —— 玩家把成装脱下来时原样还回去。
 #   （见 _apply_exclusive / _restore_exclusive）
 var _exclusive_stash: Dictionary = {}
@@ -130,7 +130,7 @@ func reset_for_level(acceptance_in: int, level_index_in: int, true_app: Dictiona
 	changed.emit()
 
 # ---------- 强制装备 ----------
-# 本关被硬性要求穿上的那几件。判定很直白：没穿 = 当场识破。
+# 本轮被硬性要求穿上的那几件。判定很直白：没穿 = 当场识破。
 # （所以这不是「建议」，是硬约束 —— 但它同时也在帮你拉反差值。）
 #
 # ★ 第二十三轮：除了「必须穿这一件」，还支持「这几件里任选一件」（forced_groups）。
@@ -147,8 +147,8 @@ func set_forced_groups(groups: Array) -> void:
 	changed.emit()
 
 func is_forced_id(item_id: String) -> bool:
-	# 「任选一件」的组里，组内每一件都算「本关指定」——
-	# 卡片上标橙色、悬停写「本关强制装备」才对，否则玩家不知道这是被指定的。
+	# 「任选一件」的组里，组内每一件都算「本轮指定」——
+	# 卡片上标橙色、悬停写「本轮强制装备」才对，否则玩家不知道这是被指定的。
 	for id in forced_items:
 		if str(id) == item_id:
 			return true
@@ -157,7 +157,7 @@ func is_forced_id(item_id: String) -> bool:
 			return true
 	return false
 
-# 本关强制装备的完整物品数据（给 UI 展示用）——
+# 本轮强制装备的完整物品数据（给 UI 展示用）——
 # 「任选一件」的组会把组内所有选项都列出来（它们都是合法答案）。
 func forced_items_info() -> Array:
 	var seen := {}
@@ -202,7 +202,7 @@ func is_forced_slot(slot: String) -> bool:
 #   · all 组 → 只有那一件；
 #   · any 组 → 组内那几件；
 #   · 没有规则表时（random / none 模式）→ forced_items 里的那几件同样锁死。
-# 求解器（一键达标 / 可解性）靠它区分「可以自由换」与「被本关锁住」——
+# 求解器（一键达标 / 可解性）靠它区分「可以自由换」与「被本轮锁住」——
 # 漏掉最后那一条会让 DP 把锁死的槽位当成自由的，算出实际不成立的搭配。
 func forced_allowed_ids(slot: String):
 	var locked := ""
@@ -937,7 +937,7 @@ func evaluate() -> Dictionary:
 
 	var missing_text := missing_forced_text()
 	if missing_text.size() > 0:
-		reasons.append("本关强制装备没穿：" + "；".join(missing_text))
+		reasons.append("本轮强制装备没穿：" + "；".join(missing_text))
 
 	return {
 		"verdict": "pass" if reasons.is_empty() else "instantly_exposed",
@@ -945,17 +945,17 @@ func evaluate() -> Dictionary:
 	}
 
 # ============================================================
-#  测试用：一键满足本关全部服装要求
+#  测试用：一键满足本轮全部服装要求
 #
 #  要同时满足四条约束（全部来自 evaluate()）：
-#    ① 本关强制装备必须穿上（每关随机 0~2 件高暴露衣物）
+#    ① 本轮强制装备必须穿上（每轮随机 0~2 件高暴露衣物）
 #    ② 暴露值 ≤ 上限
-#    ③ 反差值 ≥ 本关要求
+#    ③ 反差值 ≥ 本轮要求
 #    ④ 身体缺陷全部遮住
 #
 #  做法：在「已用暴露值 × 已遮缺陷掩码」这个状态空间上跑一遍动态规划。
 #    · 每个槽位只能选「当前接受度穿得起」的物品；
-#    · 强制槽位锁死为本关那一件；
+#    · 强制槽位锁死为本轮那一件；
 #    · 价值 = 反差值（与原貌相同的槽位贡献 0，和 total_contrast() 同一口径），
 #      同分时优先「改掉的部位更多」。
 #  最后取「遮得最全 → 价值最高 → 暴露最低」的终态回溯出整套搭配 ——
@@ -1547,7 +1547,7 @@ func _bit_count(m: int) -> int:
 		m >>= 1
 	return n
 
-# ---------- 关卡推进 ----------
+# ---------- 轮次推进 ----------
 func clear_level() -> void:
 	cleared_levels += 1
 	acceptance += int(level_info().get("acceptance_gain", 0))

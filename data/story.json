@@ -1,6 +1,6 @@
 {
 	"$schema": "faceless-story-v1",
-	"note": "本文件由 tools/DumpStory.gd 生成，可用 tools/story_editor.html（剧情 / 数值 / 文案 / 结局 / 关卡 / 强制穿着 / QTE 计划 / 缺陷）或 tools/phone_editor.html（手机界面 + 短信）编辑。游戏启动时从这里读；文件缺失会回退到 ScenarioData.gd / OutfitData.gd 里的内置常量。",
+	"note": "本文件由 tools/DumpStory.gd 生成，可用 tools/story_editor.html 编辑：剧情（背景 / 题库 / 短信 / 文案 / 结局）、玩法数值、服装数值、原貌，以及每局（按背景）的轮数 / 强制穿着 / QTE 计划 / 身体缺陷覆写；手机界面与短信另见 tools/phone_editor.html。游戏启动时从这里读；文件缺失会回退到 ScenarioData.gd / OutfitData.gd 里的内置常量。",
 	"rules": {
 		"questions_per_level": 8,
 		"contrast_req_base": 24,
@@ -59,8 +59,8 @@
 			"start_btn": "▶  开始游戏",
 			"continue_btn": "⏩  继续游戏",
 			"quit_btn": "✖  退出游戏",
-			"select_title": "选择进入哪一关",
-			"select_sub": "一次一局，从选中的那一关往后走。锁着的关卡还没做完 —— 没有删除。",
+			"select_title": "选择从哪一轮开始",
+			"select_sub": "一次一局，从选中的那一轮往后走。锁着的轮次还没做完 —— 没有删除。",
 			"select_open_note": "可以进入",
 			"select_locked_note": "尚未开放",
 			"select_back": "◀  返回"
@@ -134,8 +134,8 @@
 			"interrogation_title": "阶段二 · 高压盘问",
 			"interrogation_sub": "按编号看每一处是干什么的",
 			"wardrobe_marks": [
-				"【换装区域】\n每个槽位各有一段分区，下面是这个部位的候选衣物卡片。\n每张卡：左边缩略图＝这件衣服穿在身上的样子；接受度不够的装扮只显示一个问号（鼠标悬停能看到还差多少）。\n卡上一行点阵 E. 暴露值；鼠标悬停能看到精确数字。\n边框：绿色＝已装备，橙红＝本关强制装备（不穿会当场被识破）。",
-				"【数值量表】\n照 Degrees of Lewdity 的读法：**七颗圆点＝量级，颜色＝档位**。点越往右越红＝越危险；反差值那条反过来，越绿越安全。\n下面那条渐变刻度上的橙色竖线是**本关阈值** —— 暴露值的上限、反差值的要求。指针是当前值：指针跑到刻线右边（暴露）或左边（反差）就是不合格。\n两条：暴露值 / 反差值。",
+				"【换装区域】\n每个槽位各有一段分区，下面是这个部位的候选衣物卡片。\n每张卡：左边缩略图＝这件衣服穿在身上的样子；接受度不够的装扮只显示一个问号（鼠标悬停能看到还差多少）。\n卡上一行点阵 E. 暴露值；鼠标悬停能看到精确数字。\n边框：绿色＝已装备，橙红＝本轮强制装备（不穿会当场被识破）。",
+				"【数值量表】\n照 Degrees of Lewdity 的读法：**七颗圆点＝量级，颜色＝档位**。点越往右越红＝越危险；反差值那条反过来，越绿越安全。\n下面那条渐变刻度上的橙色竖线是**本轮阈值** —— 暴露值的上限、反差值的要求。指针是当前值：指针跑到刻线右边（暴露）或左边（反差）就是不合格。\n两条：暴露值 / 反差值。",
 				"【换装预览】\n你现在这身打扮长什么样。点右上「原貌」可以切到 A 本人 —— 槽位名带问号的就是还没查到他那个部位的样子。",
 				"【手机】\n点它把手机拿出来。四个界面各管一件事 —— 短信写「B 该怎么说话」，相册是别人偷拍的 A，备忘录第一条是他这个人，备注是逐轮的问答记录。\n手机拿在手里的时候再点一次「玩法说明」，就会逐个讲这四个界面。"
 			],
@@ -156,23 +156,23 @@
 	},
 	"levels": [
 		{
-			"name": "第一关",
+			"name": "第一轮",
 			"acceptance_gain": 5,
 			"contrast_req": 24,
 			"derived_profile": "一个不起眼的路人"
 		},
 		{
-			"name": "第二关",
+			"name": "第二轮",
 			"acceptance_gain": 5,
 			"derived_profile": "有点来头的商贩"
 		},
 		{
-			"name": "第三关",
+			"name": "第三轮",
 			"acceptance_gain": 6,
 			"derived_profile": "被人打过招呼的熟面孔"
 		},
 		{
-			"name": "第四关",
+			"name": "第四轮",
 			"acceptance_gain": 0,
 			"derived_profile": "即将被放行的清白之人"
 		}
@@ -2800,19 +2800,19 @@
 			"true_name": "沈棠",
 			"levels": [
 				{
-					"name": "第一关 · 外栅栏哨位",
+					"name": "第一轮 · 外栅栏哨位",
 					"derived_profile": "一个赶路的行商"
 				},
 				{
-					"name": "第二关 · 查验棚",
+					"name": "第二轮 · 查验棚",
 					"derived_profile": "手续齐全的香料贩子"
 				},
 				{
-					"name": "第三关 · 哨所长官室",
+					"name": "第三轮 · 哨所长官室",
 					"derived_profile": "有靠山的商队领队"
 				},
 				{
-					"name": "第四关 · 关隘地牢前厅",
+					"name": "第四轮 · 关隘地牢前厅",
 					"derived_profile": "即将被放行的清白旅人"
 				}
 			],
@@ -3122,7 +3122,7 @@
 							"value": "north"
 						}
 					],
-					"note": "事实题：本关新问的「origin」"
+					"note": "事实题：本轮新问的「origin」"
 				},
 				{
 					"id": "q_fact_origin_recall",
@@ -3148,7 +3148,7 @@
 							"value": "north"
 						}
 					],
-					"note": "事实题：跨关复问「origin」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「origin」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_fact_goods_new",
@@ -3173,7 +3173,7 @@
 							"value": "medicine"
 						}
 					],
-					"note": "事实题：本关新问的「goods」"
+					"note": "事实题：本轮新问的「goods」"
 				},
 				{
 					"id": "q_fact_goods_recall",
@@ -3199,7 +3199,7 @@
 							"value": "medicine"
 						}
 					],
-					"note": "事实题：跨关复问「goods」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「goods」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_fact_purpose_new",
@@ -3224,7 +3224,7 @@
 							"value": "work"
 						}
 					],
-					"note": "事实题：本关新问的「purpose」"
+					"note": "事实题：本轮新问的「purpose」"
 				},
 				{
 					"id": "q_fact_purpose_recall",
@@ -3250,7 +3250,7 @@
 							"value": "work"
 						}
 					],
-					"note": "事实题：跨关复问「purpose」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「purpose」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_fact_scar_new",
@@ -3275,7 +3275,7 @@
 							"value": "fight"
 						}
 					],
-					"note": "事实题：本关新问的「scar」"
+					"note": "事实题：本轮新问的「scar」"
 				},
 				{
 					"id": "q_fact_scar_recall",
@@ -3301,7 +3301,7 @@
 							"value": "fight"
 						}
 					],
-					"note": "事实题：跨关复问「scar」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「scar」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_companion_origin",
@@ -3809,23 +3809,23 @@
 				"caught_line": "【警告：怀疑度到达 100%】\n卫兵蜂拥而上将你当场扣押 —— 伪装彻底崩了。",
 				"success_line": "【潜伏成功】\n%s：「没有问题了，%s。你可以过去了。」\n\n你以 B 的身份通过了盘问。同行者站在一旁，什么也没说，只是看了你一眼。",
 				"arrested_line": "【潜伏失败 · 被捕】\n%s：「逮捕他。他的身份漏洞百出。」\n\n同行者始终没有揭穿你 —— 但也没打算让你过关。",
-				"result_last_hint": "这是本局最后一关。你已经把这一整段路走完了。",
+				"result_last_hint": "这是本局最后一轮。你已经把这一整段路走完了。",
 				"result_last_btn": "完成本局  ➔",
-				"result_next_hint": "本关通过。接受度提升 %d，暴露值上限随之放宽 —— 但下一关要求的反差值也更高。",
-				"result_next_btn": "进入下一关  ➔",
-				"result_recognized_hint": "他一眼就叫出了你的名字 —— 这一身没能把 A 盖住。\n回到这一关的准备室，重新改一遍打扮。",
+				"result_next_hint": "本轮通过。接受度提升 %d，暴露值上限随之放宽 —— 但下一轮要求的反差值也更高。",
+				"result_next_btn": "进入下一轮  ➔",
+				"result_recognized_hint": "他一眼就叫出了你的名字 —— 这一身没能把 A 盖住。\n回到这一轮的准备室，重新改一遍打扮。",
 				"result_recognized_btn": "重来本轮  ↺",
-				"result_fail_hint": "这一轮到此为止 —— 回到这一关的准备室重来。\n背景与他的记忆都不变，你已经查到的情报也还在。",
+				"result_fail_hint": "这一轮到此为止 —— 回到这一轮的准备室重来。\n背景与他的记忆都不变，你已经查到的情报也还在。",
 				"result_fail_btn": "重来本轮  ↺",
 				"overlay_fail_title": "💀 潜伏失败 · 本轮重来",
 				"overlay_fail_btn": "重来本轮  ↺",
-				"overlay_fail_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]进度[/color]  已通过 [b]%d[/b] / %d 关\n\n这一轮到此为止 —— 回到[color=#f0a83c]这一关的准备室[/color]重来。\n背景不变、他记忆里的那张脸不变、你已经查到的情报也都还在。\n要改的是[color=#f0a83c]这一轮的打扮[/color]，不是身份。",
+				"overlay_fail_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]进度[/color]  已通过 [b]%d[/b] / %d 轮\n\n这一轮到此为止 —— 回到[color=#f0a83c]这一轮的准备室[/color]重来。\n背景不变、他记忆里的那张脸不变、你已经查到的情报也都还在。\n要改的是[color=#f0a83c]这一轮的打扮[/color]，不是身份。",
 				"overlay_win_title": "🏁 本局通关",
 				"overlay_win_btn": "再来一局（新背景 · 新原貌）  ↺",
-				"overlay_win_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]身份[/color]  %s → 以「%s」的身份走完全程\n[color=#8a919c]成绩[/color]  4 / 4 关全部通过 ｜ 前后矛盾 [b]%d[/b] 次\n\n你把 A 藏进了 B 的皮里，一路没有露馅。\n同行者从头到尾没有揭穿你 —— 他只是把你留在了原地。",
-				"overlay_level_title": "✅ 第 %d 关通过",
-				"overlay_level_btn": "进入第 %d 关  ➔",
-				"overlay_next_body": "[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n[color=#f0a83c]下一关[/color]  %s\n接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n反差值要求提高到 [b]%d[/b]\n\n[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，你已经查到的外貌情报也还在。要改的是打扮，不是身份。[/color]"
+				"overlay_win_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]身份[/color]  %s → 以「%s」的身份走完全程\n[color=#8a919c]成绩[/color]  %d / %d 轮全部通过 ｜ 前后矛盾 [b]%d[/b] 次\n\n你把 A 藏进了 B 的皮里，一路没有露馅。\n同行者从头到尾没有揭穿你 —— 他只是把你留在了原地。",
+				"overlay_level_title": "✅ 第 %d 轮通过",
+				"overlay_level_btn": "进入第 %d 轮  ➔",
+				"overlay_next_body": "[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n[color=#f0a83c]下一轮[/color]  %s\n接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n反差值要求提高到 [b]%d[/b]\n\n[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，你已经查到的外貌情报也还在。要改的是打扮，不是身份。[/color]"
 			},
 			"questions_schema": "faceless-questions-v1",
 			"forced_rules": [],
@@ -3853,19 +3853,19 @@
 			"true_name": "苏绾",
 			"levels": [
 				{
-					"name": "第一关 · 驿站门房",
+					"name": "第一轮 · 驿站门房",
 					"derived_profile": "一个落魄的卖艺人"
 				},
 				{
-					"name": "第二关 · 大堂账房",
+					"name": "第二轮 · 大堂账房",
 					"derived_profile": "靠卖唱换宿的琴师"
 				},
 				{
-					"name": "第三关 · 后院上房",
+					"name": "第三轮 · 后院上房",
 					"derived_profile": "被某位贵人召见的乐师"
 				},
 				{
-					"name": "第四关 · 驿丞私室",
+					"name": "第四轮 · 驿丞私室",
 					"derived_profile": "天亮就要上路的过客"
 				}
 			],
@@ -4175,7 +4175,7 @@
 							"value": "city"
 						}
 					],
-					"note": "事实题：本关新问的「origin」"
+					"note": "事实题：本轮新问的「origin」"
 				},
 				{
 					"id": "q_fact_origin_recall",
@@ -4201,7 +4201,7 @@
 							"value": "city"
 						}
 					],
-					"note": "事实题：跨关复问「origin」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「origin」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_fact_instrument_new",
@@ -4226,7 +4226,7 @@
 							"value": "made"
 						}
 					],
-					"note": "事实题：本关新问的「instrument」"
+					"note": "事实题：本轮新问的「instrument」"
 				},
 				{
 					"id": "q_fact_instrument_recall",
@@ -4252,7 +4252,7 @@
 							"value": "made"
 						}
 					],
-					"note": "事实题：跨关复问「instrument」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「instrument」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_fact_purpose_new",
@@ -4277,7 +4277,7 @@
 							"value": "trade"
 						}
 					],
-					"note": "事实题：本关新问的「purpose」"
+					"note": "事实题：本轮新问的「purpose」"
 				},
 				{
 					"id": "q_fact_purpose_recall",
@@ -4303,7 +4303,7 @@
 							"value": "trade"
 						}
 					],
-					"note": "事实题：跨关复问「purpose」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「purpose」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_fact_scar_new",
@@ -4328,7 +4328,7 @@
 							"value": "knife"
 						}
 					],
-					"note": "事实题：本关新问的「scar」"
+					"note": "事实题：本轮新问的「scar」"
 				},
 				{
 					"id": "q_fact_scar_recall",
@@ -4354,7 +4354,7 @@
 							"value": "knife"
 						}
 					],
-					"note": "事实题：跨关复问「scar」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「scar」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_companion_origin",
@@ -4862,23 +4862,23 @@
 				"caught_line": "【警告：怀疑度到达 100%】\n卫兵蜂拥而上将你当场扣押 —— 伪装彻底崩了。",
 				"success_line": "【潜伏成功】\n%s：「没有问题了，%s。你可以过去了。」\n\n你以 B 的身份通过了盘问。同行者站在一旁，什么也没说，只是看了你一眼。",
 				"arrested_line": "【潜伏失败 · 被捕】\n%s：「逮捕他。他的身份漏洞百出。」\n\n同行者始终没有揭穿你 —— 但也没打算让你过关。",
-				"result_last_hint": "这是本局最后一关。你已经把这一整段路走完了。",
+				"result_last_hint": "这是本局最后一轮。你已经把这一整段路走完了。",
 				"result_last_btn": "完成本局  ➔",
-				"result_next_hint": "本关通过。接受度提升 %d，暴露值上限随之放宽 —— 但下一关要求的反差值也更高。",
-				"result_next_btn": "进入下一关  ➔",
-				"result_recognized_hint": "他一眼就叫出了你的名字 —— 这一身没能把 A 盖住。\n回到这一关的准备室，重新改一遍打扮。",
+				"result_next_hint": "本轮通过。接受度提升 %d，暴露值上限随之放宽 —— 但下一轮要求的反差值也更高。",
+				"result_next_btn": "进入下一轮  ➔",
+				"result_recognized_hint": "他一眼就叫出了你的名字 —— 这一身没能把 A 盖住。\n回到这一轮的准备室，重新改一遍打扮。",
 				"result_recognized_btn": "重来本轮  ↺",
-				"result_fail_hint": "这一轮到此为止 —— 回到这一关的准备室重来。\n背景与他的记忆都不变，你已经查到的情报也还在。",
+				"result_fail_hint": "这一轮到此为止 —— 回到这一轮的准备室重来。\n背景与他的记忆都不变，你已经查到的情报也还在。",
 				"result_fail_btn": "重来本轮  ↺",
 				"overlay_fail_title": "💀 潜伏失败 · 本轮重来",
 				"overlay_fail_btn": "重来本轮  ↺",
-				"overlay_fail_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]进度[/color]  已通过 [b]%d[/b] / %d 关\n\n这一轮到此为止 —— 回到[color=#f0a83c]这一关的准备室[/color]重来。\n背景不变、他记忆里的那张脸不变、你已经查到的情报也都还在。\n要改的是[color=#f0a83c]这一轮的打扮[/color]，不是身份。",
+				"overlay_fail_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]进度[/color]  已通过 [b]%d[/b] / %d 轮\n\n这一轮到此为止 —— 回到[color=#f0a83c]这一轮的准备室[/color]重来。\n背景不变、他记忆里的那张脸不变、你已经查到的情报也都还在。\n要改的是[color=#f0a83c]这一轮的打扮[/color]，不是身份。",
 				"overlay_win_title": "🏁 本局通关",
 				"overlay_win_btn": "再来一局（新背景 · 新原貌）  ↺",
-				"overlay_win_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]身份[/color]  %s → 以「%s」的身份走完全程\n[color=#8a919c]成绩[/color]  4 / 4 关全部通过 ｜ 前后矛盾 [b]%d[/b] 次\n\n你把 A 藏进了 B 的皮里，一路没有露馅。\n同行者从头到尾没有揭穿你 —— 他只是把你留在了原地。",
-				"overlay_level_title": "✅ 第 %d 关通过",
-				"overlay_level_btn": "进入第 %d 关  ➔",
-				"overlay_next_body": "[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n[color=#f0a83c]下一关[/color]  %s\n接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n反差值要求提高到 [b]%d[/b]\n\n[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，你已经查到的外貌情报也还在。要改的是打扮，不是身份。[/color]"
+				"overlay_win_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]身份[/color]  %s → 以「%s」的身份走完全程\n[color=#8a919c]成绩[/color]  %d / %d 轮全部通过 ｜ 前后矛盾 [b]%d[/b] 次\n\n你把 A 藏进了 B 的皮里，一路没有露馅。\n同行者从头到尾没有揭穿你 —— 他只是把你留在了原地。",
+				"overlay_level_title": "✅ 第 %d 轮通过",
+				"overlay_level_btn": "进入第 %d 轮  ➔",
+				"overlay_next_body": "[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n[color=#f0a83c]下一轮[/color]  %s\n接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n反差值要求提高到 [b]%d[/b]\n\n[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，你已经查到的外貌情报也还在。要改的是打扮，不是身份。[/color]"
 			},
 			"questions_schema": "faceless-questions-v1",
 			"forced_rules": [],
@@ -4906,19 +4906,19 @@
 			"true_name": "陆青梧",
 			"levels": [
 				{
-					"name": "第一关 · 侧门角房",
+					"name": "第一轮 · 侧门角房",
 					"derived_profile": "新来的抄写文书"
 				},
 				{
-					"name": "第二关 · 文书房",
+					"name": "第二轮 · 文书房",
 					"derived_profile": "字迹端正的低等文书"
 				},
 				{
-					"name": "第三关 · 内庭回廊",
+					"name": "第三轮 · 内庭回廊",
 					"derived_profile": "被某位大人点名的近侍"
 				},
 				{
-					"name": "第四关 · 执事厅",
+					"name": "第四轮 · 执事厅",
 					"derived_profile": "即将领到腰牌的府中之人"
 				}
 			],
@@ -5228,7 +5228,7 @@
 							"value": "market"
 						}
 					],
-					"note": "事实题：本关新问的「origin」"
+					"note": "事实题：本轮新问的「origin」"
 				},
 				{
 					"id": "q_fact_origin_recall",
@@ -5254,7 +5254,7 @@
 							"value": "market"
 						}
 					],
-					"note": "事实题：跨关复问「origin」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「origin」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_fact_skill_new",
@@ -5279,7 +5279,7 @@
 							"value": "self"
 						}
 					],
-					"note": "事实题：本关新问的「skill」"
+					"note": "事实题：本轮新问的「skill」"
 				},
 				{
 					"id": "q_fact_skill_recall",
@@ -5305,7 +5305,7 @@
 							"value": "self"
 						}
 					],
-					"note": "事实题：跨关复问「skill」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「skill」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_fact_purpose_new",
@@ -5330,7 +5330,7 @@
 							"value": "errand"
 						}
 					],
-					"note": "事实题：本关新问的「purpose」"
+					"note": "事实题：本轮新问的「purpose」"
 				},
 				{
 					"id": "q_fact_purpose_recall",
@@ -5356,7 +5356,7 @@
 							"value": "errand"
 						}
 					],
-					"note": "事实题：跨关复问「purpose」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「purpose」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_fact_scar_new",
@@ -5381,7 +5381,7 @@
 							"value": "burn"
 						}
 					],
-					"note": "事实题：本关新问的「scar」"
+					"note": "事实题：本轮新问的「scar」"
 				},
 				{
 					"id": "q_fact_scar_recall",
@@ -5407,7 +5407,7 @@
 							"value": "burn"
 						}
 					],
-					"note": "事实题：跨关复问「scar」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「scar」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_companion_origin",
@@ -5915,23 +5915,23 @@
 				"caught_line": "【警告：怀疑度到达 100%】\n卫兵蜂拥而上将你当场扣押 —— 伪装彻底崩了。",
 				"success_line": "【潜伏成功】\n%s：「没有问题了，%s。你可以过去了。」\n\n你以 B 的身份通过了盘问。同行者站在一旁，什么也没说，只是看了你一眼。",
 				"arrested_line": "【潜伏失败 · 被捕】\n%s：「逮捕他。他的身份漏洞百出。」\n\n同行者始终没有揭穿你 —— 但也没打算让你过关。",
-				"result_last_hint": "这是本局最后一关。你已经把这一整段路走完了。",
+				"result_last_hint": "这是本局最后一轮。你已经把这一整段路走完了。",
 				"result_last_btn": "完成本局  ➔",
-				"result_next_hint": "本关通过。接受度提升 %d，暴露值上限随之放宽 —— 但下一关要求的反差值也更高。",
-				"result_next_btn": "进入下一关  ➔",
-				"result_recognized_hint": "他一眼就叫出了你的名字 —— 这一身没能把 A 盖住。\n回到这一关的准备室，重新改一遍打扮。",
+				"result_next_hint": "本轮通过。接受度提升 %d，暴露值上限随之放宽 —— 但下一轮要求的反差值也更高。",
+				"result_next_btn": "进入下一轮  ➔",
+				"result_recognized_hint": "他一眼就叫出了你的名字 —— 这一身没能把 A 盖住。\n回到这一轮的准备室，重新改一遍打扮。",
 				"result_recognized_btn": "重来本轮  ↺",
-				"result_fail_hint": "这一轮到此为止 —— 回到这一关的准备室重来。\n背景与他的记忆都不变，你已经查到的情报也还在。",
+				"result_fail_hint": "这一轮到此为止 —— 回到这一轮的准备室重来。\n背景与他的记忆都不变，你已经查到的情报也还在。",
 				"result_fail_btn": "重来本轮  ↺",
 				"overlay_fail_title": "💀 潜伏失败 · 本轮重来",
 				"overlay_fail_btn": "重来本轮  ↺",
-				"overlay_fail_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]进度[/color]  已通过 [b]%d[/b] / %d 关\n\n这一轮到此为止 —— 回到[color=#f0a83c]这一关的准备室[/color]重来。\n背景不变、他记忆里的那张脸不变、你已经查到的情报也都还在。\n要改的是[color=#f0a83c]这一轮的打扮[/color]，不是身份。",
+				"overlay_fail_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]进度[/color]  已通过 [b]%d[/b] / %d 轮\n\n这一轮到此为止 —— 回到[color=#f0a83c]这一轮的准备室[/color]重来。\n背景不变、他记忆里的那张脸不变、你已经查到的情报也都还在。\n要改的是[color=#f0a83c]这一轮的打扮[/color]，不是身份。",
 				"overlay_win_title": "🏁 本局通关",
 				"overlay_win_btn": "再来一局（新背景 · 新原貌）  ↺",
-				"overlay_win_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]身份[/color]  %s → 以「%s」的身份走完全程\n[color=#8a919c]成绩[/color]  4 / 4 关全部通过 ｜ 前后矛盾 [b]%d[/b] 次\n\n你把 A 藏进了 B 的皮里，一路没有露馅。\n同行者从头到尾没有揭穿你 —— 他只是把你留在了原地。",
-				"overlay_level_title": "✅ 第 %d 关通过",
-				"overlay_level_btn": "进入第 %d 关  ➔",
-				"overlay_next_body": "[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n[color=#f0a83c]下一关[/color]  %s\n接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n反差值要求提高到 [b]%d[/b]\n\n[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，你已经查到的外貌情报也还在。要改的是打扮，不是身份。[/color]"
+				"overlay_win_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]身份[/color]  %s → 以「%s」的身份走完全程\n[color=#8a919c]成绩[/color]  %d / %d 轮全部通过 ｜ 前后矛盾 [b]%d[/b] 次\n\n你把 A 藏进了 B 的皮里，一路没有露馅。\n同行者从头到尾没有揭穿你 —— 他只是把你留在了原地。",
+				"overlay_level_title": "✅ 第 %d 轮通过",
+				"overlay_level_btn": "进入第 %d 轮  ➔",
+				"overlay_next_body": "[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n[color=#f0a83c]下一轮[/color]  %s\n接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n反差值要求提高到 [b]%d[/b]\n\n[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，你已经查到的外貌情报也还在。要改的是打扮，不是身份。[/color]"
 			},
 			"questions_schema": "faceless-questions-v1",
 			"forced_rules": [],
@@ -5959,19 +5959,19 @@
 			"true_name": "阿沅",
 			"levels": [
 				{
-					"name": "第一关 · 码头查验口",
+					"name": "第一轮 · 码头查验口",
 					"derived_profile": "一个刚上岸的渔贩"
 				},
 				{
-					"name": "第二关 · 货栈过磅处",
+					"name": "第二轮 · 货栈过磅处",
 					"derived_profile": "账目清楚的渔获商"
 				},
 				{
-					"name": "第三关 · 海关值房",
+					"name": "第三轮 · 海关值房",
 					"derived_profile": "有船东作保的老贩子"
 				},
 				{
-					"name": "第四关 · 值房内间",
+					"name": "第四轮 · 值房内间",
 					"derived_profile": "天亮就要放行的良民"
 				}
 			],
@@ -6281,7 +6281,7 @@
 							"value": "boat"
 						}
 					],
-					"note": "事实题：本关新问的「origin」"
+					"note": "事实题：本轮新问的「origin」"
 				},
 				{
 					"id": "q_fact_origin_recall",
@@ -6307,7 +6307,7 @@
 							"value": "boat"
 						}
 					],
-					"note": "事实题：跨关复问「origin」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「origin」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_fact_catch_new",
@@ -6332,7 +6332,7 @@
 							"value": "bought"
 						}
 					],
-					"note": "事实题：本关新问的「catch」"
+					"note": "事实题：本轮新问的「catch」"
 				},
 				{
 					"id": "q_fact_catch_recall",
@@ -6358,7 +6358,7 @@
 							"value": "bought"
 						}
 					],
-					"note": "事实题：跨关复问「catch」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「catch」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_fact_purpose_new",
@@ -6383,7 +6383,7 @@
 							"value": "sell"
 						}
 					],
-					"note": "事实题：本关新问的「purpose」"
+					"note": "事实题：本轮新问的「purpose」"
 				},
 				{
 					"id": "q_fact_purpose_recall",
@@ -6409,7 +6409,7 @@
 							"value": "sell"
 						}
 					],
-					"note": "事实题：跨关复问「purpose」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「purpose」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_fact_scar_new",
@@ -6434,7 +6434,7 @@
 							"value": "burn"
 						}
 					],
-					"note": "事实题：本关新问的「scar」"
+					"note": "事实题：本轮新问的「scar」"
 				},
 				{
 					"id": "q_fact_scar_recall",
@@ -6460,7 +6460,7 @@
 							"value": "burn"
 						}
 					],
-					"note": "事实题：跨关复问「scar」（哪一关复问由运行时决定）"
+					"note": "事实题：跨轮复问「scar」（哪一轮复问由运行时决定）"
 				},
 				{
 					"id": "q_companion_origin",
@@ -6968,23 +6968,23 @@
 				"caught_line": "【警告：怀疑度到达 100%】\n卫兵蜂拥而上将你当场扣押 —— 伪装彻底崩了。",
 				"success_line": "【潜伏成功】\n%s：「没有问题了，%s。你可以过去了。」\n\n你以 B 的身份通过了盘问。同行者站在一旁，什么也没说，只是看了你一眼。",
 				"arrested_line": "【潜伏失败 · 被捕】\n%s：「逮捕他。他的身份漏洞百出。」\n\n同行者始终没有揭穿你 —— 但也没打算让你过关。",
-				"result_last_hint": "这是本局最后一关。你已经把这一整段路走完了。",
+				"result_last_hint": "这是本局最后一轮。你已经把这一整段路走完了。",
 				"result_last_btn": "完成本局  ➔",
-				"result_next_hint": "本关通过。接受度提升 %d，暴露值上限随之放宽 —— 但下一关要求的反差值也更高。",
-				"result_next_btn": "进入下一关  ➔",
-				"result_recognized_hint": "他一眼就叫出了你的名字 —— 这一身没能把 A 盖住。\n回到这一关的准备室，重新改一遍打扮。",
+				"result_next_hint": "本轮通过。接受度提升 %d，暴露值上限随之放宽 —— 但下一轮要求的反差值也更高。",
+				"result_next_btn": "进入下一轮  ➔",
+				"result_recognized_hint": "他一眼就叫出了你的名字 —— 这一身没能把 A 盖住。\n回到这一轮的准备室，重新改一遍打扮。",
 				"result_recognized_btn": "重来本轮  ↺",
-				"result_fail_hint": "这一轮到此为止 —— 回到这一关的准备室重来。\n背景与他的记忆都不变，你已经查到的情报也还在。",
+				"result_fail_hint": "这一轮到此为止 —— 回到这一轮的准备室重来。\n背景与他的记忆都不变，你已经查到的情报也还在。",
 				"result_fail_btn": "重来本轮  ↺",
 				"overlay_fail_title": "💀 潜伏失败 · 本轮重来",
 				"overlay_fail_btn": "重来本轮  ↺",
-				"overlay_fail_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]进度[/color]  已通过 [b]%d[/b] / %d 关\n\n这一轮到此为止 —— 回到[color=#f0a83c]这一关的准备室[/color]重来。\n背景不变、他记忆里的那张脸不变、你已经查到的情报也都还在。\n要改的是[color=#f0a83c]这一轮的打扮[/color]，不是身份。",
+				"overlay_fail_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]进度[/color]  已通过 [b]%d[/b] / %d 轮\n\n这一轮到此为止 —— 回到[color=#f0a83c]这一轮的准备室[/color]重来。\n背景不变、他记忆里的那张脸不变、你已经查到的情报也都还在。\n要改的是[color=#f0a83c]这一轮的打扮[/color]，不是身份。",
 				"overlay_win_title": "🏁 本局通关",
 				"overlay_win_btn": "再来一局（新背景 · 新原貌）  ↺",
-				"overlay_win_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]身份[/color]  %s → 以「%s」的身份走完全程\n[color=#8a919c]成绩[/color]  4 / 4 关全部通过 ｜ 前后矛盾 [b]%d[/b] 次\n\n你把 A 藏进了 B 的皮里，一路没有露馅。\n同行者从头到尾没有揭穿你 —— 他只是把你留在了原地。",
-				"overlay_level_title": "✅ 第 %d 关通过",
-				"overlay_level_btn": "进入第 %d 关  ➔",
-				"overlay_next_body": "[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n[color=#f0a83c]下一关[/color]  %s\n接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n反差值要求提高到 [b]%d[/b]\n\n[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，你已经查到的外貌情报也还在。要改的是打扮，不是身份。[/color]"
+				"overlay_win_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]身份[/color]  %s → 以「%s」的身份走完全程\n[color=#8a919c]成绩[/color]  %d / %d 轮全部通过 ｜ 前后矛盾 [b]%d[/b] 次\n\n你把 A 藏进了 B 的皮里，一路没有露馅。\n同行者从头到尾没有揭穿你 —— 他只是把你留在了原地。",
+				"overlay_level_title": "✅ 第 %d 轮通过",
+				"overlay_level_btn": "进入第 %d 轮  ➔",
+				"overlay_next_body": "[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n[color=#f0a83c]下一轮[/color]  %s\n接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n反差值要求提高到 [b]%d[/b]\n\n[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，你已经查到的外貌情报也还在。要改的是打扮，不是身份。[/color]"
 			},
 			"questions_schema": "faceless-questions-v1",
 			"forced_rules": [],

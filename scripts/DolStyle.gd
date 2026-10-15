@@ -99,7 +99,7 @@ static func value_color(ramp: Array, value: float, max_value: float) -> Color:
 # ---------------- 卡片样式 ----------------
 #  state: "normal" | "hover" | "equipped" | "forced" | "dim" | "locked"
 #  DoL 的卡片是「1px 实线 + 悬停换底色」，三态靠边框颜色区分：
-#    已装备 → 绿框；本关强制 → 橙框；还没解锁 → 灰到几乎看不见。
+#    已装备 → 绿框；本轮强制 → 橙框；还没解锁 → 灰到几乎看不见。
 static func card_style(state: String) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = CARD_BG
@@ -182,7 +182,7 @@ class Pips extends Control:
 #
 #  DoL 那条是固定的 蓝→柠檬→红 渐变，指针指出当前值；
 #  这里渐变用各数值自己的色阶，另外多画一条**阈值刻线**：
-#    暴露值 → 上限；反差值 → 本关要求。跨没跨过去，看刻线左右就知道。
+#    暴露值 → 上限；反差值 → 本轮要求。跨没跨过去，看刻线左右就知道。
 # ============================================================
 class Scale extends Control:
 	const ARROW_H := 9.0

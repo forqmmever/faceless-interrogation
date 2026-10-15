@@ -289,6 +289,11 @@ ITEMS = {
                         "scale": 3.0, "align": ("bbox_center", 58.0, 52.0)}],
     "tattoo_cumrag":  [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
                         "scale": 3.0, "align": ("bbox_center", 58.0, 70.0)}],
+    # ★ 第四十七轮补的两件「爪印」扩展（胸口 / 脸颊），参数同样见下方 AU_OVERRIDE。
+    "tattoo_paw_chest": [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
+                          "scale": 2.6, "align": ("bbox_center", 51.0, 62.0)}],
+    "tattoo_paw_face":  [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
+                          "scale": 2.6, "align": ("bbox_center", 51.0, 62.0)}],
 
     # ---- 颈饰 ----
     # ★ 第二十六轮核查结论：这三件的源图本来就是 AU 图包自己的 clothes/neck/*，
@@ -390,6 +395,26 @@ ITEMS = {
     "acc_locket": [{"src": ("clothes", "neck", "lovelocket"), "tint": PEWTER}],                    # 11×21 纯灰
     "acc_belt":   [{"src": ("clothes", "lower", "chainbelt skirt", "acc"), "tint": LEATHER,
                     "alt": {"src": ("clothes", "lower", "belted"), "tint": LEATHER}}],
+    # ★ 第四十八轮：按用户口径从「配饰候选」里挑的六件，全部实测为 **A 档**
+    #   （新几何 512×256 + 纯灰度，最大饱和度 0.000）—— 直接用，不用 borrow 头部小件那套搬运。
+    #   · 腿环两件取 `clothes/legs/`（那是**腿上的环带**，不是袜子；袜子归 stockings 槽）。
+    #     `belted` 有 full-short / full-long 两个尺寸，取 full-long（环带更长、更像腿环）；
+    #     `leather` 只有 full。
+    #   · 颈圈四件取 `clothes/neck/`。★ 带牵引绳的两件：**绳子在 `acc.png` 那一层**，
+    #     只取 full.png 会只剩一个光秃秃的圈 —— 所以写成两层（先圈后绳），
+    #     和 `acc_belt` 借 `lower/.../acc` 是同一个道理。
+    #     `bunnycollar` 的 acc 层只有 9×8 一小块（压在圈上），就不叠了，免得出杂点。
+    #   · 四件颈圈都是纯灰度，不给 tint 会保持图包原色（银灰）；
+    #     这里统一按「皮革 / 金属」两档上色，和既有颈饰的口径一致。
+    "acc_legband_belted":  [{"src": ("clothes", "legs", "belted", "full-long"), "tint": LEATHER}],
+    "acc_legband_leather": [{"src": ("clothes", "legs", "leather"), "tint": LEATHER}],
+    "acc_choker_bunny":    [{"src": ("clothes", "neck", "bunnycollar"), "tint": (0.86, 0.84, 0.88)}],
+    "acc_choker_leash":    [{"src": ("clothes", "neck", "collarleash"), "tint": LEATHER},
+                            {"src": ("clothes", "neck", "collarleash", "acc"), "tint": LEATHER}],
+    "acc_choker_whitney":  [{"src": ("clothes", "neck", "Whitney's Collar"), "tint": SILVER}],
+    "acc_choker_whitney_leash": [
+                            {"src": ("clothes", "neck", "Whitney's collar with leash"), "tint": SILVER},
+                            {"src": ("clothes", "neck", "Whitney's collar with leash", "acc"), "tint": SILVER}],
 
     # ---- 下装 ----
     # ★ 同上：「（不穿下装）」= 这一层空着，内裤直接外穿。
@@ -626,6 +651,32 @@ AU_OVERRIDE = {
                      "scale": 0.4667, "align": ("bbox_center", 61.33, 99.00)},
     "tattoo_paw":   {"src": ("bodywriting", "paw print", "left-thigh"), "tint": INK,
                      "scale": 2.6667, "align": ("bbox_center", 61.00, 83.33)},
+    # ★ 第四十七轮补的两件「爪印」扩展 —— 胸口 / 脸颊。
+    #   先记两条实测结论：
+    #   ① AU 的 `paw print` **每一个位置都是同一个 5×5 图案**（逐像素比对过
+    #      left-thigh / breasts-0 / right-cheek 的左列副本，完全一致），
+    #      所以「用哪个位置当 src」只影响图包自己的落点，而 transform 会按 bbox
+    #      重新居中 —— 真正决定位置的只有 align。换句话说：**都是同一枚爪印，靠搬运换部位**。
+    #   ② 用户要的「小腿」**做不了**：bodywriting 里根本没有这个位置（只有
+    #      forehead / left·right-cheek / left·right-shoulder / left·right-thigh /
+    #      breasts-0..6 / pubic），而且实测小腿那一段（y120 以下）两条腿**各自只有
+    #      8~11 px 宽**（鞋子从 y≈161 起盖住），塞不下一枚看得清的爪印。
+    #      所以只补胸口与脸颊两处，已在 README 记为已知取舍。
+    #   落点算法同上一件：align = (视口中心 + (43, 15)) / 1.5。
+    #     chest 视口中心 (42, 66) → 20×20（与大腿那枚同尺寸，认得出是同一个图案）
+    #     face  视口中心 (38, 43) →  8×8 （和面颊那枚星纹 7×8 同档）
+    #   ★ 脸颊这件的落点是**扫过一遍挑出来的**：第一版放在 (36, 40) 正压在眼睛上
+    #     （实测 31 个墨点有 9 个落在 sclera/iris/lashes/eyelids/brow 上，29%）。
+    #     把 N=5/6/7/8 四档 × 全部视口位置跑了一遍、按「落皮肤比例高 + 压眼少」
+    #     取帕累托前沿，最后落到 (38, 43)：**落皮肤 100%、压眼 0**
+    #     —— 而且刚好在**另一侧脸颊**（既有星纹在 x45-52 的右颊，这枚在 x35-40 的左颊），
+    #     两件面颊纹身可以同时戴着不打架。
+    #   实测落点：chest bbox 32,56-52,76（100% 落在躯干上）；
+    #             face  bbox 35,40-40,45（100% 落在头部轮廓内、零压眼）。
+    "tattoo_paw_chest": {"src": ("bodywriting", "paw print", "breasts-0"), "tint": INK,
+                         "scale": 2.6667, "align": ("bbox_center", 56.67, 54.00)},
+    "tattoo_paw_face":  {"src": ("bodywriting", "paw print", "right-cheek"), "tint": INK,
+                         "scale": 1.0667, "align": ("bbox_center", 53.67, 38.33)},
     # ★ 第三十六轮补的四件刻字，取 AU 的 `bodywriting/text/<词>/<位置>`。
     #   这一组和上面几件**不一样**：AU 的 text 贴图是**按部位画好的整字**
     #   （不是小图案），所以位置和尺寸都沿用图包自己的落点 ——

@@ -624,6 +624,28 @@
 				"disabled": false
 			},
 			{
+				"id": "tattoo_paw_chest",
+				"name": "胸口爪印",
+				"slot": "tattoo",
+				"slot_name": "纹身",
+				"exposure": 2,
+				"contrast": 5,
+				"acceptance_req": 8,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "tattoo_paw_face",
+				"name": "脸颊爪印",
+				"slot": "tattoo",
+				"slot_name": "纹身",
+				"exposure": 2,
+				"contrast": 6,
+				"acceptance_req": 7,
+				"tags": [],
+				"disabled": false
+			},
+			{
 				"id": "tattoo_bitch",
 				"name": "左大腿刻字「bitch」",
 				"slot": "tattoo",
@@ -1257,6 +1279,72 @@
 				"exposure": 1,
 				"contrast": 3,
 				"acceptance_req": 4,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "acc_legband_belted",
+				"name": "搭扣腿环",
+				"slot": "accessory",
+				"slot_name": "配饰",
+				"exposure": 1,
+				"contrast": 3,
+				"acceptance_req": 4,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "acc_legband_leather",
+				"name": "皮质腿环",
+				"slot": "accessory",
+				"slot_name": "配饰",
+				"exposure": 1,
+				"contrast": 3,
+				"acceptance_req": 5,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "acc_choker_bunny",
+				"name": "兔女郎项圈",
+				"slot": "accessory",
+				"slot_name": "配饰",
+				"exposure": 1,
+				"contrast": 4,
+				"acceptance_req": 6,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "acc_choker_whitney",
+				"name": "Whitney 的项圈",
+				"slot": "accessory",
+				"slot_name": "配饰",
+				"exposure": 1,
+				"contrast": 5,
+				"acceptance_req": 7,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "acc_choker_leash",
+				"name": "带牵引绳项圈",
+				"slot": "accessory",
+				"slot_name": "配饰",
+				"exposure": 2,
+				"contrast": 6,
+				"acceptance_req": 8,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "acc_choker_whitney_leash",
+				"name": "Whitney 的牵引项圈",
+				"slot": "accessory",
+				"slot_name": "配饰",
+				"exposure": 2,
+				"contrast": 7,
+				"acceptance_req": 9,
 				"tags": [],
 				"disabled": false
 			},
@@ -2281,6 +2369,14 @@
 				"exposure": 2,
 				"acceptance_req": 8
 			},
+			"tattoo_paw_chest": {
+				"exposure": 2,
+				"acceptance_req": 8
+			},
+			"tattoo_paw_face": {
+				"exposure": 2,
+				"acceptance_req": 7
+			},
 			"tattoo_bitch": {
 				"exposure": 2,
 				"acceptance_req": 9
@@ -2504,6 +2600,30 @@
 			"acc_belt": {
 				"exposure": 1,
 				"acceptance_req": 4
+			},
+			"acc_legband_belted": {
+				"exposure": 1,
+				"acceptance_req": 4
+			},
+			"acc_legband_leather": {
+				"exposure": 1,
+				"acceptance_req": 5
+			},
+			"acc_choker_bunny": {
+				"exposure": 1,
+				"acceptance_req": 6
+			},
+			"acc_choker_whitney": {
+				"exposure": 1,
+				"acceptance_req": 7
+			},
+			"acc_choker_leash": {
+				"exposure": 2,
+				"acceptance_req": 8
+			},
+			"acc_choker_whitney_leash": {
+				"exposure": 2,
+				"acceptance_req": 9
 			},
 			"panties_janties": {
 				"exposure": 5,
@@ -7182,6 +7302,8 @@
 		"tattoo_thigh": "大腿上攀着一枝暗色的藤蔓",
 		"tattoo_heart": "大腿上串着一列小小的暗色心形",
 		"tattoo_paw": "大腿外侧印着一枚小小的兽爪",
+		"tattoo_paw_chest": "胸口正中印着一枚小小的兽爪",
+		"tattoo_paw_face": "脸颊上印着一枚小小的兽爪",
 		"tattoo_bitch": "左大腿内侧刻着「bitch」一行小字",
 		"tattoo_freeuse": "右大腿上刻着「free-use」一行小字",
 		"tattoo_slave": "胸口正中刻着「slave」一行小字",
@@ -7196,6 +7318,14 @@
 		"gloves_none": "从不戴手套，抓缰绳都是赤着手",
 		"gloves_leather": "总戴着一副磨旧了的皮手套",
 		"acc_none": "没有一件多余的物件，干干净净",
+		"acc_locket": "锁骨上垂着一枚银质的心形吊坠",
+		"acc_belt": "腰上系着一条宽皮带，扣得很紧",
+		"acc_legband_belted": "腿上箍着一圈搭扣带子",
+		"acc_legband_leather": "大腿上勒着一圈皮质的环带",
+		"acc_choker_bunny": "脖子上是一个带扣的兔女郎项圈",
+		"acc_choker_whitney": "脖子上扣着一个刻了字的项圈",
+		"acc_choker_leash": "脖子上扣着项圈，垂着一条牵引绳",
+		"acc_choker_whitney_leash": "脖子上扣着刻字的项圈，还连着一条牵引绳",
 		"bottom_longskirt": "裙摆几乎扫地，看不见鞋面",
 		"bottom_trousers": "是条直筒长裤，裤脚沾着泥",
 		"dress_none": "从没见穿过裙子，一贯是上衣配长裤",

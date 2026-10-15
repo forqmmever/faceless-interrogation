@@ -508,6 +508,13 @@ const ITEMS_BASE := [
 	#   三件大腿纹身共用同一档「可见度」，只按墨量给反差分档。
 	{"id": "tattoo_heart", "name": "大腿心形纹身", "slot": "tattoo", "exposure": 2, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": [], "gate": ["bottom", "dress"]},
 	{"id": "tattoo_paw", "name": "大腿爪印", "slot": "tattoo", "exposure": 2, "acceptance_req": 8, "contrast": 5, "covers": [], "tags": [], "gate": ["bottom", "dress"]},
+	# ★ 第四十七轮：把「爪印」从大腿扩到**胸口**与**脸颊**。
+	#   用户还点了「小腿」，但那条**做不了** —— AU 的 bodywriting 里没有小腿这个位置，
+	#   而且实测小腿那一段两条腿各只有 8~11 px 宽（鞋子从 y≈161 起就盖住了），
+	#   塞不下一枚看得清的爪印。所以这一轮只补两件。见 dol_map.AU_OVERRIDE 的实测记录。
+	#   gate 照惯例：胸口看上衣与成装（同 tattoo_slave）；脸颊没有衣服盖得住，不给 gate。
+	{"id": "tattoo_paw_chest", "name": "胸口爪印", "slot": "tattoo", "exposure": 2, "acceptance_req": 8, "contrast": 5, "covers": [], "tags": [], "gate": ["top", "dress"]},
+	{"id": "tattoo_paw_face", "name": "脸颊爪印", "slot": "tattoo", "exposure": 2, "acceptance_req": 7, "contrast": 6, "covers": [], "tags": []},
 	# ★ 第三十六轮新增 4 件「刻字」纹身 —— 取自 AU `bodywriting/text/` 下的四组字，
 	#   按用户口径**分散到四个位置**（左大腿 / 右大腿 / 胸口 / 下腹），
 	#   免得两件刻字叠在同一处、贴图互相盖住。
@@ -657,6 +664,18 @@ const ITEMS_BASE := [
 	#   于是这一栏只剩「（不戴）/ 银质心形吊坠 / 束腰皮带」三件。
 	{"id": "acc_locket", "name": "银质心形吊坠", "slot": "accessory", "exposure": 0, "acceptance_req": 2, "contrast": 2, "covers": [], "tags": []},
 	{"id": "acc_belt", "name": "束腰皮带", "slot": "accessory", "exposure": 1, "acceptance_req": 4, "contrast": 3, "covers": [], "tags": []},
+	# ★ 第四十八轮：按用户口径从「配饰候选」里挑的六件（腿环 2 + 颈圈 4）。
+	#   全部实测为 A 档（AU 新几何 + 纯灰度），贴图直接用、没有搬运。
+	#   数值口径照既有三件往上一档排：
+	#     脚边的环带最轻（暴露 1 / 门槛 4~5）＜ 兔女郎项圈（门槛 6）
+	#     ＜ Whitney 项圈（门槛 7）＜ 带牵引绳的两件（暴露 2 / 门槛 8~9，
+	#     因为「拴着一条绳」本身就是要被人看见的）。
+	{"id": "acc_legband_belted", "name": "搭扣腿环", "slot": "accessory", "exposure": 1, "acceptance_req": 4, "contrast": 3, "covers": [], "tags": []},
+	{"id": "acc_legband_leather", "name": "皮质腿环", "slot": "accessory", "exposure": 1, "acceptance_req": 5, "contrast": 3, "covers": [], "tags": []},
+	{"id": "acc_choker_bunny", "name": "兔女郎项圈", "slot": "accessory", "exposure": 1, "acceptance_req": 6, "contrast": 4, "covers": [], "tags": []},
+	{"id": "acc_choker_whitney", "name": "Whitney 的项圈", "slot": "accessory", "exposure": 1, "acceptance_req": 7, "contrast": 5, "covers": [], "tags": []},
+	{"id": "acc_choker_leash", "name": "带牵引绳项圈", "slot": "accessory", "exposure": 2, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": []},
+	{"id": "acc_choker_whitney_leash", "name": "Whitney 的牵引项圈", "slot": "accessory", "exposure": 2, "acceptance_req": 9, "contrast": 7, "covers": [], "tags": []},
 
 	# ================= 下装 =================
 	# ★ 第三十一轮（用户口径「丁字裤归在下装」）：黑色丁字裤与牛仔丁字裤从

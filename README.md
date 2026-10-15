@@ -424,9 +424,9 @@
 | zorder | 槽位 | 中文名 | 件数 |
 |---|---|---|---|
 | 111 | `makeup` | 妆容 | **6** |
-| 121 | `accessory` | 配饰 | **3** ← 第四十六轮删金脚链 / 金色手铐 |
+| 121 | `accessory` | 配饰 | **9** ← 第四十八轮补 6 件（腿环 2 + 颈圈 4） |
 | 131 | `piercing` | 穿环 | 4 ← **暂时下架**（第三十七轮） |
-| 141 | `tattoo` | 纹身 | **10** ← 第三十六轮起是**多件槽位**（同时最多 2 件） |
+| 141 | `tattoo` | 纹身 | **12** ← 第四十七轮爪印扩到胸口/脸颊；**多件槽位**（同时最多 2 件） |
 | 161 | `stockings` | 袜类 | **12** ← 第三十七轮并入吊袜带 |
 | 171 | `panties` | 下内衣 | **13** ← 第四十六轮黑色丁字裤挪回来 |
 | 191 | `bottom` | 下装 | **22** ← 第四十六轮黑色丁字裤挪去下内衣（只留牛仔那条） |
@@ -443,7 +443,7 @@
 | 271 | `glasses` | 眼镜 | 4 |
 | 281 | `headgear` | 头饰 | 4 ← **暂时下架** |
 
-合计 **164 件**（玩家可见 144 件）。`hair` 槽没有"不戴"选项（头发始终存在），因此角色底图
+合计 **172 件**（玩家可见 150 件）。`hair` 槽没有"不戴"选项（头发始终存在），因此角色底图
 `body.png` 不再自带头发，发型完全由该槽位提供。
 
 > **★ `tool` 的 zorder 为什么是 196**：它是本项目自创的一栏（WTS 没有），
@@ -1599,7 +1599,7 @@ scenes/
   Main.tscn              # 主场景（准备室 + 盘问 两个 Control 节点，UI 全部代码构建）
 scripts/
   GameData.gd            # 全局状态单例：怀疑度（轮内只涨不跌 + 轮间衰减）/ 情报进度 / 手机进度 / 前后矛盾 / 审问者性情 / ★ 换装判定结果 / 审问者短信 / ★ 逐轮问答记录 answer_log
-  OutfitData.gd          # 服装数据库：19 槽位（robe / earrings / gloves / headgear / piercing 暂时下架；tool 妙妙工具只能手动装备）/ 164 件 / 内衣曝光门控 / 成装互斥 / 原貌池 / 强制装备池
+  OutfitData.gd          # 服装数据库：19 槽位（robe / earrings / gloves / headgear / piercing 暂时下架；tool 妙妙工具只能手动装备）/ 172 件 / 内衣曝光门控 / 成装互斥 / 原貌池 / 强制装备池
                          #   —— 另加三张「可从 story.json 编辑」的运行时表：关卡 LEVELS / 强制规则 FORCED_RULES / 缺陷 DEFECTS
   ScenarioData.gd        # 内容库：出厂文本（DEFAULT_* 常量）+ 从 data/story.json 读入的覆盖层
   ProfileData.gd         # ★ 账号级存档（user://profile.json）：跨局保留的接受度 + 战绩（永不清零）
@@ -1623,10 +1623,10 @@ data/
                          #   ★ 第三十七轮起 DoL 那套（data/doll.json + assets/dol/）已整条停掉、文件已删
 assets/dol_au/           # ★ 小人素材 · AUfemale 图包（社区重画，人物更高、有完整双腿；第三十七轮起唯一一套）
   base/*.png             # 身体 / 脸 / 四套头发（按 ZIndices 的 z 序叠）
-  clothes/*.png          # 164 件里非空件的贴图（已染色、已裁到统一取景框 68×203）
+  clothes/*.png          # 172 件里非空件的贴图（已染色、已裁到统一取景框 68×203）
   icons/*.png            # 每件物品的卡片图标（30×30 图标，落盘时放大到 60×60；按 AU 自己的贴图烘，不是沿用 DoL 的）
 tools/
-  dol_map.py             # ★ 164 件衣物 → AU 图包款式 / 染色 / 位置搬移的映射表（人工挑的）
+  dol_map.py             # ★ 172 件衣物 → AU 图包款式 / 染色 / 位置搬移的映射表（人工挑的）
   dol_prepare.py         # ★ 按映射取帧 / 染色 / 裁框，烘进 assets/dol_au/ 与 data/doll_au.json（只剩 AU 一套）
   flow_overview.py       # 把 screenshots/ 下的 43 张截图拼成一张流程总览图
   scan_unused_cats.py    # ★★ 第三十八轮：量 AU 图包里未接入的四类（尺寸 / bbox / 几何 / 重复），出明细
@@ -1648,7 +1648,7 @@ tools/
   editor_smoke.js        # 文本编辑器的冒烟测试（Node + DOM 桩，237 项，含反向用例）
   phone_editor_smoke.js  # 手机编辑器的冒烟测试（Node + DOM 桩，97 项，含反向用例）
 tests/
-  WardrobeTest.tscn/.gd  # 换装 + 数据层单元测试（579 项断言）
+  WardrobeTest.tscn/.gd  # 换装 + 数据层单元测试（580 项断言）
   TestRunner.tscn/.gd    # 端到端测试（909 项断言）
   Screenshot.tscn/.gd    # 真实渲染截图脚本（43 张）
 screenshots/             # 各阶段渲染截图 + 流程总览图
@@ -1753,7 +1753,7 @@ ScenarioData.gd 里的 DEFAULT_* 常量   ← 出厂兜底文本
 | `item_overrides` | ★ 服装数值覆写：`{物品 id: {exposure, acceptance_req}}` —— **只写改过的那几件**，没写的用代码内置值 | 👕 服装数值 | **全局一套** |
 | `backgrounds[].levels` / `forced_rules` / `qte_plan` / `defects` / `true_presets` | ★ 第四十一轮：**本局（这一套背景）** 的流程覆写 —— 轮数 / 强制穿着 / QTE 计划 / 缺陷 / 原貌。**五项都空 = 用下面那几行全局的**（默认就是这样） | 背景页的「⑥ 本局覆写」几节 | **每套背景一份** |
 | `true_presets` | ★ 原貌预设：`{pool: [{name, slots}], by_level: [{name, slots} \| null]}` —— 两处都空 = 走原来的随机逻辑 | 🎭 原貌 | pool 全局 / by_level 每关一条 |
-| `catalog` | **只读目录**（164 件衣物 / 4 个标签 / 19 个槽位 + `manual_slots` 名单 + `base_values` 内置值 + `true_pool` 原貌池），给编辑器做下拉与勾选用；**游戏不读它** | （不用手改） | 全局 |
+| `catalog` | **只读目录**（172 件衣物 / 4 个标签 / 19 个槽位 + `manual_slots` 名单 + `base_values` 内置值 + `true_pool` 原貌池），给编辑器做下拉与勾选用；**游戏不读它** | （不用手改） | 全局 |
 | `backgrounds[]` | 每套背景的 `intro` / `levels` / `cards` / `questions` / `facts` / `sms` / `companion_questions` / `blind_questions` / `interference_lines` | 背景页各节 | 每套背景一份 |
 | `backgrounds[].endings` | 结局文案 **27 条**（一眼认出 / 身份暴露 / 怀疑度满 / 一关收场 / 结果浮层 / 大覆盖层） | 🎬 结局文案 | **每个背景一套** |
 | `traits[]` | 审问者性情（撒谎 / 回避的代价、反馈文案、手机备忘录三条） | 🎭 审问者性情 | 全局 |
@@ -1867,7 +1867,7 @@ x256..511  上面两列的逐像素复制
 ### 管线
 
 ```
-tools/dol_map.py       ← 164 件衣物 → 款式 + 染色 + 搬运规则（人工挑的映射表）
+tools/dol_map.py       ← 172 件衣物 → 款式 + 染色 + 搬运规则（人工挑的映射表）
 tools/dol_prepare.py   ← 按映射取帧 / 染色 / 裁框，烘进 assets/dol*/ 与 data/doll*.json
 data/doll*.json        ← 产物清单：每层画哪张图、z 是多少、取景框多大
 scripts/DolDoll.gd     ← 运行时只负责按 z 序把 PNG 铺成 TextureRect，GPU 去叠
@@ -3093,6 +3093,111 @@ id 仍是 `panties_thong`，贴图也没换（源图一直在 `under-lower/thong
 > 2. **`acc_belt` 的 `src` 指向一个不存在的目录** —— `dol_map` 写的是
 >    `lower/chainbelt skirt`，但 AU 里没有这个目录，它实际走 `alt` 分支 `lower/belted`。
 
+### 第四十七轮：爪印扩到胸口与脸颊 · 「小腿」实测做不了
+
+用户口径：「增加 Paw print 小腿纹身和胸部纹身，脸部纹身」，随后补一句
+「小腿做不了就只要其他能做的几处」。
+
+**① 先说「小腿」为什么做不了** —— 两条实测数据，不是含糊带过：
+
+1. **AU 的 `bodywriting` 根本没有小腿这个位置**。全部 15 个位置：
+   `breasts-0..6` / `forehead` / `left·right-cheek` / `left·right-shoulder` /
+   `left·right-thigh` / `pubic`。
+2. **小腿那一段的皮肤本来就不够**。逐行扫 `body.png` 的身体掩膜后量出：
+   两条腿在 y120 以下**各自只有 8～11 px 宽**，到 y153 附近只剩 7～8 px，
+   而鞋子从 y≈161 起就盖住了 —— 塞不下一枚看得清的爪印。
+
+```
+y=120  30-40(11) | 44-54(11)     ← 大腿：每边 11 px
+y=140  29-39(11) | 45-55(11)
+y=153  30-37( 8) | 47-54( 8)     ← 小腿：每边只剩 8 px
+y=161  30-37( 8) | 47-54( 8)     ← 鞋子从这一行起盖住
+```
+
+**② 一个关键事实：`paw print` 在 AU 里每个位置都是同一个 5×5 图案。**
+逐像素比对过 `left-thigh` / `breasts-0` / `right-cheek` 的左列副本，**完全一致**。
+所以「用哪个位置当 `src`」只影响图包自己的落点，`transform()` 会按 bbox 重新居中 ——
+真正决定位置的只有 `align`。换句话说：**三枚爪印其实是同一个图案，靠搬运换部位。**
+
+**③ 落点算法**沿用既有的反算口径 `align = (视口中心 + (43, 15)) / 1.5`：
+
+| id | 名称 | AU 源 | 画后尺寸 | 视口落点 | 落皮肤 | 压眼睛 | 暴 | 需 | 差 | gate |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `tattoo_paw_chest` | 胸口爪印 | `paw print/breasts-0` | 20×20 | bbox 32,56-52,76 | **100%** | — | 2 | 8 | 5 | `top` / `dress` |
+| `tattoo_paw_face` | 脸颊爪印 | `paw print/right-cheek` | 8×8 | bbox 34,39-42,47 | **93.5%** | 2 px | 2 | 7 | 6 | 无（脸没有衣服盖得住） |
+
+**④ 脸颊这件返工过一次** —— 第一版放在 (36, 40)，量出来 31 个墨点里有 9 个压在
+`sclera` / `iris` / `lashes` / `eyelids` / `brow` 上（**29%**），
+而既有的面颊星纹只有 6%（2 px）—— 差得太远。
+
+于是把 **N=5/6/7/8 四档 × 全部视口位置**跑了一遍，按「落皮肤比例高 + 压眼少」
+取**帕累托前沿**，最后落到 (38, 43)：
+
+```
+N=8   vcx=33 vcy=27  bbox x29-36 y23-30  落皮肤 100.0%  压眼 0     ← 额头，太靠上
+N=8   vcx=38 vcy=43  bbox x35-40 y40-45  落皮肤 100.0%  压眼 0     ← ★ 选了这条
+（第一版 vcx=36 vcy=40 → 落皮肤 96.8%，但压眼 9 px ＝ 29%）
+```
+
+最终实测 **落皮肤 93.5%、压眼 2 px** —— 与既有星纹完全同一水平；
+而且刚好落在**另一侧脸颊**（星纹在 x45-52 的右颊，这枚在 x34-41 的左颊），
+两件面颊纹身可以同时戴着不打架。
+
+**⑤ 顺带修一个数据同步的坑**：`data/story.json` 的 `item_desc` 是**整段替换**
+（`_item_desc = idesc`），**不是** `_merge_flat` 那种逐键覆盖 ——
+所以只改 GDScript 的 `DEFAULT_ITEM_DESC`，会被 story.json 里的旧值整段盖掉。
+这一轮用「清空 → 重导 → 回填」把默认值同步进去（**43 → 53 条**）：
+先把 `item_desc` 置空、跑一次 `DumpStory` 拿到全部默认值（顺序也对），
+再用 Python 把原文件的值叠回去、最后再跑一次 `DumpStory` 规范化。
+
+**⑥ 数值**：胸口 `acceptance_req` 8 / `contrast` 5，`gate: ["top","dress"]`
+（与被上衣盖住的 `tattoo_slave` 同一档）；脸颊 7 / 6，**不给 gate**。
+
+> 纹身槽 **10 → 12 件**，物品总数 **164 → 172**。
+
+### 第四十八轮：加入挑中的六件配饰（腿环 2 + 颈圈 4）
+
+用户口径：「添加这些配饰：belted, leather, bunnycollar, collarleash,
+Whitney's Collar, Whitney's collar with leash」。
+
+**① 六件全部实测为 A 档**（AU 新几何 512×256 + **纯灰度，最大饱和度 0.000**）——
+贴图直接用、不需要搬运，也没有试色风险。
+
+| id | 中文名 | 源 | 暴露 / 门槛 / 反差 |
+|---|---|---|---|
+| `acc_legband_belted` | 搭扣腿环 | `legs/belted`（取 `full-long`） | 1 / 4 / 3 |
+| `acc_legband_leather` | 皮质腿环 | `legs/leather` | 1 / 5 / 3 |
+| `acc_choker_bunny` | 兔女郎项圈 | `neck/bunnycollar` | 1 / 6 / 4 |
+| `acc_choker_whitney` | Whitney 的项圈 | `neck/Whitney's Collar` | 1 / 7 / 5 |
+| `acc_choker_leash` | 带牵引绳项圈 | `neck/collarleash` + 其 `acc` 层 | 2 / 8 / 6 |
+| `acc_choker_whitney_leash` | Whitney 的牵引项圈 | `neck/Whitney's collar with leash` + 其 `acc` 层 | 2 / 9 / 7 |
+
+数值口径照既有三件往上一档排：脚边的环带最轻 ＜ 兔女郎项圈 ＜ Whitney 项圈
+＜ 带牵引绳的两件（暴露 2 —— 「拴着一条绳」本身就是要被人看见的）。
+
+**② `belted` 与 `leather` 的位置是推出来的，不是猜的。**
+`belted` 在同一图包里出现在 **5 个部位**（`hands` / `legs` / `lower` / `upper` / `feet`），
+但 `leather` **只存在于 `legs/`** —— 两件要成对，只能是 `legs/` 那一组：
+
+| 部位 | 有没有 `belted` | 有没有 `leather` |
+|---|---|---|
+| `hands/` | 有（搭扣腕带） | 无 |
+| `legs/` | **有** | **有** ← 只有这里两件齐 |
+| `lower/` | 有 | 无 |
+| `upper/` | 有 | 无 |
+| `feet/` | 有 | 无 |
+
+**③ 带牵引绳的两件，绳子在 `acc.png` 那一层** —— 只取 `full.png` 会只剩一个光秃秃的圈。
+所以这两件写成**两层**（先圈后绳），和 `acc_belt` 借 `lower/…/acc` 是同一个道理。
+`bunnycollar` 的 `acc` 层只有 9×8 一小块（压在圈上），不叠，免得出杂点。
+
+> ★ **已知取舍：AU 画的牵引绳本来就垂到取景框外。**
+> `acc_choker_leash` 的绳从 x38 一路拖到 x0，`…whitney_leash` 拖到 x67 ——
+> 取景框只有 68 px 宽，两件的绳都被切掉一截（40 px 左右）。
+> 这与既有 `tool_tail`（被切 26 px）同级，读起来像「绳子被画外的人牵着」，暂按现状保留。
+
+> 配饰栏 **3 → 9 件**，物品总数 164 → **172**（与第四十七轮合计）。
+
 ## 位置
 
 本项目已从 C 盘迁移至 D 盘：
@@ -3147,7 +3252,7 @@ PROJ="D:/WorkBuddy/2026-10-11-09-19-59"
 # 直接启动游戏
 "$GODOT" --path "$PROJ"
 
-# 换装 + 数据层单元测试（579 项断言）
+# 换装 + 数据层单元测试（580 项断言）
 "$GODOT" --headless --fixed-fps 60 --path "$PROJ" res://tests/WardrobeTest.tscn --quit-after 2400
 
 # 端到端测试（909 项断言）
@@ -3287,9 +3392,9 @@ python tools/build_phone_editor.py && node tools/phone_editor_smoke.js
 
 ## 测试
 
-两套 Godot 无头测试（**1488 项断言** = 579 + 909）+ 两套编辑器冒烟测试（**334 项** = 237 + 97）：
+两套 Godot 无头测试（**1489 项断言** = 580 + 909）+ 两套编辑器冒烟测试（**334 项** = 237 + 97）：
 
-**`tests/WardrobeTest.tscn`** —— 换装 + 数据层单元测试（579 项断言）
+**`tests/WardrobeTest.tscn`** —— 换装 + 数据层单元测试（580 项断言）
 - 槽位体系完整性（18 槽位 / zorder 递增 / 每个可见槽位 ≥2 件 / id 唯一 / slot 合法 / 默认装备可解析）
 - 下架槽位的契约（`DISABLED_SLOTS`：界面/原貌/情报/相册/强制池都看不到它，但数据与贴图一件不少）
 - **内衣内裤的曝光门控**：`see`（sheer / cutout）与 `bare` 的逐件标注、三条路逐一验证
@@ -3487,7 +3592,7 @@ python tools/build_phone_editor.py && node tools/phone_editor_smoke.js
 `level` 与 `facts` 顺序打乱…… 断言校验器**必须报错或提醒**（防止校验器形同虚设）。
 另外单独断言**状态栏里的 `🔋78%` 不会被误报成占位符**。
 
-当前状态：**换装与数据层 579/579、端到端 909/909、文本编辑器冒烟 237/237、手机编辑器冒烟 97/97
+当前状态：**换装与数据层 580/580、端到端 909/909、文本编辑器冒烟 237/237、手机编辑器冒烟 97/97
 全部通过（共 1608 项断言）**。
 
 ## 截图

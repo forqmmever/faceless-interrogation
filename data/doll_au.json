@@ -82,6 +82,66 @@
     }
    ]
   },
+  "acc_choker_bunny": {
+   "icon": "icons/acc_choker_bunny.png",
+   "layers": [
+    {
+     "file": "clothes/acc_choker_bunny.png",
+     "name": "acc_choker_bunny",
+     "z": 105.0
+    }
+   ]
+  },
+  "acc_choker_leash": {
+   "icon": "icons/acc_choker_leash.png",
+   "layers": [
+    {
+     "file": "clothes/acc_choker_leash.png",
+     "name": "acc_choker_leash",
+     "z": 105.0
+    }
+   ]
+  },
+  "acc_choker_whitney": {
+   "icon": "icons/acc_choker_whitney.png",
+   "layers": [
+    {
+     "file": "clothes/acc_choker_whitney.png",
+     "name": "acc_choker_whitney",
+     "z": 105.0
+    }
+   ]
+  },
+  "acc_choker_whitney_leash": {
+   "icon": "icons/acc_choker_whitney_leash.png",
+   "layers": [
+    {
+     "file": "clothes/acc_choker_whitney_leash.png",
+     "name": "acc_choker_whitney_leash",
+     "z": 105.0
+    }
+   ]
+  },
+  "acc_legband_belted": {
+   "icon": "icons/acc_legband_belted.png",
+   "layers": [
+    {
+     "file": "clothes/acc_legband_belted.png",
+     "name": "acc_legband_belted",
+     "z": 105.0
+    }
+   ]
+  },
+  "acc_legband_leather": {
+   "icon": "icons/acc_legband_leather.png",
+   "layers": [
+    {
+     "file": "clothes/acc_legband_leather.png",
+     "name": "acc_legband_leather",
+     "z": 105.0
+    }
+   ]
+  },
   "acc_locket": {
    "icon": "icons/acc_locket.png",
    "layers": [
@@ -1375,6 +1435,26 @@
     {
      "file": "clothes/tattoo_paw.png",
      "name": "tattoo_paw",
+     "z": 36.0
+    }
+   ]
+  },
+  "tattoo_paw_chest": {
+   "icon": "icons/tattoo_paw_chest.png",
+   "layers": [
+    {
+     "file": "clothes/tattoo_paw_chest.png",
+     "name": "tattoo_paw_chest",
+     "z": 36.0
+    }
+   ]
+  },
+  "tattoo_paw_face": {
+   "icon": "icons/tattoo_paw_face.png",
+   "layers": [
+    {
+     "file": "clothes/tattoo_paw_face.png",
+     "name": "tattoo_paw_face",
      "z": 36.0
     }
    ]

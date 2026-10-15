@@ -1451,6 +1451,9 @@ const DEFAULT_ITEM_DESC := {
 	"tattoo_thigh": "大腿上攀着一枝暗色的藤蔓",
 	"tattoo_heart": "大腿上串着一列小小的暗色心形",
 	"tattoo_paw": "大腿外侧印着一枚小小的兽爪",
+	# ★ 第四十七轮：爪印扩到胸口与脸颊（小腿做不了，见 OutfitData / dol_map 的说明）
+	"tattoo_paw_chest": "胸口正中印着一枚小小的兽爪",
+	"tattoo_paw_face": "脸颊上印着一枚小小的兽爪",
 	# ★ 第三十六轮新增的四件刻字纹身（各占一处，见 OutfitData 的 tattoo 段）
 	"tattoo_bitch": "左大腿内侧刻着「bitch」一行小字",
 	"tattoo_freeuse": "右大腿上刻着「free-use」一行小字",
@@ -1473,6 +1476,16 @@ const DEFAULT_ITEM_DESC := {
 	# ★ 第三十四轮：黄铜胸针整件删掉 → 这条目击描述一并撤掉。
 	#   这一栏现在只有空件，所以只见得到上面那一句。
 	"acc_none": "没有一件多余的物件，干干净净",
+	# ★ 第四十八轮新增的六件配饰 —— 这一栏本来只有 acc_none 有描述（另两件不入原貌池），
+	#   但目击情报会用到，缺了就退化成「看不真切」，所以一并写上。
+	"acc_locket": "锁骨上垂着一枚银质的心形吊坠",
+	"acc_belt": "腰上系着一条宽皮带，扣得很紧",
+	"acc_legband_belted": "腿上箍着一圈搭扣带子",
+	"acc_legband_leather": "大腿上勒着一圈皮质的环带",
+	"acc_choker_bunny": "脖子上是一个带扣的兔女郎项圈",
+	"acc_choker_whitney": "脖子上扣着一个刻了字的项圈",
+	"acc_choker_leash": "脖子上扣着项圈，垂着一条牵引绳",
+	"acc_choker_whitney_leash": "脖子上扣着刻字的项圈，还连着一条牵引绳",
 	# ---- bottom ----
 	"bottom_longskirt": "裙摆几乎扫地，看不见鞋面",
 	"bottom_trousers": "是条直筒长裤，裤脚沾着泥",

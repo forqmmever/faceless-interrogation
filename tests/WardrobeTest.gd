@@ -110,13 +110,16 @@ func _test_slots() -> void:
 
 	# ★ 第三十五轮：纹身槽补了 heart / paw 两件（都落左大腿）
 	# ★ 第三十六轮：再补四件刻字（bitch / free-use / slave / cum-rag），共 10 件
+	# ★ 第四十七轮：爪印扩到胸口与脸颊两处，共 12 件
 	var tattoo_ids := []
 	for it in OutfitData.ITEMS:
 		if str(it["slot"]) == "tattoo":
 			tattoo_ids.append(str(it["id"]))
-	_check("纹身槽现有 10 件", tattoo_ids.size() == 10)
+	_check("纹身槽现有 12 件", tattoo_ids.size() == 12)
 	_check("含大腿心形纹身", tattoo_ids.has("tattoo_heart"))
 	_check("含大腿爪印", tattoo_ids.has("tattoo_paw"))
+	_check("★ 第四十七轮：胸口 / 脸颊两枚爪印都在",
+		tattoo_ids.has("tattoo_paw_chest") and tattoo_ids.has("tattoo_paw_face"))
 	_check("★ 四件刻字纹身都在（bitch / free-use / slave / cum-rag）",
 		tattoo_ids.has("tattoo_bitch") and tattoo_ids.has("tattoo_freeuse")
 		and tattoo_ids.has("tattoo_slave") and tattoo_ids.has("tattoo_cumrag"))

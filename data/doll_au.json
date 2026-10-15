@@ -956,6 +956,16 @@
     }
    ]
   },
+  "tattoo_heart": {
+   "icon": "icons/tattoo_heart.png",
+   "layers": [
+    {
+     "file": "clothes/tattoo_heart.png",
+     "name": "tattoo_heart",
+     "z": 36.0
+    }
+   ]
+  },
   "tattoo_neck": {
    "icon": "icons/tattoo_neck.png",
    "layers": [
@@ -970,6 +980,16 @@
    "icon": "icons/tattoo_none.png",
    "layers": [],
    "z": 36.0
+  },
+  "tattoo_paw": {
+   "icon": "icons/tattoo_paw.png",
+   "layers": [
+    {
+     "file": "clothes/tattoo_paw.png",
+     "name": "tattoo_paw",
+     "z": 36.0
+    }
+   ]
   },
   "tattoo_thigh": {
    "icon": "icons/tattoo_thigh.png",

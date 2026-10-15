@@ -91,6 +91,17 @@ func _test_slots() -> void:
 	_check("物品 slot 值均在 SLOT_ORDER 内", _slots_valid())
 	_check("所有槽位都有默认装备", m.equipped.size() == OutfitData.active_slots().size())
 
+	# ★ 第三十五轮：纹身槽补了 heart / paw 两件（都落左大腿）
+	var tattoo_ids := []
+	for it in OutfitData.ITEMS:
+		if str(it["slot"]) == "tattoo":
+			tattoo_ids.append(str(it["id"]))
+	_check("纹身槽现有 6 件", tattoo_ids.size() == 6)
+	_check("含大腿心形纹身", tattoo_ids.has("tattoo_heart"))
+	_check("含大腿爪印", tattoo_ids.has("tattoo_paw"))
+	_check("★ 四款有图案的纹身都写了目击描述（第三十五轮补齐 cheek / thigh）",
+		_tattoo_desc_ok())
+
 # ------------------------------------------------------------
 #  内衣内裤的曝光门控（第二十二轮）
 #
@@ -2062,6 +2073,18 @@ func _pool_has_desc() -> bool:
 			if ScenarioData.desc_of(str(id)) == "":
 				print("      missing ITEM_DESC: ", id)
 				return false
+	return true
+
+func _tattoo_desc_ok() -> bool:
+	# ★ 第三十五轮：纹身不在原貌候选池里，所以 _pool_has_desc 管不到它们 ——
+	#   但玩家能穿，目击情报会用到描述（缺了就退化成「看不真切」）。
+	#   这里把「除空件以外的纹身都要有描述」钉死。
+	for it in OutfitData.ITEMS:
+		if str(it["slot"]) != "tattoo" or str(it["id"]) == "tattoo_none":
+			continue
+		if ScenarioData.desc_of(str(it["id"])) == "":
+			print("      missing ITEM_DESC: ", it["id"])
+			return false
 	return true
 
 func _default_true_in_pool() -> bool:

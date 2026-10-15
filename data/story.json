@@ -549,6 +549,28 @@
 				"disabled": false
 			},
 			{
+				"id": "tattoo_heart",
+				"name": "大腿心形纹身",
+				"slot": "tattoo",
+				"slot_name": "纹身",
+				"exposure": 1,
+				"contrast": 6,
+				"acceptance_req": 8,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "tattoo_paw",
+				"name": "大腿爪印",
+				"slot": "tattoo",
+				"slot_name": "纹身",
+				"exposure": 1,
+				"contrast": 5,
+				"acceptance_req": 8,
+				"tags": [],
+				"disabled": false
+			},
+			{
 				"id": "neck_none",
 				"name": "（不戴）",
 				"slot": "neckwear",
@@ -5862,6 +5884,10 @@
 		"piercing_multi": "耳骨上排着一串小银环",
 		"tattoo_none": "除了手背上那一块，干净得很",
 		"tattoo_neck": "颈侧有一小片暗青色的纹路",
+		"tattoo_cheek": "脸颊上藏着一颗很小的暗色星纹",
+		"tattoo_thigh": "大腿上攀着一枝暗色的藤蔓",
+		"tattoo_heart": "大腿上串着一列小小的暗色心形",
+		"tattoo_paw": "大腿外侧印着一枚小小的兽爪",
 		"neck_none": "从来不挂东西，说是碍事",
 		"neck_collar": "领子总是立着，硬挺挺的",
 		"neck_scarf": "总围着一条暗红的羊毛围巾",

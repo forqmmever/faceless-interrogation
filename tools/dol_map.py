@@ -250,6 +250,11 @@ ITEMS = {
                       "scale": 2.6, "align": ("bbox_center", 63.0, 30.0)}],
     "tattoo_thigh": [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.24),
                       "scale": 2.8, "align": ("bbox_center", 49.0, 66.0)}],
+    # 第三十五轮补的两件：dol 包里同样只能借头部小件顶替（DoL 的 bodywriting 只有 2~5 像素）
+    "tattoo_heart": [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
+                      "scale": 3.2, "align": ("bbox_center", 49.0, 66.0)}],
+    "tattoo_paw":   [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
+                      "scale": 2.6, "align": ("bbox_center", 51.0, 62.0)}],
 
     # ---- 颈饰 ----
     # ★ 第二十六轮核查结论：这三件的源图本来就是 AU 图包自己的 clothes/neck/*，
@@ -493,6 +498,14 @@ PACK_OVERRIDE = {
                          "scale": 1.0000, "align": ("bbox_center", 61.00, 38.00)},
         "tattoo_thigh": {"src": ("bodywriting", "flower", "left-thigh"), "tint": INK,
                          "scale": 1.0000, "align": ("bbox_center", 62.67, 89.00)},
+        # ★ 第三十五轮补的两件，都取 AU 的 left-thigh：
+        #   heart     源图 14×78（一串小心形沿腿而下）→ s=0.70 得 10×55，正好收在大腿上；
+        #   paw print 源图只有 5×5（全位置都是 5×5）→ s=4.0 得 20×20 才看得清爪形。
+        #   align 由源图 bbox 中心反算：ax=(cx−106)/1.5+58、ay=(cy−30.5)/1.5+30。
+        "tattoo_heart": {"src": ("bodywriting", "heart", "left-thigh"), "tint": INK,
+                         "scale": 0.4667, "align": ("bbox_center", 61.33, 99.00)},
+        "tattoo_paw":   {"src": ("bodywriting", "paw print", "left-thigh"), "tint": INK,
+                         "scale": 2.6667, "align": ("bbox_center", 61.00, 83.33)},
         # ★ 位置说明：AU 的 bodywriting **没有 neck 这个位置**（只有 forehead /
         #   left·right-cheek / left·right-shoulder / left·right-thigh / breasts-0..6 /
         #   pubic），所以「颈侧刺青」只能落在最近的左肩。已在 README 记为已知取舍。

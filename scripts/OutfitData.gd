@@ -355,6 +355,12 @@ const ITEMS := [
 	{"id": "tattoo_neck", "name": "颈侧暗纹", "slot": "tattoo", "exposure": 0, "acceptance_req": 3, "contrast": 2, "covers": [], "tags": []},
 	{"id": "tattoo_cheek", "name": "面颊刺青", "slot": "tattoo", "exposure": 1, "acceptance_req": 6, "contrast": 4, "covers": [], "tags": []},
 	{"id": "tattoo_thigh", "name": "大腿藤蔓纹身", "slot": "tattoo", "exposure": 1, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": []},
+	# ★ 第三十五轮按用户口径补两件，同样取 AU bodywriting 的真实图案、同样落左大腿：
+	#   heart 在 AU 里是「沿大腿向下的一串小心形」（源图 14×78 竖条），
+	#   paw print 是一枚 5×5 的小爪印（源图极小，烘焙时放大到约 20×20 才看得清）。
+	#   三件大腿纹身共用同一档「可见度」（暴 1 / 需 8），只按墨量给反差分档。
+	{"id": "tattoo_heart", "name": "大腿心形纹身", "slot": "tattoo", "exposure": 1, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": []},
+	{"id": "tattoo_paw", "name": "大腿爪印", "slot": "tattoo", "exposure": 1, "acceptance_req": 8, "contrast": 5, "covers": [], "tags": []},
 
 	# ================= 颈饰 =================
 	# ★ 第二十六轮按用户口径「增加几款项圈」补了 5 件（spiked / ringed / lace /

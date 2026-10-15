@@ -97,6 +97,25 @@ WardrobeTest 的「全部物品均有卡片图标」会挂 —— 而烘焙产�
 （来回切题、重来本轮、测试里多次 `_load_question`）——
 每次现摇会变成「同一题一会儿出一会儿不出」，玩家莫名其妙、测试也没法断言。
 
+### 带反斜杠的 Python 脚本一律写成文件再跑（别用 heredoc）
+
+Bash 的 heredoc 会把 `\\` 吞成 `\`。所以 `python - <<'PY' ... re.compile(r'[^"\\]') ... PY`
+传进去的正则**已经被改坏**（`[^"\]` → `unterminated character set`）。
+前几轮那些「看起来能用」的 heredoc 脚本其实也在被吞，只是刚好没炸。
+
+> 规矩：脚本里只要出现正则、转义、Windows 路径反斜杠，就用 Write 工具写成
+> `.workbuddy-ai/tmp/xxx.py` 再 `python xxx.py`。
+
+### AU `bodywriting` 的位置集合有两套
+
+- **14 个图案**（flower / star / heart …）有全套：`forehead` / `left·right-cheek` /
+  `left·right-shoulder` / `left·right-thigh` / `breasts-0..6` / `pubic`。
+- **`text/` 那 32 个短词**只有 **五个**：`forehead` / `left·right-thigh` / `breasts` /
+  `pubic` —— **没有 cheek / shoulder**（`default` 例外，它全套都有，还带 `-arrow` / `-heart` 变体）。
+- 两套**都没有 `neck`**，所以「颈侧刺青」只能借左肩（第二十六轮起的已知取舍）。
+- 源图尺寸差异极大：`paw print` 5×5、`flower` 10×10、`heart`/`cross`/`flame` 那种
+  大腿档是 14×78 的**竖长条** —— 挑图案时**必须逐个量 bbox**，不能照抄别人的 `scale`。
+
 ### GDScript 的坑（踩过的）
 
 - **`arr or []` 非法** —— `or` 只吃 bool，会直接报错（表现为「打印到一半进程就没了」）

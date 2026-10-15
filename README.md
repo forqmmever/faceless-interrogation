@@ -407,7 +407,7 @@
 > 下架只影响"玩家能看到的那些"：换装界面不出这四区、原貌不抽它、情报台不问它、
 > 相册不拍它、强制装备池里也不会出现它。**槽位定义、各 4 件物品、贴图、目击描述一件没删**，
 > 以后把 `"robe"` / `"earrings"` / `"gloves"` / `"headgear"` 从 `DISABLED_SLOTS` 里删掉即可原样恢复。
-> 因此**玩家实际看到 15 个槽位 / 99 件衣物**。
+> 因此**玩家实际看到 15 个槽位 / 101 件衣物**。
 
 > ★ 第二十七轮起，下架在**模型层**也真的隔离了（`WardrobeModel.equip()` 会直接拒绝下架槽位的物品，
 > `Wardrobe.apply_outfit()` 也不还原它们）—— 以前只靠「界面不渲染」隔离，直接调 API 仍能把
@@ -418,7 +418,7 @@
 | 111 | `makeup` | 妆容 | **6** |
 | 121 | `accessory` | 配饰 | **5** |
 | 131 | `piercing` | 穿环 | 4 |
-| 141 | `tattoo` | 纹身 | 4 |
+| 141 | `tattoo` | 纹身 | **6** |
 | 161 | `stockings` | 袜类 | 6 |
 | 171 | `panties` | 下内衣 | **5** ← 丁字裤第三十二轮起归下装 |
 | 181 | `garterbelt` | 吊袜带 | 3 |
@@ -435,7 +435,7 @@
 | 271 | `glasses` | 眼镜 | 4 |
 | 281 | `headgear` | 头饰 | 4 ← **暂时下架** |
 
-合计 **115 件**（玩家可见 99 件）。`hair` 槽没有"不戴"选项（头发始终存在），因此角色底图
+合计 **117 件**（玩家可见 101 件）。`hair` 槽没有"不戴"选项（头发始终存在），因此角色底图
 `body.png` 不再自带头发，发型完全由该槽位提供。
 
 > **★ `dress` 为什么单开一栏（第二十六轮）**：用户口径是「如果是一整件衣服 如晚礼服
@@ -1559,7 +1559,7 @@ scenes/
   Main.tscn              # 主场景（准备室 + 盘问 两个 Control 节点，UI 全部代码构建）
 scripts/
   GameData.gd            # 全局状态单例：怀疑度（轮内只涨不跌 + 轮间衰减）/ 情报进度 / 手机进度 / 前后矛盾 / 审问者性情 / ★ 换装判定结果 / 审问者短信 / ★ 逐轮问答记录 answer_log
-  OutfitData.gd          # 服装数据库：19 槽位（robe / earrings / gloves / headgear 暂时下架）/ 115 件 / 内衣曝光门控 / 成装互斥 / 原貌池 / 强制装备池
+  OutfitData.gd          # 服装数据库：19 槽位（robe / earrings / gloves / headgear 暂时下架）/ 117 件 / 内衣曝光门控 / 成装互斥 / 原貌池 / 强制装备池
                          #   —— 另加三张「可从 story.json 编辑」的运行时表：关卡 LEVELS / 强制规则 FORCED_RULES / 缺陷 DEFECTS
   ScenarioData.gd        # 内容库：出厂文本（DEFAULT_* 常量）+ 从 data/story.json 读入的覆盖层
   ProfileData.gd         # ★ 账号级存档（user://profile.json）：跨局保留的接受度 + 战绩（永不清零）
@@ -1583,14 +1583,14 @@ data/
   doll_au.json           # ★ 小人图层表 · AUfemale 版（同上，取景框 68×203）
 assets/dol/              # ★ 小人素材 · Degrees of Lewdity 官方原版（人物矮胖、无腿）
   base/*.png             # 身体 / 脸 / 四套头发（按 ZIndices 的 z 序叠）
-  clothes/*.png          # 115 件里非空件的贴图（已染色、已裁到统一取景框）
+  clothes/*.png          # 117 件里非空件的贴图（已染色、已裁到统一取景框）
   icons/*.png            # 每件物品的卡片图标（30×30 的 DoL 图标，落盘时放大到 60×60）
 assets/dol_au/           # ★ 小人素材 · AUfemale 图包（社区重画，人物更高、有完整双腿）
   base/*.png             # 同上，取景框 68×203
   clothes/*.png
   icons/*.png            # 这一套的图标也按 AU 自己的贴图烘（不是沿用 DoL 的）
 tools/
-  dol_map.py             # ★ 115 件衣物 → 图包款式 / 染色 / 位置搬移的映射表（人工挑的）
+  dol_map.py             # ★ 117 件衣物 → 图包款式 / 染色 / 位置搬移的映射表（人工挑的）
   dol_prepare.py         # ★ 按映射取帧 / 染色 / 裁框，烘进 assets/dol*/ 与 data/doll*.json
   flow_overview.py       # 把 screenshots/ 下的 42 张截图拼成一张流程总览图
   round26_sheet.py       # ★ 把第二十六轮的刺青 / 项圈 / 内衣 / 整件式叠到小人身上拼一张对照图
@@ -1609,7 +1609,7 @@ tools/
   editor_smoke.js        # 文本编辑器的冒烟测试（Node + DOM 桩，166 项，含反向用例）
   phone_editor_smoke.js  # 手机编辑器的冒烟测试（Node + DOM 桩，97 项，含反向用例）
 tests/
-  WardrobeTest.tscn/.gd  # 换装 + 数据层单元测试（440 项断言）
+  WardrobeTest.tscn/.gd  # 换装 + 数据层单元测试（444 项断言）
   TestRunner.tscn/.gd    # 端到端测试（901 项断言）
   Screenshot.tscn/.gd    # 真实渲染截图脚本（42 张）
 screenshots/             # 各阶段渲染截图 + 流程总览图
@@ -1696,7 +1696,7 @@ ScenarioData.gd 里的 DEFAULT_* 常量   ← 出厂兜底文本
 - 数值与界面文案的读取是**逐键兜底**的：`rules` 里少写一个键，那一项就退回
   `DEFAULT_RULES` 的出厂值；`ui` 里少写一段，那一段整段退回 `DEFAULT_UI`。
   所以「只改三项数值」也是合法的一份 story.json。
-- 改完 JSON 后跑一次 **`run_tests.bat`**：那 1604 项断言跑的就是当前这份数据，
+- 改完 JSON 后跑一次 **`run_tests.bat`**：那 1608 项断言跑的就是当前这份数据，
   JSON 改坏了会直接红 —— 等于免费得到一套内容校验。
 - 改完 JSON 后**也要重跑 `tools/build_story_editor.py`**（以及 `tools/build_phone_editor.py`），
   否则编辑器打开时看到的还是旧快照。
@@ -1711,7 +1711,7 @@ ScenarioData.gd 里的 DEFAULT_* 常量   ← 出厂兜底文本
 | `forced_rules[]` | 每关的强制穿着：`{mode: none/random/fixed, rules: [{pick: all/any, items: [...]}]}` | 👗 强制穿着 | **每关一条** |
 | `qte_plan[]` | 每道题的 QTE：`{qte: auto/none/expression/interference/combo, delay: 秒}` | ⏱ QTE 计划 | **全局一套**（按题号对齐） |
 | `defects[]` | 身体缺陷：`{id, name, slot_hint, cover_tags[]}` | 🩹 身体缺陷 | **全局一套** |
-| `catalog` | **只读目录**（115 件衣物 / 4 个标签 / 19 个槽位），给编辑器做下拉与勾选用；**游戏不读它** | （不用手改） | 全局 |
+| `catalog` | **只读目录**（117 件衣物 / 4 个标签 / 19 个槽位），给编辑器做下拉与勾选用；**游戏不读它** | （不用手改） | 全局 |
 | `backgrounds[]` | 每套背景的 `intro` / `levels` / `cards` / `questions` / `facts` / `sms` / `companion_questions` / `blind_questions` / `interference_lines` | 背景页各节 | 每套背景一份 |
 | `backgrounds[].endings` | 结局文案 **27 条**（一眼认出 / 身份暴露 / 怀疑度满 / 一关收场 / 结果浮层 / 大覆盖层） | 🎬 结局文案 | **每个背景一套** |
 | `traits[]` | 审问者性情（撒谎 / 回避的代价、反馈文案、手机备忘录三条） | 🎭 审问者性情 | 全局 |
@@ -1814,7 +1814,7 @@ x256..511  上面两列的逐像素复制
 ### 管线
 
 ```
-tools/dol_map.py       ← 115 件衣物 → 款式 + 染色 + 搬运规则（人工挑的映射表）
+tools/dol_map.py       ← 117 件衣物 → 款式 + 染色 + 搬运规则（人工挑的映射表）
 tools/dol_prepare.py   ← 按映射取帧 / 染色 / 裁框，烘进 assets/dol*/ 与 data/doll*.json
 data/doll*.json        ← 产物清单：每层画哪张图、z 是多少、取景框多大
 scripts/DolDoll.gd     ← 运行时只负责按 z 序把 PNG 铺成 TextureRect，GPU 去叠
@@ -2050,8 +2050,7 @@ AU 的 4 款发型共用同一个发色（A 是同一个人），定义在 `dol_
 | `text` | 文字 | — | 不是单一图案，是 **32 条「写在身上的短词」**的目录集 |
 
 > ★ `text` 那一档是 DoL 原作的 bodywriting 文本集（每条一个子目录、各自一套位置），
-> 内容多为粗俗词，与本作「伪装 / 盘问」的语境未必合拍，所以只列个总数，
-> 需要具体名单再单独清点。
+> 内容多为粗俗词 —— 第三十五轮已按用户要求把 **32 条**列全，见下方「第三十五轮」一节。
 >
 > ★ 挑完之后的落地方式：往 `OutfitData.gd` 加一条 `tattoo_*`，
 > 再到 `dol_map.PACK_OVERRIDE['au']` 里写
@@ -2063,6 +2062,61 @@ AU 的 4 款发型共用同一个发色（A 是同一个人），定义在 `dol_
 > ★ 现成的对照图在 `screenshots/_tattoo_pick.png`（14 个图案统一落在左大腿上，带中文标注），
 > 生成脚本 `tools/round34_sheet.py`；同一脚本还出 `screenshots/_round34_new.png`
 > （3 个新妆容的头部放大 + 3 件新配饰的全身图）。
+
+### 第三十五轮：再补两件大腿纹身（heart / paw print）· 清点 AU `text` 的 32 条短词
+
+用户口径：
+
+> 「添加heart 和 paw print 列一下text的内容」
+
+**① 纹身槽 4 → 6 件** —— 两件都按用户选的位置落**左大腿**，取 AU `bodywriting` 真实图案：
+
+| id | 名称 | AU 源 | 画后尺寸 | 暴 | 需 | 差 |
+|---|---|---|---|---|---|---|
+| `tattoo_heart` | **大腿心形纹身** | `bodywriting/heart/left-thigh` | 10×55 | 1 | 8 | 6 |
+| `tattoo_paw` | **大腿爪印** | `bodywriting/paw print/left-thigh` | 20×20 | 1 | 8 | 5 |
+
+- ★ 两件源图尺寸差得离谱，所以缩放取的是**两个极端**：
+  `heart` 是 14×78 的一串小心形（沿腿而下），要**缩到 0.70** 才收得住
+  （`scale` 写 **0.4667** —— `transform` 会再乘图包的 `align_scale` 1.5）；
+  `paw print` 只有 5×5，要**放到 4.0** 才看得清爪形（`scale` 写 **2.6667**）。
+- ★ `align` 照老规矩从源图 bbox 中心反算（`ax=(cx−106)/1.5+58`、`ay=(cy−30.5)/1.5+30`）：
+  heart → `(61.33, 99.00)`，paw → `(61.00, 83.33)`。
+- 三件大腿纹身共用同一档可见度（暴 1 / 需 8），反差只按墨量分档（藤蔓 6 / 心形 6 / 爪印 5）。
+- `dol` 包里这两件同样只能借头部小件顶替（DoL 的 `bodywriting` 只有 2~5 像素），
+  和其余三件一个待遇。
+
+**② 顺手补齐一个陈旧缺口**：`tattoo_cheek` 与 `tattoo_thigh` **一直没有目击描述** ——
+它们不在原貌候选池里，所以 `_pool_has_desc` 管不到，缺了会退化成「看不真切」。
+本轮连同新补的两件一起把 **4 条**描述写全，并加了一条断言
+「除空件以外的纹身都要有描述」把这个缺口堵住。`item_desc` **36 → 40 条**。
+
+**③ AU `text` 的 32 条短词**（上一轮只报了总数，本轮按用户要求列全）。
+它**不是单一图案**，而是 32 个各带一套位置的子目录：
+
+| 分类 | 目录名（英文原文） |
+|---|---|
+| 模板 | `default`（默认的箭头 / 心形一套，不是一个词） |
+| 贬低 | `bitch` / `worthless` / `sinner` / `slave` / `slut` / `cum-rag` |
+| 价签 | `five-pound-whore` / `one-hundred-pound` / `ten-pound-a-pop` / `twenty-five-pound-per-fuck` |
+| 性指令 | `free-use` / `fuck-me` / `fucktoy` / `use-me` / `public-toy` / `walking-dildo` / `no-means-yes` |
+| 施虐 | `hit-me` / `hurt-me` / `rape-me` / `rape-bait` / `rapetoy` |
+| 昵称 | `whitneys-pet` / `robin-and-i` / `robins-boyfriend` / `robins-girlfriend` |
+| 标签 | `hot` / `cute-boy` / `cute-girl` |
+| 剧情 | `book-criminal-frown` / `book-criminal-heart` |
+
+> ★ 除 `default` 外都是 DoL 原作的粗俗短词（大多是价签 / 性指令 / 侮辱），
+> 与本作「伪装 / 盘问」的语境未必合拍 —— **本轮只清点、不入库**，要用哪几条另行挑。
+>
+> ★ 落法与上面那 14 个图案完全一样，只是 `src` 的目录名换成短词、位置换成
+> `forehead` / `left·right-thigh` / `breasts` / `pubic` 之一
+> （`text` 那批**没有** cheek / shoulder 位置，只有 `breasts`、`forehead`、
+> `left·right-thigh`、`pubic` 五个）。
+
+- 物品总数 **115 → 117**（玩家可见 **99 → 101**）。
+- 测试：TestRunner **901**、WardrobeTest **444**（+4 条新断言）、编辑器冒烟 **166**、
+  手机冒烟 **97**；截图 42 张全 `err=0`。新增对照图 `screenshots/_round35_tattoo.png`
+  （上排五款纹身全身、下排三款大腿纹身放大），脚本 `tools/round35_sheet.py`。
 
 > **旧素材已清理**（2026-10-13）：`assets/doll/`（360×640 那套程序化生成的日系立绘）
 > 与 `tools/gen_assets.py`、`tools/preview_sheet.py` 已删除。它们从换成 DoL 美术那轮起
@@ -2123,7 +2177,7 @@ PROJ="D:/WorkBuddy/2026-10-11-09-19-59"
 # 直接启动游戏
 "$GODOT" --path "$PROJ"
 
-# 换装 + 数据层单元测试（440 项断言）
+# 换装 + 数据层单元测试（444 项断言）
 "$GODOT" --headless --fixed-fps 60 --path "$PROJ" res://tests/WardrobeTest.tscn --quit-after 2400
 
 # 端到端测试（901 项断言）
@@ -2263,9 +2317,9 @@ python tools/build_phone_editor.py && node tools/phone_editor_smoke.js
 
 ## 测试
 
-两套 Godot 无头测试（**1341 项断言** = 440 + 901）+ 两套编辑器冒烟测试（**263 项** = 166 + 97）：
+两套 Godot 无头测试（**1345 项断言** = 444 + 901）+ 两套编辑器冒烟测试（**263 项** = 166 + 97）：
 
-**`tests/WardrobeTest.tscn`** —— 换装 + 数据层单元测试（440 项断言）
+**`tests/WardrobeTest.tscn`** —— 换装 + 数据层单元测试（444 项断言）
 - 槽位体系完整性（19 槽位 / zorder 递增 / 每个可见槽位 ≥2 件 / id 唯一 / slot 合法 / 默认装备可解析）
 - 下架槽位的契约（`DISABLED_SLOTS`：界面/原貌/情报/相册/强制池都看不到它，但数据与贴图一件不少）
 - **内衣内裤的曝光门控**：`see`（sheer / cutout）与 `bare` 的逐件标注、三条路逐一验证
@@ -2425,7 +2479,7 @@ python tools/build_phone_editor.py && node tools/phone_editor_smoke.js
 **第二轮新增的三页**：`story.rules` 有 **31 项**且和 `DEFAULT_RULES` 同构、`story.ui` 共 **79 条**、
 结局页 **27 条**、**每套背景各存一份 27 条 `endings`**、
 **第二轮新增的四页**（关卡 / 强制穿着 / QTE 计划 / 缺陷）：四段都在、`catalog` 带齐
-115 件衣物 + 标签池、`itemById` / `pickItemOpts` 能查到东西；
+117 件衣物 + 标签池、`itemById` / `pickItemOpts` 能查到东西；
 **加一关不报错**、**反差要求倒退会提醒**、**反差要求超过理论上界会提醒**；
 **「固定一件 + 几件选一件」的组合 0 错误**、**「任选一件」里放同部位两件只提醒不报错**、
 **引用不存在的衣物 / 「必须穿」组里同槽位两件 / mode 写坏 都会报错**；
@@ -2460,8 +2514,8 @@ python tools/build_phone_editor.py && node tools/phone_editor_smoke.js
 `level` 与 `facts` 顺序打乱…… 断言校验器**必须报错或提醒**（防止校验器形同虚设）。
 另外单独断言**状态栏里的 `🔋78%` 不会被误报成占位符**。
 
-当前状态：**换装与数据层 440/440、端到端 901/901、文本编辑器冒烟 166/166、手机编辑器冒烟 97/97
-全部通过（共 1604 项断言）**。
+当前状态：**换装与数据层 444/444、端到端 901/901、文本编辑器冒烟 166/166、手机编辑器冒烟 97/97
+全部通过（共 1608 项断言）**。
 
 ## 截图
 
@@ -2519,6 +2573,7 @@ python tools/build_phone_editor.py && node tools/phone_editor_smoke.js
 | `_round27_new.png` | ★ **第二十七轮的眼镜三副 + 成装互斥 + 降级下装**（12 格：裸身、三副眼镜、两条成装、「上衣+下装」/「三件都在（仅示意）」/「成装+内裤」的互斥对照、三件降级下装各叠一条蕾丝内裤验「盖住了」）—— `tools/round27_sheet.py` 生成 |
 | `_round28_new.png` | ★ **第二十八轮从 AU 补的 8 件高暴露款 + 三条路线对照**（2 行 × 9 格：上行逐个看新品；下行是「原貌基准 / 内衣流 / 长袖流 / 高领流 / 下装开门」的搭配对照）—— `tools/round28_sheet.py` 生成 |
 | `_round34_new.png` | ★ **第三十四轮补的 3 个妆容 + 3 件配饰**（上行：素颜 / 淡妆 / 烟熏 / 烈焰红唇 / 绯色腮红 / 雀斑，头部放大 ×8；下行：不戴 / 束腰皮带 / 银质心形吊坠 / 金脚链 / 金色手铐，全身 ×3）—— `tools/round34_sheet.py` 生成 |
+| `_round35_tattoo.png` | ★ **第三十五轮补的两件大腿纹身**（上排：无 / 颈侧 / 面颊 / 大腿藤蔓 / 大腿心形 / 大腿爪印，全身 ×3；下排：三款大腿纹身的大腿区放大 ×8）—— `tools/round35_sheet.py` 生成 |
 | `_tattoo_pick.png` | ★ **AU `bodywriting` 全部 14 个刺青图案的挑选表**（统一落在左大腿、缩放 ×2.2、带中文标注）—— `tools/round34_sheet.py` 生成 |
 
 | `_pack_compare.png` | ★ **两套图包的同一批搭配并排**（上＝DoL 官方原版、下＝AUfemale）—— 换包时用来对照 |
@@ -2554,7 +2609,7 @@ python tools/build_phone_editor.py && node tools/phone_editor_smoke.js
   ⑤ 编辑器新增 **四页**（🪜 关卡与轮数 / 👗 强制穿着 / ⏱ QTE 计划 / 🩹 身体缺陷），
   并新增两种字段类型：**嵌套清单**（规则表套在每一关下面）与**勾选组**（从目录里挑衣服 / 标签）。
   为了让编辑器能挑东西，`story.json` 多了一段**只读目录** `catalog`
-  （115 件衣物 / 4 个标签 / 19 个槽位，游戏本身不读它）；
+  （117 件衣物 / 4 个标签 / 19 个槽位，游戏本身不读它）；
   ⑥ 编辑器校验也跟着加严：关卡越界 / 曲线倒退 / 反差要求超过理论上界、
   强制规则引用不存在的衣服 / 「必须穿」组里同槽位两件、
   QTE 类型写错 / 延迟过大、缺陷 id 重复 / 用了不存在的标签 —— 全都当场标出来。

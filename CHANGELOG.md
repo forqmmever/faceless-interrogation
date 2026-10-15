@@ -320,6 +320,11 @@
 - 测试：WardrobeTest 483 → **487**、TestRunner **901**、编辑器冒烟 **166**
   （`P.SLOTS` 19 → 18、候选池 35 → 34、catalog 121 → 155 三处硬编码同步）、手机冒烟 **97**；
   截图 43 张全 `err=0`。`story.json` 的 `catalog.items` 121 → 155、`item_desc` 删 `garter_none`。
+- **新补的 35 件不需要目击描述**（已核实，不是漏做）：`RunData._build_clues()` 只用
+  **原貌**那一件来拼线索，而原貌的取值集合 `TRUE_POOL ∪ TRUE_APPEARANCE` 一共 **34 件**，
+  这 35 件一个新件都不在里面（它们只进 `forced_pool`，强制装备的判定不读描述）。
+  WardrobeTest 的「原貌池里的物品都要有描述」断言也照常通过 ——
+  将来真要把它们加进原貌池，那条断言会立刻报出来。
 
 ## 测试规模的变化（只有实测过的数据点）
 

@@ -506,7 +506,7 @@ def prune_stale():
 
     ★ 为什么需要：烘焙只写不删。第二十六轮把「连衣裙 / 晚礼服」从
       top_* + bottom_* 四件合并成 dress_* 两件之后，旧的那四张 png 还躺在
-      assets/dol*/clothes 与 icons 里 —— 游戏不会去读它们（图层表里没有），
+      assets/dol_au/clothes 与 icons 里 —— 游戏不会去读它们（图层表里没有），
       但 `godot --import` 会把它们一起登记，测试里「图标数 == 物品数」这类
       断言就会多出几个幽灵。所以每次烘完顺手清一遍。
     """

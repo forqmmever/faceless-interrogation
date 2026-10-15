@@ -421,14 +421,14 @@ const ITEMS := [
 	{"id": "piercing_none", "name": "（不穿）", "slot": "piercing", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
 	{"id": "piercing_multi", "name": "多孔耳钉组", "slot": "piercing", "exposure": 1, "acceptance_req": 2, "contrast": 2, "covers": [], "tags": []},
 	# ★ 第二十七轮：用户口径「眉钉去掉」→ 删掉 piercing_brow。
-	#   连带影响：`dol_map.PACK_OVERRIDE['au']['piercing_brow']` 那条覆盖也一并删掉
+	#   连带影响：`dol_map.AU_OVERRIDE` 里 `piercing_brow` 那条覆盖也一并删掉
 	#   （它是唯一换源成 goldhairpin 的一件，其余三件继续借用头部小件顶替）。
 	{"id": "piercing_lip", "name": "哥特风黑色唇环", "slot": "piercing", "exposure": 2, "acceptance_req": 7, "contrast": 5, "covers": [], "tags": []},
 	{"id": "piercing_nose", "name": "鼻中隔银环", "slot": "piercing", "exposure": 3, "acceptance_req": 10, "contrast": 7, "covers": [], "tags": []},
 
 	# ================= 纹身 =================
 	# ★ 第二十六轮：贴图从「借用头部小件 + 位置搬移」换成 AU 图包自己的
-	#   bodywriting 图案（真正画在身上的纹样，见 tools/dol_map.py 的 PACK_OVERRIDE）。
+	#   bodywriting 图案（真正画在身上的纹样，见 tools/dol_map.py 的 AU_OVERRIDE）。
 	#   可用位置只有 forehead / 左·右 cheek / 左·右 shoulder / 左·右 thigh /
 	#   breasts / pubic —— **没有前臂**，所以原来那件「前臂藤蔓纹身」改名成大腿，
 	#   否则名字和贴图对不上。
@@ -691,7 +691,7 @@ const ITEMS := [
 	# 用户口径「补充各个暴露度层级的衣服，使数量尽量平衡」。
 	# 成装这一栏原来只有 2 件、而且都挤在 2 档 —— 是整个表里最薄的一栏，
 	# 所以八件新衣服全部补在这里，一路铺满 3 / 4 / 5 / 7 / 8 / 9 六档。
-	# 全部取 AU 与 DoL 官方**都有的**款式（`upper/*`），所以两套图包都不用写 alt 兜底。
+	# 全部取 AU 图包里都有的款式（`upper/*`），所以不用写 alt 兜底。
 	#
 	# ★ 成装与上装 / 下装互斥（EXCLUSIVE_GROUPS），所以这些高暴露成装开的是
 	#   **另一条路**：穿成装就不穿「上衣 + 下装」，两处的暴露值预算合到一件上。

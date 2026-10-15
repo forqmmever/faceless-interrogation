@@ -90,6 +90,39 @@ godot --path . res://tests/Screenshot.tscn                    # 42 张截图（�
 WardrobeTest 的「全部物品均有卡片图标」会挂 —— 而烘焙产物其实是好的，
 只是没被 Godot 写进 `.godot/imported/`。这个坑第三十四轮踩过一次。
 
+### 只使用 AU 图包（第三十七轮定下的硬约定）
+
+用户口径：「现在和之后只使用 au 源的服装」。这不是「挑衣服时优先 AU」，
+而是**DoL 那条链路已经从代码里拆掉了**：
+
+- 唯一图包 = `au`。`tools/dol_prepare.py` 的 `PACKS` 只有 `au` 一项、`--pack` 默认 `au`；
+  `tools/dol_map.py` 用 `AU_OVERRIDE`（不再有 `PACK_OVERRIDE` / `PACK_HAIR` / `hue_shift()`）；
+  `scripts/DolDoll.gd` 只有三个常量 `PACK` / `ROOT` / `DATA_PATH`。
+- **产物只有一份**：`assets/dol_au/` + `data/doll_au.json`。
+  `assets/dol/` 与 `data/doll.json` 已删除，**不要再把它们写回代码或文档**。
+- 取景框只有 AU 那一套（68×203，画布 512×256）；`ScenarioData.PHOTO_FOCUS` 是唯一一张表
+  （以前按 `DolDoll.pack()` 分两张）。
+- 引用路径一律走 `DolDoll.root()` / `DolDoll.data_path()`，**不要写死 `assets/dol_au`**
+  —— 写死会绕过「换图包」这层抽象，测试也会变成假通过。
+
+### DP 选项剪枝的两条铁律（第三十七轮）
+
+「一键达标」的门控组（top/bra/bottom/dress/panties）算的是**笛卡尔积**。
+补到 155 件后原积到 62 万，DP 从 0.2 秒涨到 7~8 秒 —— 靠 `_dedupe_equivalent()` 两级剪枝压到 27。
+
+1. **① 去重的键必须用「归一化后」的字段**，不能用 `tags` / `gate` 的原文：
+   要用 `_defect_mask_of(it)` 和 `data.outer_slots_of_item(it)`。
+   用原文的后果：`tags` 顺序不同、或 `gate` 显式写 vs 回落 的等价件漏过 ①，
+   进 ② 又因为语义确实相同而**互相判定为被支配、双双被删**，
+   整个槽位候选清空 → 该组无解 → 「一键达标」静默返回「什么都没改」。
+   （第三十七轮实测踩过，WardrobeTest 7 条断言才抓到。）
+2. **② 帕累托剪枝里四项全同时只能让一方赢**（按序号），绝不互删。
+   另外必须在**同一「行为签名」组内**比（`outer_slots_of_item` + `see` + `is_bare`），
+   否则会剪掉「自己数值差一点但能把别的槽位露出来」的必需件。
+
+验证手段：`tools/PerfProbe.tscn` 这种一次性探针很好用 —— 直接量「每个槽位去重前后候选数」
+与 `auto_complete_outfit()` 的平均耗时。写完记得删。
+
 ### 稳定随机 vs 运行时随机
 
 「同一道题要不要出 QTE」这种事，**必须用确定性哈希**（`hash("seed|关号|题号|标签")`），

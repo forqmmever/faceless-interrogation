@@ -892,7 +892,7 @@ const EXCLUSIVE_GROUPS := [
 
 | 删的东西 | 方式 | 连带 |
 |---|---|---|
-| 眉钉 `piercing_brow` | 物品级删除 | 它是唯一必须换源成 `goldhairpin` 的穿环件（AU 的 `hairclip` 是 26×8 横排发夹），`PACK_OVERRIDE['au']` 里那一条一并删掉 |
+| 眉钉 `piercing_brow` | 物品级删除 | 它是唯一必须换源成 `goldhairpin` 的穿环件（AU 的 `hairclip` 是 26×8 横排发夹），`AU_OVERRIDE` 里那一条一并删掉 |
 | 洛丽塔短裙 `bottom_lolita` | 物品级删除 | 它是唯一「真的能把内裤露出来」的下装（75.7%）—— 删掉之后彻底没有了 |
 | 手套 `gloves` | 槽位级下架 | 见下面的「强制装备的死局」 |
 | 头饰 `headgear` | 槽位级下架 | 4 件（宽檐旅行帽 / 深色兜帽 / 半面黑纱）定义与贴图全保留 |
@@ -1610,10 +1610,7 @@ data/
 assets/dol_au/           # ★ 小人素材 · AUfemale 图包（社区重画，人物更高、有完整双腿；第三十七轮起唯一一套）
   base/*.png             # 身体 / 脸 / 四套头发（按 ZIndices 的 z 序叠）
   clothes/*.png          # 155 件里非空件的贴图（已染色、已裁到统一取景框 68×203）
-  icons/*.png            # 每件物品的卡片图标（30×30 的 DoL 图标，落盘时放大到 60×60）
-  base/*.png             # 同上，取景框 68×203
-  clothes/*.png
-  icons/*.png            # 这一套的图标也按 AU 自己的贴图烘（不是沿用 DoL 的）
+  icons/*.png            # 每件物品的卡片图标（30×30 图标，落盘时放大到 60×60；按 AU 自己的贴图烘，不是沿用 DoL 的）
 tools/
   dol_map.py             # ★ 155 件衣物 → AU 图包款式 / 染色 / 位置搬移的映射表（人工挑的）
   dol_prepare.py         # ★ 按映射取帧 / 染色 / 裁框，烘进 assets/dol_au/ 与 data/doll_au.json（只剩 AU 一套）
@@ -1791,26 +1788,28 @@ ScenarioData.gd 里的 DEFAULT_* 常量   ← 出厂兜底文本
 
 > 状态栏那种 `🔋78%` 里的 `%` 是**百分号**，不是占位符 —— 校验器认得出来，不会误报。
 
-## 美术资产（小人 · 两套图包）
+## 美术资产（小人 · AU 图包）
 
 用户口径：「小人形象和服装也要改成一样」。
 所以小人不再自己画 —— **直接引入现成的分层图包**，逐件映射到最接近的款式。
-现在备着**两套**，用 `scripts/DolDoll.gd` 顶上的 `const PACK` 一行切换：
 
-| | `"dol"`（默认备选） | `"au"`（★ 当前启用） |
+> ★ **第三十七轮起只留 AU 一套**（用户口径：「现在和之后只使用 au 源的服装」）。
+> DoL 那套（`assets/dol/` 552 个文件 + `data/doll.json`）整条链路已从代码里拆掉、
+> 产物已删除。下面保留的对照只是说明「为什么要换成 AU」，**不再是可切换的两个选项**。
+
+| | `"dol"`（已停用） | `"au"`（★ 唯一一套） |
 |---|---|---|
 | 来源 | Degrees of Lewdity 官方原版 | AUfemale.imgpack_v0.9.3（社区重画包） |
 | 精灵图画布 | 256×128（2 帧 ×128×128） | 512×256 |
 | 取景框 | 41×92 | **68×203** |
 | 人物 | 矮胖、无腿（20×51 px） | 更高、**有完整双腿**（40×145 px） |
-| 产物 | `assets/dol/` + `data/doll.json` | `assets/dol_au/` + `data/doll_au.json` |
+| 产物 | ~~`assets/dol/` + `data/doll.json`~~（已删） | `assets/dol_au/` + `data/doll_au.json` |
 
-界面上一律不写死尺寸：预览区走 `DolDoll.fit_size(STAGE_BOX)`、相册特写走 `DolDoll.frame_size()`，
-换包时只有三处要人工确认 —— `ScenarioData.PHOTO_FOCUS_AU`（相册取景框，按解剖位置重新标的）、
-`Wardrobe.STAGE_BOX`（预览区上限盒子），以及 **`dol_map.PACK_HAIR`（发型表，见下文）**。
+界面上一律不写死尺寸：预览区走 `DolDoll.fit_size(STAGE_BOX)`、相册特写走 `DolDoll.frame_size()`；
+引用路径一律走 `DolDoll.root()` / `DolDoll.data_path()`，不写死目录名。
 
-> 两个图包的目录名 / 文件名 / 分层规则**完全一致**（AU 就是照着 DoL 的 `img/` 结构重画的），
-> 所以同一份 `dol_map.py` 映射能喂给两边。差异只在**几何**和**几件被裁掉的款式**上。
+> 两个图包的目录名 / 文件名 / 分层规则**完全一致**（AU 就是照着 DoL 的 `img/` 结构重画的）。
+> 差异只在**几何**和**几件被裁掉的款式**上 —— 这也就是为什么换包时只有几何参数需要重标。
 
 ### 分层画布长什么样
 
@@ -1847,11 +1846,10 @@ scripts/DolDoll.gd     ← 运行时只负责按 z 序把 PNG 铺成 TextureRect
 
 ```bash
 PY="C:/Users/qiongmuming/AppData/Local/Programs/Python/Python39/python.exe"
-# 烘当前启用的那套（au）
-"$PY" tools/dol_prepare.py --pack au
-# 或者另一套 / 换个图包目录
-"$PY" tools/dol_prepare.py --pack dol
-"$PY" tools/dol_prepare.py --pack au --root "E:/DOWNLOAD/AUfemale.imgpack_v0.9.3"
+# 烘 AU（现在只剩这一套，--pack 的 choices 里也只有 au）
+"$PY" tools/dol_prepare.py
+# 换个图包目录（比如新下了别的版本）
+"$PY" tools/dol_prepare.py --root "E:/DOWNLOAD/AUfemale.imgpack_v0.9.3"
 # 新烘出来的 png 要跑一次导入，否则 Godot 的 ResourceLoader 看不到
 "$GODOT" --headless --path "$PROJ" --import
 ```
@@ -1871,23 +1869,24 @@ PY="C:/Users/qiongmuming/AppData/Local/Programs/Python/Python39/python.exe"
 4. 数字名（`1.png` / `2.png` …）
 5. 其余按名字排第一个
 
-### 头发：两套图包两张表（`PACK_HAIR`）
+### 头发：只能点名 AU 重画的新几何款（`HAIR_STYLES`）
 
-头发（`sides` 侧面 / `fringe` 刘海 / `back` 脑后三块）**不能共用一张映射表** ——
-两套图包的头发画法根本不同：
+头发（`sides` 侧面 / `fringe` 刘海 / `back` 脑后三块）早先要按图包分两张表 ——
+因为 DoL 与 AU 的头发画法根本不同。DoL 那套停掉后，表就只剩 AU 这一张
+（`dol_map.HAIR_STYLES`，第三十七轮从 `HAIR_STYLES_AU` 改名而来）。要点仍然一样：
 
-| | `"dol"` | `"au"` |
-|---|---|---|
-| 原图 | **彩色**（栗红底），换色靠 `hue_shift()` 改 HLS | **纯灰度蒙版**（实测饱和度 **0.00**） |
-| 换色 | `hue` / `light` 两个参数 | 必须走 `tint()`：**结果 = 发色 × 蒙版灰度**，外加 `gain` 抬亮度（蒙版偏暗，实测亮度 38..207） |
-| 款式名 | DoL 自己那套（`classic` / `twin braids` / `middlepart`…） | **只能点名 AU 重画的新几何款**（512×256） |
+| | AU 的做法 |
+|---|---|
+| 原图 | **纯灰度蒙版**（实测饱和度 **0.00**） |
+| 换色 | 必须走 `tint()`：**结果 = 发色 × 蒙版灰度**，外加 `gain` 抬亮度（蒙版偏暗，实测亮度 38..207） |
+| 款式名 | **只能点名 AU 重画的新几何款**（512×256） |
 
 ★ **最大的坑**：AU 图包里**同时留着 DoL 的旧款** —— 名字一样（`middlepart`、`twin braids`），
-但仍是 256×128 的旧几何，而且**还是 DoL 的红色**。所以 AU 这张表**不能写成「候选列表」**
+但仍是 256×128 的旧几何，而且**还是 DoL 的红色**。所以这张表**不能写成「候选列表」**
 （`["classic", "default"]` 这种，撞到旧款就中招），必须直接点名新几何的款式：
 
 ```python
-HAIR_STYLES_AU = {
+HAIR_STYLES = {
     "hair_short": {"style": "neat",        "length": "short",    "fringe": "default", ...},
     "hair_braid": {"style": "braid right", "length": "shoulder", "fringe": "curtain", ...},
     "hair_long":  {"style": "all down",    "length": "chest",    "fringe": "parted",  "back": "all down", ...},
@@ -1908,7 +1907,7 @@ AU 的 4 款发型共用同一个发色（A 是同一个人），定义在 `dol_
    而卡片里那枚是 60×60。所以图标落盘时就按 NEAREST 放大成 60×60。
 3. **AU 的耳饰 / 穿环 / 刺青是「借用头部小件 + 位置搬移」顶出来的**，
    而 AU 的 `hairclip` 在全身像列里横跨 **26 px**（DoL 只有 4 px，是一条横排发夹），
-   照搬 DoL 的 `scale` 会糊满整张脸。→ `dol_map.PACK_OVERRIDE['au']` 里换成窄的
+   照搬 DoL 的 `scale` 会糊满整张脸。→ `dol_map.AU_OVERRIDE` 里换成窄的
    `goldhairpin`（8 px）并按「结果宽度对齐 DoL」重算 scale。
 4. **必须先把图层裁到全身像列、再做 bbox 计算**。上面那几件小贴图在 AU 里同时画在
    全身像和胸像两张脸上，整图 bbox 横跨 x109..482，中心落在两张像中间 ——
@@ -1920,7 +1919,7 @@ AU 的 4 款发型共用同一个发色（A 是同一个人），定义在 `dol_
    映射里要给两条 —— 只给一条的话小人只戴一只手。
 7. **AU 的头发不能用「候选列表」去撞**。AU 图包里留着 DoL 的旧款（同名、256×128、还是红色），
    候选列表会先撞上旧款 —— 结果是 4 款发型里 3 款顶着 DoL 的红头发，第 4 款因为
-   `hue_shift` 在灰度图上不起作用而变成**灰白**的。现在按图包切表（`dol_map.PACK_HAIR`），
+   `hue_shift` 在灰度图上不起作用而变成**灰白**的。当时改成按图包切表，
    AU 全部点名新几何款 + 走 `tint()` 染发色。
 8. **AU 的 `openshoulderscrop` 不能靠 `resolve()` 自己挑**。那个目录里除了 `2.png`~`5.png`
    （整件衣服）还有 `left-idle` / `right-idle` / `*-cover`（只有肩带，实测包围盒是
@@ -1941,7 +1940,7 @@ AU 的 4 款发型共用同一个发色（A 是同一个人），定义在 `dol_
     同一个原因还会让 `bra` 压住 `top`、`stockings` 压住 `shoes`。
     修法：`dol_prepare.py` 新增 `item_slots()`，从 `scripts/OutfitData.gd`
     抓「物品 id → 槽位」，再用 `z_of(our_id)` 查表；烘完还会自检
-    「有没有物品查不到槽位」，有就打印出来。**两套图包都要重烘**。
+    「有没有物品查不到槽位」，有就打印出来。**烘完图包就要重烘一遍**。
 11. **★ 第二十六轮：带 `align` 的图层会被 `align_scale` 再乘一遍。**
     `transform()` 里 `s = scale × P['align_scale']` —— 这个 1.5 是给
     「**从 DoL 几何借来的**贴图」用的（DoL 头宽 22 px、AU 头宽 33 px）。
@@ -2078,7 +2077,7 @@ AU 的 4 款发型共用同一个发色（A 是同一个人），定义在 `dol_
 > 内容多为粗俗词 —— 第三十五轮已按用户要求把 **32 条**列全，见下方「第三十五轮」一节。
 >
 > ★ 挑完之后的落地方式：往 `OutfitData.gd` 加一条 `tattoo_*`，
-> 再到 `dol_map.PACK_OVERRIDE['au']` 里写
+> 再到 `dol_map.AU_OVERRIDE` 里写
 > `{"src": ("bodywriting", <目录名>, <位置>), "tint": INK, "scale": <s/1.5>, "align": (...)}`
 > —— `scale` 要**除以 1.5**、`align` 坐标按 DoL 头心 (58,30) 写（见「踩过的坑」第 11 条），
 > 那两个数可以从源图 bbox 反算：
@@ -2780,7 +2779,7 @@ python tools/build_phone_editor.py && node tools/phone_editor_smoke.js
 | `_round35_tattoo.png` | ★ **第三十五轮补的两件大腿纹身**（上排：无 / 颈侧 / 面颊 / 大腿藤蔓 / 大腿心形 / 大腿爪印，全身 ×3；下排：三款大腿纹身的大腿区放大 ×8）—— `tools/round35_sheet.py` 生成 |
 | `_tattoo_pick.png` | ★ **AU `bodywriting` 全部 14 个刺青图案的挑选表**（统一落在左大腿、缩放 ×2.2、带中文标注）—— `tools/round34_sheet.py` 生成 |
 
-| `_pack_compare.png` | ★ **两套图包的同一批搭配并排**（上＝DoL 官方原版、下＝AUfemale）—— 换包时用来对照 |
+| `_pack_compare.png` | ★ **两套图包的同一批搭配并排**（上＝DoL 官方原版、下＝AUfemale）—— 换包时用来对照。★ 第三十七轮起 DoL 已停用，这张图**仅作历史存档、不再重生成** |
 
 > 截图用固定种子 `20261011` 开局，所以每次生成的图完全一致 ——
 > 这也顺带验证了「固定种子 → 背景 / 原貌 / 性情 / 强制装备全部可复现」。
@@ -2962,7 +2961,7 @@ python tools/build_phone_editor.py && node tools/phone_editor_smoke.js
   `DolDoll.PACK` 一行切换。AU 的画布是 512×256、**同一张图里并排放着全身像和胸像**，
   烘的时候只取全身像那一列（分界线 x=130，全量扫出来的）。
   13 件 AU 裁掉的款式走候选列表 + `alt` 替代，**0 缺失**；耳饰 / 穿环 / 刺青因为 AU 的
-  `hairclip` 宽了 6 倍多，单独在 `dol_map.PACK_OVERRIDE['au']` 里换件重算。
+  `hairclip` 宽了 6 倍多，单独在 `dol_map.AU_OVERRIDE` 里换件重算。
   顺手修掉两个老问题：`resolve()` 会选中全透明的占位 png（`winterjacket/3.png`）、
   手套贴图只有一只手（现在是 `left-idle` + `right-idle` 两条，两只手都戴）。
   界面尺寸全部改成从 `DolDoll.frame_size()` 推，没有写死的 41×92。

@@ -1615,6 +1615,9 @@ tools/
   dol_map.py             # ★ 155 件衣物 → AU 图包款式 / 染色 / 位置搬移的映射表（人工挑的）
   dol_prepare.py         # ★ 按映射取帧 / 染色 / 裁框，烘进 assets/dol_au/ 与 data/doll_au.json（只剩 AU 一套）
   flow_overview.py       # 把 screenshots/ 下的 43 张截图拼成一张流程总览图
+  scan_unused_cats.py    # ★★ 第三十八轮：量 AU 图包里未接入的四类（尺寸 / bbox / 几何 / 重复），出明细
+  scan_unused_sheet.py   # ★★ 第三十八轮：把上面那四类渲成对照图 screenshots/_scan_*.png
+  build_unused_report.py # ★★ 第三十八轮：生成「未接入分类清点.md」
   round26_sheet.py       # ★ 把第二十六轮的刺青 / 项圈 / 内衣 / 整件式叠到小人身上拼一张对照图
   round27_sheet.py       # ★ 把第二十七轮的眼镜三副 / 成装互斥 / 降级下装叠到小人身上拼一张对照图
   round28_sheet.py       # ★ 把第二十八轮的 8 件高暴露款 + 三条「解开枷锁」路线叠到小人身上拼一张对照图
@@ -2289,10 +2292,13 @@ AU 侧重烘结果：**155 件全部有图，缺失 0**；唯一已知取舍仍�
 2. `RunData._roll_forced()` 抽强制件时按 `EXCLUSIVE_GROUPS` 再筛一遍 ——
    同一互斥组里最多挑一件，从源头上杜绝「成装 + 下装」。
 
-**⑥ 「AU 里还有哪些分类没加入」→ 下一轮给明细**
+**⑥ 「AU 里还有哪些分类没加入」→ 已清点**
 
 本轮只确认了结论：还没接进来的是 **`masks` / `genitals` / `props` / `belly`** 四类。
-具体里面各有什么、能不能用，**留到下一轮逐个列清单**（用户口径：「下一轮列出这四个的具体内容」）。
+**下一轮（第三十八轮）已逐个列完清单** —— 见
+[`未接入分类清点.md`](未接入分类清点.md)（含对照图 `screenshots/_scan_*.png`）。
+一句话结论：四类里只有 `genitals`（7 个独立图案）真的适合接进来，其余三类
+分别是渲染辅助层 / 手持道具 / 怀孕系统。
 
 **⑦ 修掉补货带来的性能回归：「一键达标」慢 40 倍**
 
@@ -2325,6 +2331,45 @@ AU 侧重烘结果：**155 件全部有图，缺失 0**；唯一已知取舍仍�
 
 - 四套测试：WardrobeTest **487**、TestRunner **901**、编辑器冒烟 **166**、手机冒烟 **97**，全 0 失败。
 - 截图固定 **43 张**（第三十六轮加入 `01g_tattoo_multi` 后从 42 → 43），全部 `err=0`。
+
+### 第三十八轮：清点 AU 未接入的四类（masks / genitals / props / belly）
+
+用户口径就两个字：「清点」（承接第三十七轮留下的「下一轮列出这四个的具体内容」）。
+
+**这一轮只做清点，一行游戏代码都没改** —— 新增三个工具
+（`tools/scan_unused_cats.py` 出明细、`tools/scan_unused_sheet.py` 出对照图、
+`tools/build_unused_report.py` 出文档），产出一份
+[`未接入分类清点.md`](未接入分类清点.md) 与五张对照图 `screenshots/_scan_*.png`。
+
+**做法**：一律按烘焙时的同一把尺子量 —— 只取**全身像列**（`x < 130`），
+再裁到内容 bbox；所以图里看到的形状就是游戏里会长出来的形状。
+几何、空图、内容重复都用**实测**判定，不靠名字猜。
+
+**四类的实际性质**（这与「四类都是候选衣服」的预期不一样）：
+
+| 分类 | 量 | 真实性质 | 能不能直接变成衣服 |
+|---|---|---|---|
+| `genitals` | 32 张 → **7 个独立图案** | 下半身饰品 / 束缚具 | **能** —— 唯一的一类 |
+| `props` | 691 张 → 609 个基名 | **手持道具**（不是衣服） | 不能，游戏没有「手持」机制 |
+| `belly` | 63 张 | **怀孕小腹分层系统** | 不能，得先有怀孕机制 |
+| `masks` | 10 张 → 6 张可用 | **服装贴合遮罩**（渲染辅助） | 不能，本项目单一体型 |
+
+三处「名字看不出、必须实测」的发现：
+
+1. **`genitals` 只有 7 个独立图案，不是 8 个** —— `chastitycage` 与 `chastitycagefetish`
+   的 `full.png` **内容完全相同**（MD5 都是 `fc0a9b98…`）。
+2. **四种磨损态基本是摆设** —— `full` / `torn` / `tattered` / `frayed` 里，
+   只有 `chastitybeltfetish` 的四张真的是四张不同的图，其余 7 个目录的**四张文件 MD5 一致**。
+3. **`props/npc/` 根本不是道具** —— 47 张拼起来是一个**完整的 NPC 立绘**
+   （`base` / `brand_*` / `hair_*` / `robe` / `sack`）。按名字完全看不出来。
+
+`belly` 里还藏着一个图包作者定的分界：**`mask-*` 只从 15 阶起、`shadow-*` 只从 8 阶起** ——
+说明前 14 阶肚子还没大到需要把衣服挖开。这个数字不是猜的，是扫文件名扫出来的。
+
+**结论**：四类里真正「补进去就多一批衣服」的只有 `genitals`（7 件）。
+`masks` / `belly` 是渲染机制，`props` 是另一个系统的东西。
+`genitals` 若要接入，位置（`x91..118 / y81..104`，与 `panties` 同层同高）
+和贴图都现成，**成本只是「加一栏 + 7 件数据 + 目击描述」**。
 
 ## 位置
 
@@ -2780,6 +2825,15 @@ python tools/build_phone_editor.py && node tools/phone_editor_smoke.js
 | `_tattoo_pick.png` | ★ **AU `bodywriting` 全部 14 个刺青图案的挑选表**（统一落在左大腿、缩放 ×2.2、带中文标注）—— `tools/round34_sheet.py` 生成 |
 
 | `_pack_compare.png` | ★ **两套图包的同一批搭配并排**（上＝DoL 官方原版、下＝AUfemale）—— 换包时用来对照。★ 第三十七轮起 DoL 已停用，这张图**仅作历史存档、不再重生成** |
+| `_scan_masks_genitals.png` | ★ 第三十八轮清点：`masks` 10 张 + `genitals` 8 个目录（含四态是否真不同的标注）—— `tools/scan_unused_sheet.py` 生成 |
+| `_scan_belly.png` | ★ 第三十八轮清点：上排 `body/pregnant-belly` 24 阶、下排 `clothes/belly` 的遮罩 / 阴影 / 衬衫族 |
+| `_scan_props_general.png` | ★ 第三十八轮清点：`props/general`（219 张 → 按基名归并） |
+| `_scan_props_a.png` | ★ 第三十八轮清点：`props` 的 antique / book / child toy / drink |
+| `_scan_props_b.png` | ★ 第三十八轮清点：`props` 的 food / furniture / ingredient / tending / sex toy / npc |
+
+> 五张 `_scan_*.png` 与那 43 张**不是一回事** —— 它们是第三十八轮的**图包清点对照图**，
+> 不在 `tests/Screenshot.tscn` 的产出里，也不会进 `_flow_overview.png`（后者用的是显式名单）。
+> 详见 [`未接入分类清点.md`](未接入分类清点.md)。
 
 > 截图用固定种子 `20261011` 开局，所以每次生成的图完全一致 ——
 > 这也顺带验证了「固定种子 → 背景 / 原貌 / 性情 / 强制装备全部可复现」。

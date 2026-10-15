@@ -326,6 +326,37 @@
   WardrobeTest 的「原貌池里的物品都要有描述」断言也照常通过 ——
   将来真要把它们加进原貌池，那条断言会立刻报出来。
 
+### 第 38 轮：清点 AU 未接入的四类（masks / genitals / props / belly）
+
+- 用户口径：「清点」（承接第三十七轮留下的「下一轮列出这四个的具体内容」）。
+- **只做清点、不改游戏代码**。新增三个工具与一份文档：
+  `tools/scan_unused_cats.py`（量尺寸 / bbox / 几何，出明细）、
+  `tools/scan_unused_sheet.py`（出对照图）、`tools/build_unused_report.py`（出文档）。
+  产出 `未接入分类清点.md` + `screenshots/_scan_*.png` 五张。
+- **范围比原先说的大**：四类之外还牵出两组配套资源 ——
+  `body/pregnant-belly/1..24.png`（与 `clothes/belly` 配套的孕肚本体）与
+  `body/breasts`、`body/parasites`（本次未展开）。
+- **结论（按「能不能直接变成一批衣服」排序）**：
+  - `genitals` —— **唯一值得接入的一类**。8 个目录，但按 MD5 实测**只有 7 个独立图案**
+    （`chastitycage` 与 `chastitycagefetish` 的 `full.png` 内容完全相同）；
+    四种磨损态 `full/torn/tattered/frayed` 里**只有 `chastitybeltfetish` 真的是四张不同的图**，
+    其余 7 个的四张文件 MD5 一致。位置全在 `x91..118 / y81..104`，与 `panties` 同层同高。
+  - `masks`（10 张 / 6 张可用）—— 是「按体型把衣服裁到身体轮廓上」的辅助层，
+    3 张 `formfitting-*` 对应 slender / classic / curvy 三种体型。本项目小人是单一体型、
+    衣服在烘焙期已裁好，**没有可用之处**。
+  - `props`（691 张 / 609 个基名）—— 是**手持道具**，不是衣服。11 个子类里
+    `general` 219 张最大，另有 antique 58 / food 116 / tending 84 / drink 57 等；
+    `npc/` 那一支（47 张）根本不是道具，是一个**完整 NPC 立绘**（base / brand_* / hair_* / robe / sack）。
+    按 MD5 比对有 26 组 56 个文件内容重复（如 box 家族 4 张同图）。
+    游戏没有「手持」这套机制，硬塞进槽位语义不成立 → **不建议接入**。
+  - `belly`（63 张）—— 是**怀孕小腹分层系统**：`mask-N` / `mask-min-N` / `mask-clip-N`
+    各 10 张（只到 15~24 阶）、`shadow-N` 17 张（8~24 阶）、`mask-shirt-*` 10 张、
+    `belly-mask*` 6 张，另有 7 张全透明占位。★ 只有 15 阶起才有遮罩、8 阶起才有阴影 ——
+    分界是图包作者定的。本项目没有怀孕机制，接入成本是「155 件 × 24 阶重烘」→ **不建议**。
+- 命名约定也一并记录：`-basket`（装东西的篮子，41 张）、`-underarm`（夹腋下，17）、
+  `-acc`（附属小件，23，`resolve()` 会滤）、`-cover`（8）、`-open`（5）。
+- 测试：本轮不动游戏代码，四套测试照跑一遍确认无回归。
+
 ## 测试规模的变化（只有实测过的数据点）
 
 | 轮次 | WardrobeTest | TestRunner | 编辑器冒烟 | 手机冒烟 |

@@ -11,7 +11,6 @@
 
 用法：
   python tools/gate_items_sheet.py            # 用当前图包（assets/dol_au + data/doll_au.json）
-  python tools/gate_items_sheet.py --pack dol # 换成 DoL 那套
 """
 
 import argparse
@@ -25,10 +24,7 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJ = os.path.dirname(HERE)
 
-PACKS = {
-    'au': ('assets/dol_au', 'data/doll_au.json'),
-    'dol': ('assets/dol', 'data/doll.json'),
-}
+PACK = ('assets/dol_au', 'data/doll_au.json')
 
 # (标题, 要叠的物品 id) —— 空列表 = 只有身体
 ROWS = [
@@ -63,11 +59,10 @@ LABEL_H = 0        # 不画文字（项目里的字体资源不适合在这里�
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument('--pack', default='au', choices=sorted(PACKS))
     ap.add_argument('--out', default=os.path.join('screenshots', '_gate_new_items.png'))
     args = ap.parse_args()
 
-    asset_dir, json_rel = PACKS[args.pack]
+    asset_dir, json_rel = PACK
     root = os.path.join(PROJ, asset_dir)
     with io.open(os.path.join(PROJ, json_rel), encoding='utf-8') as f:
         doll = json.load(f)
@@ -109,7 +104,7 @@ def main() -> int:
     big.convert('RGB').save(out_path)
 
     print("图包 %s ｜ 取景框 %s ｜ %d 格 → %s  %dx%d" % (
-        args.pack, doll.get('crop'), cols, args.out, big.width, big.height))
+        'au', doll.get('crop'), cols, args.out, big.width, big.height))
     if missing:
         print("★ 图层表里缺这些物品（会被跳过）: %s" % missing)
         return 1

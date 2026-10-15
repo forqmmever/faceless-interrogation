@@ -115,6 +115,25 @@ Bash 的 heredoc 会把 `\\` 吞成 `\`。所以 `python - <<'PY' ... re.compile
 - 两套**都没有 `neck`**，所以「颈侧刺青」只能借左肩（第二十六轮起的已知取舍）。
 - 源图尺寸差异极大：`paw print` 5×5、`flower` 10×10、`heart`/`cross`/`flame` 那种
   大腿档是 14×78 的**竖长条** —— 挑图案时**必须逐个量 bbox**，不能照抄别人的 `scale`。
+- ★ 第三十六轮起 `text/` 的四件刻字（bitch / free-use / slave / cum-rag）走的是**整字**路子：
+  位置沿用图包自己的落点，`align` 由该部位字形 bbox 中心反算，只做小幅缩放（0.72 ~ 1.6）。
+- ★ 那些 png 都是 **512×256 整画布**，左右两列各画一份 —— 探图脚本要自己过滤 x<130，
+  否则会看到「一张图里好几个词」的假象（`clip_to_body()` 只负责烘焙时裁掉右列）。
+
+### 多件槽位：`equipped` 的值有两种形态（第三十六轮起）
+
+- `OutfitData.MULTI_SLOTS := {"tattoo": 2}` —— 只有纹身是多件槽位，其余槽位一件。
+- `WardrobeModel.equipped` 的值：**单件槽位 = `String`，多件槽位 = `Array`**。
+- **一律走访问器** `ids_at` / `id_at` / `has_id` / `set_ids` / `solid_ids` / `_ids_of`，
+  不要再写 `str(equipped.get(slot, ""))` —— 多件槽位上那会得到 `["a", "b"]` 这种字符串。
+- 多件槽位的「空件」必须标 `"bare": true`（`tattoo_none` 第三十六轮才补上），
+  否则 `_settle_multi()` 会把它当成一件真货占名额。
+- 门控也分了级：`OutfitData.outer_slots_of_item(item)` **先看这一件自己的 `gate`**，
+  没有才退回槽位级的 `UNDER_GATE`。纹身按件写 gate（部位不同、遮盖不同），内衣内裤继续走槽位表。
+- `_delta()` 的连带项扫 `OutfitData.gate_dependents(slot)`（静态缓存），
+  并且**只在可见性真的翻转时**才重算那一槽位的贡献 —— 无条件重算会把 WardrobeTest 拖慢 3 倍。
+- DP（一键达标）里多件槽位**故意不并进** `top/bra/dress/bottom/panties` 那一大块，
+  自成一个单元素组、暴露值按保守口径计入（并进去选项数会从两万五涨到上百万）。
 
 ### GDScript 的坑（踩过的）
 

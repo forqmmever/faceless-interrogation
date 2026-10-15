@@ -1,31 +1,33 @@
 # -*- coding: utf-8 -*-
 """
-把 Degrees of Lewdity 风格的美术资源按 dol_map.py 的映射烘焙进本项目。
+把 AUfemale 图包的美术资源按 dol_map.py 的映射烘焙进本项目。
 
 做四件事：
   1. 基础层（身体 / 脸 / 头发）→ <out>/base/<name>.png
   2. 每件衣物 → <out>/clothes/<our_id>.png
        · 取精灵图里的**正面全身那一帧**
        · 染色：结果 = 颜色 × 蒙版灰度（复刻 DoL 的 Renderer.composeOverCutout）
-       · 按需搬运 / 缩放（DoL 没有耳饰、穿环、刺青的槽位，只能挪用头部小件，
+       · 按需搬运 / 缩放（耳饰 / 穿环 / 刺青这些槽位 DoL 里没有，只能挪用头部小件，
          再把它的不透明中心挪到耳朵 / 眉骨 / 唇边）
        · 统一裁到固定取景框（所有图层用同一个框，否则换装时小人会跳）
   3. 每件衣物的卡片图标 → <out>/icons/<our_id>.png（30×30，照 DoL 的物品图标尺寸）
-  4. 图层表 → data/doll*.json（Godot 侧照着它按 z 序叠）
+  4. 图层表 → data/doll_au.json（Godot 侧照着它按 z 序叠）
 
-★ 支持多个「图包」。它们的目录 / 文件名都跟 DoL 的 img/ 一致，但**画布几何不同**：
+★★ 第三十七轮：用户口径「现在和之后只使用 au 源的服装」——
+   **只剩 AU 一套图包**。原来还支持 `--pack dol`（DoL 官方原版，256×128 精灵图），
+   那条链路连同 assets/dol 与 data/doll.json 一起停掉了，PACKS 里只留 au。
 
-  dol（官方原版）  256×128 精灵图 = 2 帧 ×128×128；人物约 20×51 px，站在 x47..69
   au（AUfemale）   512×256 画布 —— 按 **128 px 一列**分成 4 列，两两一组：
-                      · 第 0 列 x0..127   = 正面全身像（人物约 40×145 px，站在 x85..125、y45..190）
-                      · 第 1 列 x128..255 = 胸像 / 脸部特写（头 x165..230，被 y=128 拦腰截断）
-                      · 第 2/3 列 x256..511 = 上面两列的**逐像素复制**
-                   ★ 本脚本**只用全身像那一列**，胸像一律不要 —— 分界线见 crop_clip。
+                    · 第 0 列 x0..127   = 正面全身像（人物约 40×145 px，站在 x85..125、y45..190）
+                    · 第 1 列 x128..255 = 胸像 / 脸部特写（头 x165..230，被 y=128 拦腰截断）
+                    · 第 2/3 列 x256..511 = 上面两列的**逐像素复制**
+                 ★ 本脚本**只用全身像那一列**，胸像一律不要 —— 分界线见 crop_clip。
+                 ★ 图包里混着一批「仍是 DoL 原尺寸 256×128」的旧图层，
+                   由 old_geom 那一支负责把它们抬到新几何（见 normalize_geom）。
 
 用法：
-  python tools/dol_prepare.py                    # 默认烘 dol
-  python tools/dol_prepare.py --pack au          # 烘 AUfemale
-  python tools/dol_prepare.py --pack au --root <图包目录> --out <产物目录>
+  python tools/dol_prepare.py                       # 烘 AUfemale
+  python tools/dol_prepare.py --root <图包目录> --out <产物目录>
 """
 import argparse
 import io
@@ -56,19 +58,6 @@ ICON_SCALE = 2       # ★ 落盘时放大 2 倍：Godot 的 Button.icon_max_wid
 #  crop_pad   取景框在基础层并集之外留的边（左, 上, 右, 下）
 #  crop_clip  取景框的硬边界 —— AU 靠它把右侧的胸像挡在外面
 PACKS = {
-    'dol': {
-        'root': 'E:/DOWNLOAD/Degrees of Lewdity/img',
-        'out': 'assets/dol',
-        'json': 'data/doll.json',
-        'grid': (128, 128),
-        'canvas': (128, 128),
-        'align_scale': 1.0,
-        'align_origin': (58.0, 30.0),
-        'old_geom': None,
-        'crop_pad': (9, 9, 9, 9),
-        'crop_clip': (0, 0, 128, 128),
-        'clip_view': (0, 0, 128, 128),
-    },
     'au': {
         'root': 'E:/DOWNLOAD/AUfemale.imgpack_v0.9.3',
         'out': 'assets/dol_au',
@@ -90,9 +79,8 @@ PACKS = {
 
 DOL_HEAD = (58.0, 30.0)      # align 坐标的参考点（DoL 头心），不要改
 
-P = PACKS['dol']
-DOL_ROOT = PACKS['dol']['root']
-OUT = os.path.join(HERE, PACKS['dol']['out'])
+P = PACKS['au']
+OUT = os.path.join(HERE, PACKS['au']['out'])
 
 _IMG_CACHE = {}
 _CONTENT_CACHE = {}
@@ -256,27 +244,6 @@ def tint(im, colour, gain=1.0):
     return out
 
 
-def hue_shift(im, dh, lighten=1.0):
-    """头发：DoL 的原图是栗红底，靠 CSS filter 换色。这里直接改 HLS。"""
-    import colorsys
-    px = im.load()
-    out = Image.new('RGBA', im.size, (0, 0, 0, 0))
-    op = out.load()
-    w, h = im.size
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if a == 0:
-                continue
-            hh, ll, ss = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
-            hh = (hh + dh) % 1.0
-            ll = min(1.0, ll * lighten)
-            ss = min(1.0, ss * 0.9)
-            r2, g2, b2 = colorsys.hls_to_rgb(hh, ll, ss)
-            op[x, y] = (int(r2 * 255), int(g2 * 255), int(b2 * 255), a)
-    return out
-
-
 def transform(im, scale, align):
     """按需缩放 / 搬运 —— DoL 没有耳饰与穿环槽位时靠它顶替。
 
@@ -401,10 +368,9 @@ def main():
         layers.append({'name': L['name'], 'file': 'base/%s.png' % L['name'], 'z': L['z']})
 
     # ---- 2. 头发（四件，各含 sides / fringe / back 三块）----
-    # ★ 发型表按图包切（dol_map.PACK_HAIR）：
-    #   dol 用 DoL 原版款式（彩色图，走 hue_shift 换色）；
-    #   au 用 AU 自己重画的新几何款式（**灰度蒙版**，走 tint 乘发色）。
-    hair_table = M.PACK_HAIR.get(P.get('name', 'dol'), M.HAIR_STYLES)
+    # ★ 发型表只有 AU 一套（dol_map.HAIR_STYLES）：AU 自己重画的那批头发是
+    #   **灰度蒙版**，走 tint 乘发色；不再有「DoL 彩色原图 + hue_shift」那条路。
+    hair_table = M.HAIR_STYLES
     hair_files = {}
     for key, h in hair_table.items():
         pieces = []
@@ -421,11 +387,8 @@ def main():
                 continue
             im = layer_image(p)
             if h.get('tint'):
-                # 灰度蒙版：结果 = 发色 × 蒙版灰度（AU 这条路）
+                # 灰度蒙版：结果 = 发色 × 蒙版灰度
                 im = tint(im, h['tint'], h.get('gain', 1.0))
-            elif h.get('hue') is not None:
-                # DoL 的彩色原图：改 HLS 换色
-                im = hue_shift(im, h['hue'], h.get('light', 1.0))
             name = '%s_%s' % (key, sub)
             note_clip('base/' + name, im, crop)
             save(im.crop(crop), 'base', name)
@@ -454,8 +417,8 @@ def main():
             continue
         acc = None
         used = 0
-        # 「借用头部小件」那一小撮按图包覆盖参数（见 dol_map.PACK_OVERRIDE）
-        ov = M.PACK_OVERRIDE.get(P.get('name', 'dol'), {}).get(our_id, {})
+        # 「借用头部小件」那一小撮的参数（见 dol_map.AU_OVERRIDE）
+        ov = M.AU_OVERRIDE.get(our_id, {})
         for base_spec in layerspec:
             spec = dict(base_spec)
             spec.update(ov)
@@ -495,7 +458,7 @@ def main():
         items[our_id]['icon'] = 'icons/%s.png' % our_id
 
     data = {
-        'pack': P.get('name', 'dol'),
+        'pack': P.get('name', 'au'),
         'frame': list(P['canvas']),
         'crop': list(crop),
         'size': [cw, ch],
@@ -509,7 +472,7 @@ def main():
     with io.open(os.path.join(HERE, P['json']), 'w', encoding='utf-8', newline='\n') as f:
         f.write(json.dumps(data, ensure_ascii=False, indent=1, sort_keys=True))
 
-    print('图包 %s  ← %s' % (P.get('name', 'dol'), P['root']))
+    print('图包 %s  ← %s' % (P.get('name', 'au'), P['root']))
     print('产物 %s ｜ %s' % (P['out'], P['json']))
     print('取景框 %s  →  %d×%d' % (str(crop), cw, ch))
     print('基础层 %d ｜ 衣物 %d' % (len(layers), len([k for k in M.ITEMS])))
@@ -599,7 +562,7 @@ def make_none_icon(our_id):
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument('--pack', default='dol', choices=sorted(PACKS.keys()))
+    ap.add_argument('--pack', default='au', choices=sorted(PACKS.keys()))
     ap.add_argument('--root', default=None, help='覆盖图包目录')
     ap.add_argument('--out', default=None, help='覆盖产物目录（相对项目根）')
     ap.add_argument('--json', default=None, help='覆盖图层表路径（相对项目根）')
@@ -615,5 +578,4 @@ if __name__ == '__main__':
         P['json'] = args.json
     globals()['P'] = P
     globals()['OUT'] = os.path.join(HERE, P['out'])
-    globals()['DOL_ROOT'] = PACKS['dol']['root']
     main()

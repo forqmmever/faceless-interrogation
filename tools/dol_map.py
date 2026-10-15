@@ -1,31 +1,35 @@
 # -*- coding: utf-8 -*-
 """
-本作 68 件衣物 → Degrees of Lewdity 美术资源的映射表。
+本作全部衣物 → AUfemale 美术资源的映射表。
 
 用户口径：
   · 「参考 E:\\DOWNLOAD\\Degrees of Lewdity 下的换装系统的样式，将本游戏的系统替换那样的」
   · 「小人形象和服装也要改成一样」
-  · 遇到「我们的某件衣服在 DoL 里没有对应款式」→ 挑最接近的 DoL 款式
+  · 遇到「我们的某件衣服在 DoL 里没有对应款式」→ 挑最接近的款式
+  · ★★ 第三十七轮：「现在和之后只使用 au 源的服装」——
+    **所有服装一律取 AUfemale 图包**（E:/DOWNLOAD/AUfemale.imgpack_v0.9.3），
+    不再从 DoL 官方图包里取衣物。DoL 那套图包（assets/dol + data/doll.json）
+    整条链路已停掉，只剩 AU 一套。
 
 每条映射的含义：
   our_id: [层1, 层2, ...]
   每一层 = dict(
-    src   = ("clothes", "upper", "blouse")  # img/clothes/upper/blouse/<file>.png
+    src   = ("clothes", "upper", "blouse")  # clothes/upper/blouse/<file>.png
             或 ("clothes", "upper", "blouse", "acc-full.png")   # 显式指定文件
-            或 ("hair", "sides", "classic", "short")            # img/hair/sides/classic/short.png
-            或 ("face", "default", "default", "eyes")           # img/face/default/default/eyes.png
+            或 ("hair", "sides", "classic", "short")            # hair/sides/classic/short.png
+            或 ("face", "default", "default", "eyes")           # face/default/default/eyes.png
     tint  = (r, g, b)      # None = 保持原图颜色（身体/头发已经是彩色）
-    tint_mode = "mul"      # DoL 的 composeOverCutout：结果 = 颜色 × 蒙版灰度（默认）
-                "keep"     # 原样使用
     align = ("bbox_center", 60.0, 30.0)   # 把这张图的不透明部分中心挪到该点（DoL 的 128×128 坐标）
              None                          # 原样
     scale = 1.0            # 额外缩放
   )
 
-DoL 的 128×128 帧里，人物大约是：头 y 19..41、身体 y 42..92，左右 x 47..69。
+★ align 坐标仍然按 **DoL 的 128×128 坐标系**写（头心 58,30），
+  由 dol_prepare.transform() 换算到 AU 的 512×256 画布上。
+  AU 的 128×128 帧里，人物大约是：头 y 19..41、身体 y 42..92，左右 x 47..69。
 
-★ 文末的 PACK_OVERRIDE 是「按图包覆盖」：只有耳饰 / 穿环 / 刺青这一小撮
-  （DoL 没这些槽位，是借头部小件搬位置顶替的）在两个图包里参数不同。
+★ 文末的 AU_OVERRIDE 是「借用头部小件」那一小撮（耳饰 / 穿环 / 刺青）的专用参数
+  —— DoL 没有这些槽位，只能挪用头部小件再把它的不透明中心搬到位。
 """
 
 # ---------------- 基础层（小人本体）----------------
@@ -48,30 +52,15 @@ BASE_LAYERS = [
 
 # 头发的三块（sides / fringe / back）由 hair 那四件决定，见 HAIR_STYLES
 #
-# ★ 每个图包一套发型表（见文末 PACK_HAIR）。两套图包的头发**画法完全不同**：
+# ★★ 第三十七轮起只用 AU 一套（用户口径「只使用 au 源的服装」），
+#    所以这里不再分图包 —— 只剩下面这一张 AU 表。
 #
-#   dol —— DoL 原图是**彩色**的（栗红底），款式名就用 DoL 自己那套，
-#          换色靠 hue_shift 改 HLS。
-#   au  —— AU 自己重画的那批是**纯灰度蒙版**（实测饱和度 0.00），
-#          必须在烘焙时乘上发色（tint），而且**只能用新几何 512×256 的款式**。
+#    AU 自己重画的那批头发是**纯灰度蒙版**（实测饱和度 0.00），
+#    必须在烘焙时乘上发色（tint），而且**只能用新几何 512×256 的款式**。
 #
 # ★★ AU 的坑：图包里同时留着 DoL 的旧款 —— 同名（`middlepart` / `twin braids`…）
-#    但仍是 256×128、而且**还是 DoL 的红色**。所以 AU 那张表不能写成「候选列表」
+#    但仍是 256×128、而且**还是 DoL 的红色**。所以这张表不能写成「候选列表」
 #    （候选会先撞上旧款，一撞就中招），必须直接点名 AU 新几何的款式。
-HAIR_STYLES = {
-    "hair_short": {"style": ["classic", "default"],         "length": "short",
-                   "fringe": ["middlepart", "default"],     "back": None,
-                   "hue": None},                                        # 保持 DoL 原色（栗红）
-    "hair_braid": {"style": ["twin braids", "braid right"], "length": "shoulder",
-                   "fringe": ["middlepart", "curtain"],     "back": None,
-                   "hue": 0.10, "light": 0.80},                          # 偏棕
-    "hair_long":  {"style": ["all down"],                   "length": "chest",
-                   "fringe": ["middlepart", "curtain"],     "back": "all down", "back_len": "thighs",
-                   "hue": 0.0, "light": 0.34},                           # 偏黑：只压暗，不换色相
-    "hair_up":    {"style": ["messy bun"],                  "length": "navel",
-                   "fringe": ["parted", "framed"],          "back": None,
-                   "hue": 0.14, "light": 1.20},                          # 偏金
-}
 
 # AU 的发色：A 是同一个人，四款发型共用同一个发色（深棕）。
 # gain 是给灰度蒙版的亮度增益 —— AU 的蒙版整体偏暗（实测亮度 38..207），
@@ -82,7 +71,7 @@ HAIR_GAIN_AU = 1.25
 # AU 的发型：款式全部点名「新几何 512×256 + 灰度蒙版」的那批
 # （实测 sides 65 款里 51 款是新几何、fringe 60 款里约 34 款是新的；
 #   点名时还避开了 `wavy braid` 这种「新几何但仍是 DoL 红」的漏网款）
-HAIR_STYLES_AU = {
+HAIR_STYLES = {
     "hair_short": {"style": "neat",        "length": "short",
                    "fringe": "default",    "back": None,
                    "tint": HAIR_TINT_AU, "gain": HAIR_GAIN_AU},
@@ -116,7 +105,6 @@ SLOT_Z = {
     "gloves":     110.0,
     "accessory":  105.0,
     "bottom":     90.0,
-    "garterbelt": 76.0,
     "panties":    67.0,
     "stockings":  66.6,
     "shoes":      85.0,
@@ -237,12 +225,12 @@ ITEMS = {
                         "align": ("bbox_center", 58.0, 35.0)}],
 
     # ---- 刺青 ----
-    # 这里的参数是给 **dol 包**（DoL 原版）用的顶替方案：DoL 的刺青走 img/bodywriting，
-    # 但那批贴图在 128 帧里只有 2~5 像素（DoL 自己靠 Renderer 放大），单帧取不到
-    # 可用的图案，只能「借用头部小件 + 位置搬移」。
-    #
-    # ★ 第二十六轮：**au 包不再用这套顶替** —— AU 的 bodywriting 是真正画在身上的
-    #   图案，改用它的见下方 PACK_OVERRIDE['au']。用户口径就是「请换成 au 的」。
+    # ★★ 第三十七轮起只剩 AU 一套图包，下面这些 src/align 已经**不再被使用** ——
+    #   刺青的实际烘焙参数全在文末的 AU_OVERRIDE（AU 自己的 bodywriting 图案）。
+    #   这一组留着只为**占位**：`ITEMS` 里有没有这个 key、列表里有几个元素，
+    #   决定了这件物品会不会被烘、烘几层，所以不能整条删掉。
+    #   （历史：第二十六轮之前 AU 还没有专属参数时，这里存的是「借用头部小件 +
+    #    位置搬移」那套顶替方案。）
     "tattoo_none": [],
     "tattoo_neck":  [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.28),
                       "scale": 3.0, "align": ("bbox_center", 57.0, 45.0)}],
@@ -250,11 +238,21 @@ ITEMS = {
                       "scale": 2.6, "align": ("bbox_center", 63.0, 30.0)}],
     "tattoo_thigh": [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.24),
                       "scale": 2.8, "align": ("bbox_center", 49.0, 66.0)}],
-    # 第三十五轮补的两件：dol 包里同样只能借头部小件顶替（DoL 的 bodywriting 只有 2~5 像素）
+    # 第三十五轮补的两件（同上：这里只是占位，参数见 AU_OVERRIDE）
     "tattoo_heart": [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
                       "scale": 3.2, "align": ("bbox_center", 49.0, 66.0)}],
     "tattoo_paw":   [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
                       "scale": 2.6, "align": ("bbox_center", 51.0, 62.0)}],
+    # ★ 第三十六轮补的四件刻字（bitch / free-use / slave / cum-rag）。
+    #   可读的整字图案同样取自 AU 的 bodywriting，见下方 AU_OVERRIDE。
+    "tattoo_bitch":   [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
+                        "scale": 3.0, "align": ("bbox_center", 49.0, 66.0)}],
+    "tattoo_freeuse": [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
+                        "scale": 3.0, "align": ("bbox_center", 67.0, 66.0)}],
+    "tattoo_slave":   [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
+                        "scale": 3.0, "align": ("bbox_center", 58.0, 52.0)}],
+    "tattoo_cumrag":  [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
+                        "scale": 3.0, "align": ("bbox_center", 58.0, 70.0)}],
 
     # ---- 颈饰 ----
     # ★ 第二十六轮核查结论：这三件的源图本来就是 AU 图包自己的 clothes/neck/*，
@@ -402,8 +400,8 @@ ITEMS = {
     "dress_eveninggown": [{"src": ("clothes", "upper", "eveninggown"), "tint": WINE},
                           {"src": ("clothes", "lower", "eveninggown"), "tint": WINE}],
 
-    # ---- 吊袜带 ----
-    "garter_none": [],
+    # ---- 吊袜带（第三十七轮并入「袜类」，槽位 z 走 stockings = 66.6）----
+    # garter_none 已随合并删除（袜类自己的空件是 stockings_none）。
     "garter_lace":  [{"src": ("clothes", "legs", "asymmetricalgarter"), "tint": (0.84, 0.82, 0.84),
                       "alt": {"src": ("clothes", "legs", "ribbonstockings"), "tint": (0.84, 0.82, 0.84)}}],
     "garter_black": [{"src": ("clothes", "legs", "harness garter stockings"), "tint": LEATHER,
@@ -450,91 +448,169 @@ ITEMS = {
     "robe_lace":    [{"src": ("clothes", "upper", "sheer lace pyjama"),   "tint": (0.90, 0.88, 0.90), "z": 150.0,
                       "alt": {"src": ("clothes", "upper", "bathrobe"), "tint": (0.90, 0.88, 0.90), "z": 150.0}}],
     "robe_leather": [{"src": ("clothes", "upper", "blackleather"),        "tint": BLACK, "z": 150.0}],
+
+    # ================= ★★ 第三十七轮：按暴露度分档补的 35 件 =================
+    # 用户口径：「补充各个暴露度层级的衣服，使数量尽量平衡」。
+    #
+    # 这一批**一条 `alt` 都不用写** —— 35 个款式在 AU 图包里全都存在（已逐个核过）。
+    # 也**一条 `align` 都不用写** —— 它们不是「借头部小件搬位置」那一类，
+    # 本身就是按身体画好的衣物图层，落在正确的层上即可。
+    #
+    # 分档（括号里是 exposure）：3 档 4 件 / 4 档 7 件 / 5 档 4 件 /
+    # 7 档 4 件 / 8 档 6 件 / 9 档 10 件 —— 目标是让「1~9 每档 9~11 件」压平
+    # （不含纹身那 9 件 @2，它们是同一个多件槽位）。
+
+    # ---- 成装（8 件）----
+    "dress_kimono":      [{"src": ("clothes", "upper", "kimonomini"),       "tint": NAVY_DARK}],
+    "dress_maid":        [{"src": ("clothes", "upper", "maid"),             "tint": DARKGREY}],
+    "dress_slip":        [{"src": ("clothes", "upper", "babydoll"),         "tint": CREAM}],
+    "dress_nurse":       [{"src": ("clothes", "upper", "pinknurse"),        "tint": WHITE}],
+    "dress_cheongsam":   [{"src": ("clothes", "upper", "cheongsamshort"),   "tint": QIPAO}],
+    "dress_leather":     [{"src": ("clothes", "upper", "leatherdress"),     "tint": LEATHER}],
+    "dress_swan":        [{"src": ("clothes", "upper", "swandress"),        "tint": WINE}],
+    "dress_transparent": [{"src": ("clothes", "upper", "transparentnurse"), "tint": SKIN_SILK}],
+
+    # ---- 上衣（8 件）----
+    "top_tank":        [{"src": ("clothes", "upper", "tanktop"),        "tint": KNIT_ASH}],
+    "top_tube":        [{"src": ("clothes", "upper", "tubetop"),        "tint": WINE}],
+    "top_swim":        [{"src": ("clothes", "under-upper", "swimsuit"), "tint": NAVY}],
+    "top_leathercrop": [{"src": ("clothes", "upper", "leathercroptop"), "tint": LEATHER}],
+    "top_chain":       [{"src": ("clothes", "upper", "chain tunic"),    "tint": SILVER}],
+    "top_graphiccrop": [{"src": ("clothes", "upper", "graphiccrop"),    "tint": BLACK}],
+    # ★ 这两件是 9 档的「临时裹一下」：源图本身就是布，染成米白
+    "top_towel":       [{"src": ("clothes", "upper", "towel"),          "tint": IVORY}],
+    "top_bedsheet":    [{"src": ("clothes", "upper", "bedsheet"),       "tint": IVORY}],
+
+    # ---- 下装（5 件）----
+    "bottom_pencil":       [{"src": ("clothes", "lower", "pencillong"),    "tint": DARKGREY}],
+    # jorts 源图本来就是彩色牛仔布，不再染色（tint=None → 保持原色）
+    "bottom_shortshort":   [{"src": ("clothes", "lower", "jorts"),         "tint": None}],
+    "bottom_leathershort": [{"src": ("clothes", "lower", "leathershorts"), "tint": LEATHER}],
+    "bottom_chain":        [{"src": ("clothes", "lower", "chain tunic"),   "tint": SILVER}],
+    "bottom_sarong":       [{"src": ("clothes", "lower", "sarong"),        "tint": GREEN}],
+
+    # ---- 上内衣（4 件）----
+    "bra_bikini":     [{"src": ("clothes", "under-upper", "classicbikini"),      "tint": WINE}],
+    "bra_latex":      [{"src": ("clothes", "under-upper", "latexleotard"),       "tint": BLACK}],
+    "bra_seethrough": [{"src": ("clothes", "under-upper", "seethroughswimsuit"), "tint": SKIN_SILK}],
+    "bra_tape":       [{"src": ("clothes", "under-upper", "tape"),               "tint": IVORY}],
+
+    # ---- 下内衣（6 件）----
+    "panties_bikini":     [{"src": ("clothes", "under-lower", "classicbikini"),      "tint": WINE}],
+    "panties_shibari":    [{"src": ("clothes", "under-lower", "shibari"),            "tint": DARKBROWN}],
+    "panties_gstring":    [{"src": ("clothes", "under-lower", "gstring"),            "tint": BLACK}],
+    "panties_loincloth":  [{"src": ("clothes", "under-lower", "loincloth"),          "tint": LINEN}],
+    "panties_tieside":    [{"src": ("clothes", "under-lower", "tiesidebikini"),      "tint": SKIN_SILK}],
+    "panties_seethrough": [{"src": ("clothes", "under-lower", "seethroughswimsuit"), "tint": SKIN_SILK}],
+
+    # ---- 袜类（4 件）----
+    "stockings_sheer":         [{"src": ("clothes", "legs", "sheer stockings"),   "tint": BLACK}],
+    "stockings_fishnettights": [{"src": ("clothes", "legs", "fishnettights"),     "tint": FISHNET}],
+    # ★ 8 档这件原本想用 `mismatched thighhighs`（左右腿图案不同），但那个源图
+    #   在 AU 里**只画了一条腿**（烘出来 13 px 宽，正常袜类是 27~31 px）——
+    #   换成 `chain leggings`：整条腿的网眼织法 + 一排金属环，两腿都在，正合「高暴露」。
+    "stockings_chainnet":      [{"src": ("clothes", "legs", "chain leggings"),    "tint": FISHNET}],
+    "stockings_sheerskin":     [{"src": ("clothes", "legs", "sheerleggings"),     "tint": SKIN_SILK}],
 }
 
-# ---------------- 按图包覆盖 ----------------
-# 只有「借用头部小件 + 位置搬移」这一套（耳饰 / 穿环 / 刺青）需要分图包给参数。
-# 原因：DoL 原版这几件小贴图只有 4~8 px，AU 重画后同一件宽了 6 倍多 ——
+# ---------------- 借用头部小件的覆盖参数（AU）----------------
+# 只有「借用头部小件 + 位置搬移」这一套（耳饰 / 穿环 / 刺青）需要这里的参数。
+# 原因：这些槽位在 DoL 里根本不存在，只能挪用一个头部小件再把它搬到耳朵 / 眉骨 / 唇边；
+# 而 AU 重画后同一个源件宽了 6 倍多，照搬旧 scale 会直接糊满整张脸 ——
 #   goldhairpin  DoL 6×6  → AU 8×10
 #   fishhairpin  DoL 8×7  → AU 15×15
-#   hairclip     DoL 4×4  → AU 26×8   ← 是一条横排发夹，照搬 scale 直接糊满整张脸
+#   hairclip     DoL 4×4  → AU 26×8   ← 是一条横排发夹
 # 所以 AU 这边换成窄的 goldhairpin，并按「结果宽度对齐 DoL」重算 scale：
 #   AU scale = DoL 结果宽 / AU 源宽
-PACK_OVERRIDE = {
-    'au': {
-        # ---- 刺青：改用 AU 自己的 bodywriting 图案（第二十六轮）----
-        # AU 的 bodywriting 是**真正画在身上的图案**，而且每张图已经落在正确的
-        # 身体位置上（forehead / left-cheek / left-shoulder / left-thigh / pubic /
-        # breasts-0..6），所以 AU 这边不再需要「借用头部小件 + 搬移」那套顶替。
-        #
-        # ★ align 坐标按 DoL 头心 (58,30) 写，由 transform() 换算到各图包；
-        #   下面这几个数是从 AU 画布上图案的 bbox 中心**反算回 DoL 坐标系**得到的：
-        #       x_dol = (cx - 106) / 1.5 + 58        y_dol = (cy - 30.5) / 1.5 + 30
-        #   （106 / 30.5 / 1.5 见 dol_prepare.PACKS['au']）
-        #
-        #     图案                  AU 画布 bbox          尺寸   中心 → DoL align
-        #     flower/left-shoulder  (113, 54, 121, 64)    8×10   (117.0, 59.0) → (65.33, 49.00)
-        #     star/left-cheek       (108, 40, 113, 45)    5×5    (110.5, 42.5) → (61.00, 38.00)
-        #     flower/left-thigh     (108, 114, 118, 124)  10×10  (113.0, 119.0) → (62.67, 89.00)
-        #
-        # ★★ scale 要**除以 1.5** —— transform() 里 s = scale × align_scale，
-        #   而 align_scale（au）= 1.5 是给「从 DoL 几何借来的贴图」用的。
-        #   bodywriting **本来就是 AU 几何**，再乘一遍就等于平白放大 1.5 倍。
-        #   第二十六轮初版就是踩了这个坑：`scale: 1.333` → 实际 s = 2.0，
-        #   图案被撑成 2 倍之后有一大半悬在身体轮廓之外
-        #   （用身体掩膜量过：颈侧只有 65%、颊 76%、大腿 81% 落在皮肤上）。
-        #
-        #   s = 1.0 / 1.5 / 1.5 这几个值也不是随手取的 —— 用「仍然 100% 落在
-        #   身体掩膜上」当约束扫过一遍（transform 是对**已裁到左列**的图做缩放，
-        #   再按 bbox 重新居中，所以位置恒定、只有尺寸变）：
-        #     颈侧 flower/left-shoulder：s=1.00 → 100%（8×10）｜ s=1.25 → 87% ｜ s=2.0 → 65%
-        #     颊   star/left-cheek     ：s=1.50 → 100%（7×8）｜ s=2.0 → 70%
-        #     大腿 flower/left-thigh   ：s=1.50 → 96%（15×15）｜ s=2.0 → 81%
-        #   颈侧取 1.0（原生尺寸，肩窝那块皮肤窄，再大就出轮廓）；
-        #   颊 / 大腿取 1.5（仍是 96~100%，比原生大一档、看得清）。
-        "tattoo_neck":  {"src": ("bodywriting", "flower", "left-shoulder"), "tint": INK,
-                         "scale": 0.6667, "align": ("bbox_center", 65.33, 49.00)},
-        "tattoo_cheek": {"src": ("bodywriting", "star", "left-cheek"), "tint": INK,
-                         "scale": 1.0000, "align": ("bbox_center", 61.00, 38.00)},
-        "tattoo_thigh": {"src": ("bodywriting", "flower", "left-thigh"), "tint": INK,
-                         "scale": 1.0000, "align": ("bbox_center", 62.67, 89.00)},
-        # ★ 第三十五轮补的两件，都取 AU 的 left-thigh：
-        #   heart     源图 14×78（一串小心形沿腿而下）→ s=0.70 得 10×55，正好收在大腿上；
-        #   paw print 源图只有 5×5（全位置都是 5×5）→ s=4.0 得 20×20 才看得清爪形。
-        #   align 由源图 bbox 中心反算：ax=(cx−106)/1.5+58、ay=(cy−30.5)/1.5+30。
-        "tattoo_heart": {"src": ("bodywriting", "heart", "left-thigh"), "tint": INK,
-                         "scale": 0.4667, "align": ("bbox_center", 61.33, 99.00)},
-        "tattoo_paw":   {"src": ("bodywriting", "paw print", "left-thigh"), "tint": INK,
-                         "scale": 2.6667, "align": ("bbox_center", 61.00, 83.33)},
-        # ★ 位置说明：AU 的 bodywriting **没有 neck 这个位置**（只有 forehead /
-        #   left·right-cheek / left·right-shoulder / left·right-thigh / breasts-0..6 /
-        #   pubic），所以「颈侧刺青」只能落在最近的左肩。已在 README 记为已知取舍。
+AU_OVERRIDE = {
+    # ---- 刺青：改用 AU 自己的 bodywriting 图案（第二十六轮）----
+    # AU 的 bodywriting 是**真正画在身上的图案**，而且每张图已经落在正确的
+    # 身体位置上（forehead / left-cheek / left-shoulder / left-thigh / pubic /
+    # breasts-0..6），所以 AU 这边不再需要「借用头部小件 + 搬移」那套顶替。
+    #
+    # ★ align 坐标按 DoL 头心 (58,30) 写，由 transform() 换算到各图包；
+    #   下面这几个数是从 AU 画布上图案的 bbox 中心**反算回 DoL 坐标系**得到的：
+    #       x_dol = (cx - 106) / 1.5 + 58        y_dol = (cy - 30.5) / 1.5 + 30
+    #   （106 / 30.5 / 1.5 见 dol_prepare.PACKS['au']）
+    #
+    #     图案                  AU 画布 bbox          尺寸   中心 → DoL align
+    #     flower/left-shoulder  (113, 54, 121, 64)    8×10   (117.0, 59.0) → (65.33, 49.00)
+    #     star/left-cheek       (108, 40, 113, 45)    5×5    (110.5, 42.5) → (61.00, 38.00)
+    #     flower/left-thigh     (108, 114, 118, 124)  10×10  (113.0, 119.0) → (62.67, 89.00)
+    #
+    # ★★ scale 要**除以 1.5** —— transform() 里 s = scale × align_scale，
+    #   而 align_scale（au）= 1.5 是给「从 DoL 几何借来的贴图」用的。
+    #   bodywriting **本来就是 AU 几何**，再乘一遍就等于平白放大 1.5 倍。
+    #   第二十六轮初版就是踩了这个坑：`scale: 1.333` → 实际 s = 2.0，
+    #   图案被撑成 2 倍之后有一大半悬在身体轮廓之外
+    #   （用身体掩膜量过：颈侧只有 65%、颊 76%、大腿 81% 落在皮肤上）。
+    #
+    #   s = 1.0 / 1.5 / 1.5 这几个值也不是随手取的 —— 用「仍然 100% 落在
+    #   身体掩膜上」当约束扫过一遍（transform 是对**已裁到左列**的图做缩放，
+    #   再按 bbox 重新居中，所以位置恒定、只有尺寸变）：
+    #     颈侧 flower/left-shoulder：s=1.00 → 100%（8×10）｜ s=1.25 → 87% ｜ s=2.0 → 65%
+    #     颊   star/left-cheek     ：s=1.50 → 100%（7×8）｜ s=2.0 → 70%
+    #     大腿 flower/left-thigh   ：s=1.50 → 96%（15×15）｜ s=2.0 → 81%
+    #   颈侧取 1.0（原生尺寸，肩窝那块皮肤窄，再大就出轮廓）；
+    #   颊 / 大腿取 1.5（仍是 96~100%，比原生大一档、看得清）。
+    "tattoo_neck":  {"src": ("bodywriting", "flower", "left-shoulder"), "tint": INK,
+                     "scale": 0.6667, "align": ("bbox_center", 65.33, 49.00)},
+    "tattoo_cheek": {"src": ("bodywriting", "star", "left-cheek"), "tint": INK,
+                     "scale": 1.0000, "align": ("bbox_center", 61.00, 38.00)},
+    "tattoo_thigh": {"src": ("bodywriting", "flower", "left-thigh"), "tint": INK,
+                     "scale": 1.0000, "align": ("bbox_center", 62.67, 89.00)},
+    # ★ 第三十五轮补的两件，都取 AU 的 left-thigh：
+    #   heart     源图 14×78（一串小心形沿腿而下）→ s=0.70 得 10×55，正好收在大腿上；
+    #   paw print 源图只有 5×5（全位置都是 5×5）→ s=4.0 得 20×20 才看得清爪形。
+    #   align 由源图 bbox 中心反算：ax=(cx−106)/1.5+58、ay=(cy−30.5)/1.5+30。
+    "tattoo_heart": {"src": ("bodywriting", "heart", "left-thigh"), "tint": INK,
+                     "scale": 0.4667, "align": ("bbox_center", 61.33, 99.00)},
+    "tattoo_paw":   {"src": ("bodywriting", "paw print", "left-thigh"), "tint": INK,
+                     "scale": 2.6667, "align": ("bbox_center", 61.00, 83.33)},
+    # ★ 第三十六轮补的四件刻字，取 AU 的 `bodywriting/text/<词>/<位置>`。
+    #   这一组和上面几件**不一样**：AU 的 text 贴图是**按部位画好的整字**
+    #   （不是小图案），所以位置和尺寸都沿用图包自己的落点 ——
+    #   s=1.0 即原生尺寸，只要把 bbox 中心搬到它本来待的地方。
+    #   反算公式同上：ax=(cx−106)/1.5+58、ay=(cy−30.5)/1.5+30。
+    #   · bitch    左大腿竖排 7×39 → 缩到 0.72（5×28）才不越过膝盖
+    #   · free-use 右大腿竖排 8×17 → 放大 1.6（13×27）才看得清
+    #   · slave    胸口横排 19×5  → 放大 1.4（27×7）
+    #   · cum-rag  下腹横排 13×11 → 放大 1.4（18×15）
+    #   四件分占四个位置，正好对上「可同时装备 2 件」的搭配空间。
+    "tattoo_bitch":   {"src": ("bodywriting", "text", "bitch", "left-thigh"), "tint": INK,
+                       "scale": 0.4800, "align": ("bbox_center", 61.67, 84.33)},
+    "tattoo_freeuse": {"src": ("bodywriting", "text", "free-use", "right-thigh"), "tint": INK,
+                       "scale": 1.0667, "align": ("bbox_center", 52.00, 85.33)},
+    "tattoo_slave":   {"src": ("bodywriting", "text", "slave", "breasts"), "tint": INK,
+                       "scale": 0.9333, "align": ("bbox_center", 57.00, 53.67)},
+    "tattoo_cumrag":  {"src": ("bodywriting", "text", "cum-rag", "pubic"), "tint": INK,
+                       "scale": 0.9333, "align": ("bbox_center", 57.00, 78.00)},
+    # ★ 位置说明：AU 的 bodywriting **没有 neck 这个位置**（只有 forehead /
+    #   left·right-cheek / left·right-shoulder / left·right-thigh / breasts-0..6 /
+    #   pubic），所以「颈侧刺青」只能落在最近的左肩。已在 README 记为已知取舍。
 
-        # ---- 穿环：AU **没有**穿环资源 ----
-        # 全包搜过 piercing / ring / stud / barbell / septum / hoop，只搜到一个
-        # 拿在手里的道具戒指，没有可用的穿环贴图 —— 所以只能继续借用头部小件顶替。
-        # 这里把剩下 3 件全部列出来：它们还在用「按 DoL 的 6×6 算出来的 scale」，
-        # 到 AU（goldhairpin 是 8×10）会放大过头、发糊。
-        # AU scale 的算法：s = DoL 结果宽 / AU 源宽 = (6 × 原 scale) / 8。
-        #   DoL 原 scale：multi 0.7 → 4.2/8 = 0.525；lip 0.8 → 4.8/8 = 0.600；
-        #                 nose 0.7 → 4.2/8 = 0.525。
-        # ★ 第二十七轮：原来第 4 件是 `piercing_brow`（眉钉），用户口径「眉钉去掉」
-        #   已删 —— 它是唯一必须换源的一件（AU 的 hairclip 是 26×8 的**横排发夹**，
-        #   照搬 DoL 的 4×4 会直接糊满整张脸），剩下三件本来就用 goldhairpin，无此问题。
-        "piercing_multi": {"scale": 0.525},
-        "piercing_lip":   {"scale": 0.600},
-        "piercing_nose":  {"scale": 0.525},
+    # ---- 穿环：AU **没有**穿环资源 ----
+    # 全包搜过 piercing / ring / stud / barbell / septum / hoop，只搜到一个
+    # 拿在手里的道具戒指，没有可用的穿环贴图 —— 所以只能继续借用头部小件顶替。
+    # 这里把剩下 3 件全部列出来：它们还在用「按 DoL 的 6×6 算出来的 scale」，
+    # 到 AU（goldhairpin 是 8×10）会放大过头、发糊。
+    # AU scale 的算法：s = DoL 结果宽 / AU 源宽 = (6 × 原 scale) / 8。
+    #   DoL 原 scale：multi 0.7 → 4.2/8 = 0.525；lip 0.8 → 4.8/8 = 0.600；
+    #                 nose 0.7 → 4.2/8 = 0.525。
+    # ★ 第二十七轮：原来第 4 件是 `piercing_brow`（眉钉），用户口径「眉钉去掉」
+    #   已删 —— 它是唯一必须换源的一件（AU 的 hairclip 是 26×8 的**横排发夹**，
+    #   照搬 DoL 的 4×4 会直接糊满整张脸），剩下三件本来就用 goldhairpin，无此问题。
+    "piercing_multi": {"scale": 0.525},
+    "piercing_lip":   {"scale": 0.600},
+    "piercing_nose":  {"scale": 0.525},
 
-        # DoL 是 fishhairpin 8×7 × 1.2 = 9.6 宽 → AU 用 goldhairpin 8 宽 → 9.6/8
-        # （耳饰槽位第二十五轮已下架，留着是为了将来恢复时不用再改）
-        "ear_diamond":   {"src": ("clothes", "head", "goldhairpin"), "scale": 1.20,
-                          "align": ("bbox_center", 66.0, 33.0)},
-    },
+    # DoL 是 fishhairpin 8×7 × 1.2 = 9.6 宽 → AU 用 goldhairpin 8 宽 → 9.6/8
+    # （耳饰槽位第二十五轮已下架，留着是为了将来恢复时不用再改）
+    "ear_diamond":   {"src": ("clothes", "head", "goldhairpin"), "scale": 1.20,
+                      "align": ("bbox_center", 66.0, 33.0)},
 }
 
-# ---------------- 按图包选发型表 ----------------
-# 烘焙脚本（dol_prepare.py）照它挑表：dol 走 DoL 原版款式，au 走 AU 新几何款式。
-PACK_HAIR = {
-    'dol': HAIR_STYLES,
-    'au': HAIR_STYLES_AU,
-}
+# ---------------- 发型表 ----------------
+# 第三十七轮起只有 AU 一套，所以不再需要「按图包挑表」这一层
+# （原来这里是 PACK_HAIR = {'dol': HAIR_STYLES, 'au': HAIR_STYLES_AU}）。
+# 烘焙脚本直接用上面的 HAIR_STYLES。

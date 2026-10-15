@@ -19,17 +19,25 @@ extends Node
 #   它排在 bottom 后面：上身 → 下装 → 整件式，一层层往外。
 # ★ 第二十七轮改名为「成装」，并按用户口径「装备时应和上装和下装互斥」加了互斥
 #   （见 EXCLUSIVE_GROUPS —— 成装 / 上装 / 下装三者只能穿其一）。
+#
+# ★★ 第三十七轮：**槽位从 19 个减到 18 个** —— 按用户口径「吊带袜和袜类归为一类」，
+#   原来的 `garterbelt`（吊袜带，3 件）整个并入 `stockings`（袜类）。
+#   这不是「下架」而是**真合并**：`garterbelt` 这个槽位定义、zorder、TRUE_POOL、
+#   目击情报模板、相册取景框全部删掉，两件吊袜带（蕾丝 / 黑色皮革）改挂到
+#   `stockings` 底下；`garter_none`（吊袜带的空件）直接删除 ——
+#   袜类本来就有自己的空件 `stockings_none`，留着就是两个「（不穿）」。
+#   合并后 `stockings` 一栏共 9 件（7 件袜 + 2 件吊袜带）。
 const SLOT_ORDER := [
 	"hair", "headgear", "glasses", "earrings", "makeup",
 	"piercing", "tattoo", "neckwear", "top", "bra",
-	"gloves", "accessory", "bottom", "dress", "garterbelt", "panties",
+	"gloves", "accessory", "bottom", "dress", "panties",
 	"stockings", "shoes", "robe",
 ]
 
 # 图层绘制顺序（底 → 顶），严格对应 WTS 的 zorder 编号
 const PREVIEW_ORDER := [
 	"makeup", "accessory", "piercing", "tattoo",
-	"stockings", "panties", "garterbelt", "bottom",
+	"stockings", "panties", "bottom",
 	"bra", "top", "dress", "gloves", "shoes",
 	"robe", "neckwear", "hair", "earrings",
 	"glasses", "headgear",
@@ -38,7 +46,7 @@ const PREVIEW_ORDER := [
 # WTS 的 zorder 原值，保留用于对齐参考
 const SLOT_ZORDER := {
 	"makeup": 111, "accessory": 121, "piercing": 131, "tattoo": 141,
-	"stockings": 161, "panties": 171, "garterbelt": 181, "bottom": 191,
+	"stockings": 161, "panties": 171, "bottom": 191,
 	"bra": 201, "top": 211, "dress": 216, "gloves": 221, "shoes": 225,
 	"robe": 231, "neckwear": 241, "hair": 251, "earrings": 261,
 	"glasses": 271, "headgear": 281,
@@ -59,7 +67,6 @@ const SLOT_NAMES := {
 	"accessory": "配饰",
 	"bottom": "下装",
 	"dress": "成装",
-	"garterbelt": "吊袜带",
 	"panties": "下内衣",
 	"stockings": "袜类",
 	"shoes": "鞋履",
@@ -80,7 +87,13 @@ const SLOT_NAMES := {
 # ★ 第二十七轮：手套（gloves）与头饰（headgear）按用户口径「手套一栏去掉」「头饰一栏去掉」
 #   一并下架。同样只是槽位级下架 —— 4 件手套与 4 件头饰的定义、贴图、目击描述一件没删，
 #   把 "gloves" / "headgear" 从这张表里删掉即可原样恢复。
-const DISABLED_SLOTS := ["robe", "earrings", "gloves", "headgear"]
+#
+# ★ 第三十七轮：穿环（piercing）按用户口径「去掉穿环一栏」一并下架。
+#   和前几轮同一套机制 —— 4 件穿环（多孔耳钉组 / 黑色唇环 / 鼻中隔银环 / 空件）的
+#   定义、贴图、目击描述一件没删，把 "piercing" 从这张表里删掉即可原样恢复。
+#   ★ 注意：穿环的贴图本来就是**借头部小件**顶替的（DoL 没有这个槽位），
+#     所以下架它不会连带影响任何别的槽位的贴图。
+const DISABLED_SLOTS := ["robe", "earrings", "gloves", "headgear", "piercing"]
 
 # 玩家能看到的槽位（SLOT_ORDER 去掉下架的）。
 # ★ 界面 / 原貌 / 情报 / 统计一律用它；SLOT_ORDER 只在需要完整数据表时用。
@@ -93,6 +106,25 @@ static func active_slots() -> Array:
 
 static func slot_enabled(slot: String) -> bool:
 	return not DISABLED_SLOTS.has(slot)
+
+# ---------- 可同时装备多件的槽位（第三十六轮）----------
+# 用户口径：「可装备的纹身上限设为 2」。
+#
+# 值 = 这一槽位**同时**能装备几件。没写在这张表里的槽位一律 1 件。
+# 只有 `tattoo` 是多件槽位 —— 一个人身上本来就能有不止一处纹身。
+#
+# ★ 多件槽位在模型层（WardrobeModel.equipped）里存的是 **Array**，
+#   单件槽位存的是 **String**；读写一律走 WardrobeModel 的 ids_at / set_ids，
+#   不要直接 `str(equipped.get(slot, ""))`。
+const MULTI_SLOTS := {"tattoo": 2}
+
+# 这一槽位最多同时装备几件
+static func max_equip(slot: String) -> int:
+	return int(MULTI_SLOTS.get(slot, 1))
+
+# 这一槽位是不是「可同时装备多件」的
+static func is_multi_slot(slot: String) -> bool:
+	return MULTI_SLOTS.has(slot)
 
 # ---------- 内衣内裤的「曝光门控」（第二十二轮）----------
 # 用户口径：「内裤内衣的反差值和暴露值只有在**能够显示在人物身上**时才会计算，
@@ -200,6 +232,55 @@ static func outer_slots_of(slot: String) -> Array:
 # 受门控的全部槽位
 static func gated_slots() -> Array:
 	return UNDER_GATE.keys()
+
+# ---------- 纹身的「露出门控」（第三十六轮）----------
+# 用户口径：「纹身与内衣内裤处理方法相同，不漏出来时，不计算暴露值反差度。」
+#
+# 与内衣内裤**同一条门控**（见 UNDER_GATE 与 WardrobeModel._item_counts），
+# 唯一区别是纹身**按件**给开门人 —— 因为纹身长在不同部位，能盖住它的衣服不一样：
+#   · 左 / 右大腿 → 下装、成装
+#   · 下腹       → 下装、成装
+#   · 胸口       → 上装、成装
+#   · 颈侧       → 上装、成装、颈饰
+#   · 面颊 / 额头 → 没有衣服盖得住，永远露着（不给 gate，恒计入）
+#
+# 没写 `gate` 的纹身 = 不受门控（面颊 / 额头那类）；
+# 内衣内裤没写 `gate` → 退回槽位级门控 UNDER_GATE。
+# 空数组常量 —— 给下面几个热路径函数当默认值。
+# ★ 不要写成 `item.get("gate", [])`：那个 `[]` 每次调用都会新分配一个数组，
+#   而这些函数在 DP 里一次要问几千万遍（实测 WardrobeTest 会从 3m39s 掉回 2m 以内）。
+const NO_SLOTS: Array = []
+
+static func outer_slots_of_item(item: Dictionary) -> Array:
+	var g: Variant = item.get("gate")
+	if g != null and not (g as Array).is_empty():
+		return g
+	return UNDER_GATE.get(str(item.get("slot", "")), NO_SLOTS)
+
+# 这一件是不是受「露出门控」的（露不出来就不算数值）
+static func is_gated_item(item: Dictionary) -> bool:
+	return not outer_slots_of_item(item).is_empty()
+
+static var _gate_dep_cache: Dictionary = {}
+
+# 换掉 `slot` 这一层的衣服，会让哪些槽位的可见性跟着变 ——
+# 含按件门控的纹身（见 outer_slots_of_item）。
+# ★ `WardrobeModel._delta` 是热路径（求解器要问几万遍），所以带缓存。
+func gate_dependents(slot: String) -> Array:
+	if _gate_dep_cache.has(slot):
+		return _gate_dep_cache[slot]
+	var out := []
+	for gs in active_slots():
+		var s := str(gs)
+		var hit := false
+		for it in get_items_for_slot(s):
+			if outer_slots_of_item(it).has(slot):
+				hit = true
+				break
+		if hit:
+			out.append(s)
+	_gate_dep_cache[slot] = out
+	return out
 
 # 够「露」的全部外衣（含下架的）—— 界面文案 / 测试用
 static func sheer_items() -> Array:
@@ -351,16 +432,37 @@ const ITEMS := [
 	#   可用位置只有 forehead / 左·右 cheek / 左·右 shoulder / 左·右 thigh /
 	#   breasts / pubic —— **没有前臂**，所以原来那件「前臂藤蔓纹身」改名成大腿，
 	#   否则名字和贴图对不上。
-	{"id": "tattoo_none", "name": "（无）", "slot": "tattoo", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
-	{"id": "tattoo_neck", "name": "颈侧暗纹", "slot": "tattoo", "exposure": 0, "acceptance_req": 3, "contrast": 2, "covers": [], "tags": []},
-	{"id": "tattoo_cheek", "name": "面颊刺青", "slot": "tattoo", "exposure": 1, "acceptance_req": 6, "contrast": 4, "covers": [], "tags": []},
-	{"id": "tattoo_thigh", "name": "大腿藤蔓纹身", "slot": "tattoo", "exposure": 1, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": []},
+	#
+	# ★★ 第三十六轮（用户口径两条）：
+	#   ① 「可装备的纹身上限设为 2，将纹身暴露度设置为 2」
+	#      → 本槽位进 MULTI_SLOTS（同时最多 2 件）；除「（无）」外每件 exposure 一律 2，
+	#        所以穿满两件 = 4 点暴露值。
+	#   ② 「纹身与内衣内裤处理方法相同，不漏出来时，不计算暴露值反差度」
+	#      → 每件纹身挂 `gate`（能盖住它的外衣槽位），走与内衣同一条门控：
+	#        外衣盖得严实 → 这一件既不算暴露值、也不算反差值。
+	#        大腿 / 下腹看下装与成装，胸口看上装与成装，颈侧再多一个颈饰；
+	#        面颊 / 额头没有衣服盖得住，不给 gate、恒计入。
+	#   ③ 「（无）」标 bare —— 它是这一槽位的空件（和 top_none / dress_none 同一个语义）：
+	#      装上它 = 把纹身全卸掉；模型层靠这个标记把它从「实体件」里剔出去。
+	{"id": "tattoo_none", "name": "（无）", "slot": "tattoo", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": [], "bare": true},
+	{"id": "tattoo_neck", "name": "颈侧暗纹", "slot": "tattoo", "exposure": 2, "acceptance_req": 3, "contrast": 2, "covers": [], "tags": [], "gate": ["top", "dress", "neckwear"]},
+	{"id": "tattoo_cheek", "name": "面颊刺青", "slot": "tattoo", "exposure": 2, "acceptance_req": 6, "contrast": 4, "covers": [], "tags": []},
+	{"id": "tattoo_thigh", "name": "大腿藤蔓纹身", "slot": "tattoo", "exposure": 2, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": [], "gate": ["bottom", "dress"]},
 	# ★ 第三十五轮按用户口径补两件，同样取 AU bodywriting 的真实图案、同样落左大腿：
 	#   heart 在 AU 里是「沿大腿向下的一串小心形」（源图 14×78 竖条），
 	#   paw print 是一枚 5×5 的小爪印（源图极小，烘焙时放大到约 20×20 才看得清）。
-	#   三件大腿纹身共用同一档「可见度」（暴 1 / 需 8），只按墨量给反差分档。
-	{"id": "tattoo_heart", "name": "大腿心形纹身", "slot": "tattoo", "exposure": 1, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": []},
-	{"id": "tattoo_paw", "name": "大腿爪印", "slot": "tattoo", "exposure": 1, "acceptance_req": 8, "contrast": 5, "covers": [], "tags": []},
+	#   三件大腿纹身共用同一档「可见度」，只按墨量给反差分档。
+	{"id": "tattoo_heart", "name": "大腿心形纹身", "slot": "tattoo", "exposure": 2, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": [], "gate": ["bottom", "dress"]},
+	{"id": "tattoo_paw", "name": "大腿爪印", "slot": "tattoo", "exposure": 2, "acceptance_req": 8, "contrast": 5, "covers": [], "tags": [], "gate": ["bottom", "dress"]},
+	# ★ 第三十六轮新增 4 件「刻字」纹身 —— 取自 AU `bodywriting/text/` 下的四组字，
+	#   按用户口径**分散到四个位置**（左大腿 / 右大腿 / 胸口 / 下腹），
+	#   免得两件刻字叠在同一处、贴图互相盖住。
+	#   `text/` 只有 5 个位置（forehead / 左·右 thigh / breasts / pubic），
+	#   正好够这四件各占一处。
+	{"id": "tattoo_bitch", "name": "左大腿刻字「bitch」", "slot": "tattoo", "exposure": 2, "acceptance_req": 9, "contrast": 7, "covers": [], "tags": [], "gate": ["bottom", "dress"]},
+	{"id": "tattoo_freeuse", "name": "右大腿刻字「free-use」", "slot": "tattoo", "exposure": 2, "acceptance_req": 9, "contrast": 7, "covers": [], "tags": [], "gate": ["bottom", "dress"]},
+	{"id": "tattoo_slave", "name": "胸口刻字「slave」", "slot": "tattoo", "exposure": 2, "acceptance_req": 9, "contrast": 7, "covers": [], "tags": [], "gate": ["top", "dress"]},
+	{"id": "tattoo_cumrag", "name": "下腹刻字「cum-rag」", "slot": "tattoo", "exposure": 2, "acceptance_req": 10, "contrast": 8, "covers": [], "tags": [], "gate": ["bottom", "dress"]},
 
 	# ================= 颈饰 =================
 	# ★ 第二十六轮按用户口径「增加几款项圈」补了 5 件（spiked / ringed / lace /
@@ -433,6 +535,22 @@ const ITEMS := [
 	#     · 紧身针织衫   需接受度 9 → 晚一档解锁，暴 6 差 7（更露、更惹眼）
 	#   —— 这也正好对上用户这一轮的口径「添加**暴露度高的**服装」。
 
+	# ================= ★★ 第三十七轮：上衣从 18 件补到 26 件 =================
+	# 用户口径「补充各个暴露度层级的衣服，使数量尽量平衡」。
+	# 上衣是唯一**两个槽位都不受缺陷约束之外**的主战场（缺陷逼着它穿长袖遮手背刺青），
+	# 所以补的这 8 件全部是「露」的一侧，把 3 / 4 / 5 / 7 / 8 / 9 六档都填上。
+	# ★ 它们一律**不带** high_collar / long_sleeve 标签 —— 遮不住任何缺陷，
+	#   想拿高暴露就得认下「手背刺青露着」，取舍关系没有被削弱。
+	{"id": "top_tank", "name": "无袖针织背心", "slot": "top", "exposure": 3, "acceptance_req": 3, "contrast": 3, "covers": [], "tags": []},
+	{"id": "top_tube", "name": "无肩带抹胸", "slot": "top", "exposure": 4, "acceptance_req": 5, "contrast": 4, "covers": [], "tags": []},
+	{"id": "top_swim", "name": "泳衣式上衣", "slot": "top", "exposure": 4, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
+	{"id": "top_leathercrop", "name": "皮质短上衣", "slot": "top", "exposure": 5, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
+	{"id": "top_chain", "name": "锁链挂脖上衣", "slot": "top", "exposure": 7, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": [], "see": "cutout"},
+	{"id": "top_graphiccrop", "name": "网眼印花短上衣", "slot": "top", "exposure": 8, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": [], "see": "sheer"},
+	# ★ 9 档两件：一件浴巾、一条床单 —— 都是「临时裹一下」，`see: sheer` 让内衣照算。
+	{"id": "top_towel", "name": "只围一条浴巾", "slot": "top", "exposure": 9, "acceptance_req": 10, "contrast": 6, "covers": [], "tags": [], "see": "sheer"},
+	{"id": "top_bedsheet", "name": "单披一条床单", "slot": "top", "exposure": 9, "acceptance_req": 10, "contrast": 5, "covers": [], "tags": [], "see": "sheer"},
+
 	# ================= 上内衣 =================
 	{"id": "bra_plain", "name": "素色无痕内衣", "slot": "bra", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
 	{"id": "bra_lace", "name": "黑色蕾丝内衣", "slot": "bra", "exposure": 4, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
@@ -446,6 +564,16 @@ const ITEMS := [
 	#     （反差 8 > 6）—— 一个「少露一点、但更不像自己」的取舍。
 	{"id": "bra_microkini", "name": "微型比基尼上衣", "slot": "bra", "exposure": 4, "acceptance_req": 8, "contrast": 7, "covers": [], "tags": []},
 	{"id": "bra_pasties", "name": "乳贴", "slot": "bra", "exposure": 5, "acceptance_req": 9, "contrast": 8, "covers": [], "tags": []},
+
+	# ================= ★★ 第三十七轮：上内衣从 5 件补到 9 件 =================
+	# 原来 4 / 5 两档各只有一件，6 档以上是空的（`bra_none` 一个人顶在 6 档）。
+	# 补的 4 件把 4 / 8 / 9 三档填起来 —— 其中两件 9 档是刻意「比不穿更过分」的：
+	# 胶带与透明泳衣，暴露值 9 > `bra_none` 的 6，但反差也更高（刻意感更强）。
+	# 它们照旧受 UNDER_GATE 门控：上面盖着严实上衣时一律不算数。
+	{"id": "bra_bikini", "name": "系带比基尼上衣", "slot": "bra", "exposure": 4, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
+	{"id": "bra_latex", "name": "乳胶连体上衣", "slot": "bra", "exposure": 8, "acceptance_req": 9, "contrast": 7, "covers": [], "tags": []},
+	{"id": "bra_seethrough", "name": "透明泳衣上衣", "slot": "bra", "exposure": 9, "acceptance_req": 10, "contrast": 7, "covers": [], "tags": []},
+	{"id": "bra_tape", "name": "胶带束胸", "slot": "bra", "exposure": 9, "acceptance_req": 10, "contrast": 8, "covers": [], "tags": []},
 
 	# ================= 手套 =================
 	{"id": "gloves_none", "name": "（不戴）", "slot": "gloves", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
@@ -533,6 +661,16 @@ const ITEMS := [
 	{"id": "bottom_pvc", "name": "漆皮迷你裙", "slot": "bottom", "exposure": 6, "acceptance_req": 8, "contrast": 8, "covers": [], "tags": [], "see": "cutout"},
 	{"id": "bottom_qipao", "name": "开衩短旗袍", "slot": "bottom", "exposure": 7, "acceptance_req": 9, "contrast": 6, "covers": [], "tags": [], "see": "cutout"},
 
+	# ================= ★★ 第三十七轮：下装从 17 件补到 22 件 =================
+	# 原来 4 档是空的、7 / 8 档各只有一两件。补的 5 件填 3 / 4 / 5 / 7 / 8 五档。
+	# 下装这一栏完全不受缺陷约束（两处缺陷都在上身），是拿反差值的主力，
+	# 所以新增件都带 `see`（除了三件普通款）—— 顺手把内裤那一栏也解锁。
+	{"id": "bottom_pencil", "name": "包臀铅笔裙", "slot": "bottom", "exposure": 3, "acceptance_req": 4, "contrast": 4, "covers": [], "tags": []},
+	{"id": "bottom_shortshort", "name": "牛仔超短热裤", "slot": "bottom", "exposure": 4, "acceptance_req": 4, "contrast": 4, "covers": [], "tags": []},
+	{"id": "bottom_leathershort", "name": "皮质超短裤", "slot": "bottom", "exposure": 5, "acceptance_req": 6, "contrast": 6, "covers": [], "tags": []},
+	{"id": "bottom_chain", "name": "锁链短裙", "slot": "bottom", "exposure": 7, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": [], "see": "cutout"},
+	{"id": "bottom_sarong", "name": "一片式裹裙", "slot": "bottom", "exposure": 8, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": [], "see": "cutout"},
+
 	# ================= 成装（整件式）★ 第二十六轮新增的槽位 =================
 	# 用户口径：「如果是一整件衣服 如晚礼服 不能分开成下装和上装 应该单开一个栏目」。
 	# 所以成装各自只有**一件**，上、下两层贴图烘在同一张 PNG 里，
@@ -549,10 +687,32 @@ const ITEMS := [
 	{"id": "dress_sundress", "name": "吊带连衣裙", "slot": "dress", "exposure": 2, "acceptance_req": 2, "contrast": 3, "covers": [], "tags": []},
 	{"id": "dress_eveninggown", "name": "晚礼服", "slot": "dress", "exposure": 2, "acceptance_req": 4, "contrast": 4, "covers": [], "tags": []},
 
-	# ================= 吊袜带 =================
-	{"id": "garter_none", "name": "（不穿）", "slot": "garterbelt", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
-	{"id": "garter_lace", "name": "蕾丝吊袜带", "slot": "garterbelt", "exposure": 1, "acceptance_req": 5, "contrast": 4, "covers": [], "tags": []},
-	{"id": "garter_black", "name": "黑色皮革吊袜带", "slot": "garterbelt", "exposure": 2, "acceptance_req": 7, "contrast": 5, "covers": [], "tags": []},
+	# ================= ★★ 第三十七轮：成装从 2 件补到 10 件 =================
+	# 用户口径「补充各个暴露度层级的衣服，使数量尽量平衡」。
+	# 成装这一栏原来只有 2 件、而且都挤在 2 档 —— 是整个表里最薄的一栏，
+	# 所以八件新衣服全部补在这里，一路铺满 3 / 4 / 5 / 7 / 8 / 9 六档。
+	# 全部取 AU 与 DoL 官方**都有的**款式（`upper/*`），所以两套图包都不用写 alt 兜底。
+	#
+	# ★ 成装与上装 / 下装互斥（EXCLUSIVE_GROUPS），所以这些高暴露成装开的是
+	#   **另一条路**：穿成装就不穿「上衣 + 下装」，两处的暴露值预算合到一件上。
+	{"id": "dress_kimono", "name": "短款和服", "slot": "dress", "exposure": 3, "acceptance_req": 4, "contrast": 4, "covers": [], "tags": []},
+	{"id": "dress_maid", "name": "黑白女仆装", "slot": "dress", "exposure": 3, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
+	{"id": "dress_slip", "name": "缎面吊带睡裙", "slot": "dress", "exposure": 4, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
+	{"id": "dress_nurse", "name": "粉色护士服", "slot": "dress", "exposure": 4, "acceptance_req": 6, "contrast": 6, "covers": [], "tags": []},
+	{"id": "dress_cheongsam", "name": "开衩短旗袍", "slot": "dress", "exposure": 5, "acceptance_req": 7, "contrast": 6, "covers": [], "tags": [], "see": "cutout"},
+	{"id": "dress_leather", "name": "皮质紧身裙", "slot": "dress", "exposure": 7, "acceptance_req": 8, "contrast": 7, "covers": [], "tags": []},
+	{"id": "dress_swan", "name": "高开衩天鹅绒长裙", "slot": "dress", "exposure": 8, "acceptance_req": 9, "contrast": 7, "covers": [], "tags": [], "see": "cutout"},
+	# ★ 9 档：一件「穿了等于没穿」的透明纱睡袍。`see: sheer` 让 bra / panties
+	#   两栏都能被它透出来 —— 这是全表唯一一件**同时**给上下两处内衣开门的衣服。
+	{"id": "dress_transparent", "name": "透明纱睡袍", "slot": "dress", "exposure": 9, "acceptance_req": 11, "contrast": 7, "covers": [], "tags": [], "see": "sheer"},
+
+	# ================= 吊袜带（第三十七轮已并入「袜类」，见下）=================
+	# 原来这里是独立的一栏（garter_none / garter_lace / garter_black）。
+	# 用户口径「吊带袜和袜类归为一类」之后：
+	#   · 两件吊袜带（蕾丝 / 黑色皮革）→ 挪到下面「袜类」那一节，slot 改成 stockings；
+	#   · garter_none（吊袜带的空件）→ **删除**（袜类本来就有 stockings_none，
+	#     留着会出现两个「（不穿）」）。
+	# 贴图不用换 —— 它们本来就取 AU 的 `clothes/legs/*`，和袜子同一层。
 
 	# ================= 下内衣 =================
 	# ★ 第二十六轮按用户口径「增加暴露度高的内裤款式」补了 4 件，全部取 AU 图包
@@ -565,7 +725,22 @@ const ITEMS := [
 	{"id": "panties_crotchless", "name": "开裆蕾丝内裤", "slot": "panties", "exposure": 7, "acceptance_req": 8, "contrast": 7, "covers": [], "tags": []},
 	{"id": "panties_none", "name": "（不穿）", "slot": "panties", "exposure": 8, "acceptance_req": 8, "contrast": 7, "covers": [], "tags": []},
 
-	# ================= 袜类 =================
+	# ================= ★★ 第三十七轮：下内衣从 5 件补到 11 件 =================
+	# 原来 0 / 5 / 6 / 7 / 8 各一件，4 档与 9 档是空的 —— 而 9 档（几乎不遮）恰恰是
+	# 全表最缺的一档（整个表原来一件都没有）。补的 6 件把 4 档和 9 档填起来。
+	# ★ 五件 9 档里只有 `panties_tieside` / `panties_seethrough` 需要接受度 11
+	#   （= 第 4 关的门槛），其余三件 10 就穿得上 —— 留了一条早一点的出路。
+	{"id": "panties_bikini", "name": "系带比基尼内裤", "slot": "panties", "exposure": 4, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
+	{"id": "panties_shibari", "name": "绳缚式内裤", "slot": "panties", "exposure": 8, "acceptance_req": 9, "contrast": 8, "covers": [], "tags": []},
+	{"id": "panties_gstring", "name": "细绳丁字裤", "slot": "panties", "exposure": 9, "acceptance_req": 10, "contrast": 8, "covers": [], "tags": []},
+	{"id": "panties_loincloth", "name": "遮羞布", "slot": "panties", "exposure": 9, "acceptance_req": 10, "contrast": 7, "covers": [], "tags": []},
+	{"id": "panties_tieside", "name": "系带开衩比基尼内裤", "slot": "panties", "exposure": 9, "acceptance_req": 11, "contrast": 8, "covers": [], "tags": []},
+	{"id": "panties_seethrough", "name": "透明连体泳裤", "slot": "panties", "exposure": 9, "acceptance_req": 11, "contrast": 8, "covers": [], "tags": []},
+
+	# ================= 袜类（第三十七轮起含「吊袜带」）=================
+	# ★ 第三十七轮合并：原 `garterbelt` 一栏的两件（蕾丝 / 黑色皮革吊袜带）挪到这里，
+	#   贴图照旧取 AU `clothes/legs/*`（asymmetricalgarter / harness garter stockings），
+	#   本来就是和袜子同一层的图，换栏不用换图。
 	{"id": "stockings_none", "name": "（不穿）", "slot": "stockings", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
 	{"id": "stockings_opaque", "name": "不透明连裤袜", "slot": "stockings", "exposure": 1, "acceptance_req": 2, "contrast": 2, "covers": [], "tags": []},
 	{"id": "stockings_thigh", "name": "白色大腿袜", "slot": "stockings", "exposure": 2, "acceptance_req": 4, "contrast": 3, "covers": [], "tags": []},
@@ -573,6 +748,17 @@ const ITEMS := [
 	# ★ 第二十四轮：两套校服的袜子（白色大腿袜 / 米色花边短袜）
 	{"id": "stockings_school_navy", "name": "白色校服袜", "slot": "stockings", "exposure": 2, "acceptance_req": 4, "contrast": 3, "covers": [], "tags": []},
 	{"id": "stockings_school_green", "name": "米色校服袜", "slot": "stockings", "exposure": 1, "acceptance_req": 2, "contrast": 2, "covers": [], "tags": []},
+	# ---- 原「吊袜带」两件（第三十七轮并入）----
+	{"id": "garter_lace", "name": "蕾丝吊袜带", "slot": "stockings", "exposure": 1, "acceptance_req": 5, "contrast": 4, "covers": [], "tags": []},
+	{"id": "garter_black", "name": "黑色皮革吊袜带", "slot": "stockings", "exposure": 2, "acceptance_req": 7, "contrast": 5, "covers": [], "tags": []},
+	# ---- 第三十七轮：按用户口径「补充各个暴露度层级的衣服」补的 4 件袜类 ----
+	#   袜类这一栏原本最厚的一档只有 3（渔网袜），4 档以上整个是空的。
+	#   四件一路铺到 9 档，让「露腿」这条路也有高暴露值可拿（但反差值只算 top / bottom，
+	#   所以它们的作用是**给下装腾暴露值预算**，不是直接换分）。
+	{"id": "stockings_sheer", "name": "超薄丝袜", "slot": "stockings", "exposure": 5, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
+	{"id": "stockings_fishnettights", "name": "网眼连裤袜", "slot": "stockings", "exposure": 7, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": []},
+	{"id": "stockings_chainnet", "name": "金属环网眼腿套", "slot": "stockings", "exposure": 8, "acceptance_req": 9, "contrast": 6, "covers": [], "tags": []},
+	{"id": "stockings_sheerskin", "name": "透肉连裤袜", "slot": "stockings", "exposure": 9, "acceptance_req": 10, "contrast": 6, "covers": [], "tags": []},
 
 	# ================= 鞋履 =================
 	{"id": "shoes_boots", "name": "及踝皮靴", "slot": "shoes", "exposure": 0, "acceptance_req": 0, "contrast": 1, "covers": [], "tags": []},
@@ -906,7 +1092,6 @@ const TRUE_POOL := {
 	#   所以干脆不在源头制造冲突：**A 的原貌永远是「上衣 + 下装」**，
 	#   成装留给玩家主动去穿 —— 那才是「单开一栏」的玩法价值。
 	"dress": ["dress_none"],
-	"garterbelt": ["garter_none"],
 	"panties": ["panties_plain"],
 	"stockings": ["stockings_none", "stockings_opaque"],
 	"shoes": ["shoes_boots"],
@@ -930,7 +1115,6 @@ const TRUE_APPEARANCE := {
 	"accessory": "acc_none",
 	"bottom": "bottom_longskirt",
 	"dress": "dress_none",
-	"garterbelt": "garter_none",
 	"panties": "panties_plain",
 	"stockings": "stockings_none",
 	"shoes": "shoes_boots",
@@ -1113,8 +1297,23 @@ func forced_locked_out_slots() -> Array:
 				slots.append(s)
 		if slots.size() == 1:
 			out.append(str(slots[0]))
-	_locked_slots_cache = out
-	return out
+	# ★ 第三十七轮补：把「互斥牵连」也算进来 —— 某个槽位被锁死时，
+	#   与它互斥的槽位**同样不能**被强制装备占用。
+	#   理由：成装与上装 / 下装互斥（见 EXCLUSIVE_GROUPS），穿上成装就会把上装清空。
+	#   而手背刺青的唯一遮挡物就在上装（手套栏下架后只剩长袖上衣）——
+	#   一旦强制穿成装，上装就永远穿不回来，本关直接死局。
+	#   实测：补了 8 件高暴露成装之后，120 种子 × 4 关里出现 1 例
+	#   `forced=["dress_cheongsam", "bottom_pvc"]`（成装 + 下装本身也穿不到一起）。
+	#   这条同样是**算出来的**：将来手套栏恢复，上装不再是唯一解，成装自动解锁。
+	var with_peers := []
+	for s in out:
+		if not with_peers.has(str(s)):
+			with_peers.append(str(s))
+		for p in exclusive_peers(str(s)):
+			if not with_peers.has(str(p)):
+				with_peers.append(str(p))
+	_locked_slots_cache = with_peers
+	return with_peers
 
 func can_equip(item: Dictionary, acceptance: int) -> bool:
 	return acceptance >= int(item.get("acceptance_req", 0))

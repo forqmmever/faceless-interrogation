@@ -17,7 +17,7 @@ extends RefCounted
 #  （胸像一律不要，见 tools/dol_prepare.py 的 clip_to_body。）
 #
 #  这一层由 `tools/dol_prepare.py` 在**构建期**做完（取帧 / 染色 / 裁框），
-#  产物落在 assets/dol/ 或 assets/dol_au/ 下，运行时只负责按 z 序把 PNG 铺成
+#  产物落在 assets/dol_au/ 下，运行时只负责按 z 序把 PNG 铺成
 #  TextureRect，由 GPU 去叠 —— 不用每帧在 CPU 上合成。
 #
 #  为什么要烘在构建期：
@@ -26,26 +26,25 @@ extends RefCounted
 #    · 取景框也是固定的 —— 所有图层都裁到同一个框，换装时小人才不会跳。
 #
 #  data/doll*.json 由同一个脚本产出，字段：
-#    pack    : "dol" / "au"      这套产物来自哪个图包
-#    size    : [宽, 高]          取景框尺寸（dol 41×92，au 68×203）
+#    pack    : "au"              这套产物来自哪个图包
+#    size    : [宽, 高]          取景框尺寸（AU 68×203）
 #    crop    : [x0,y0,x1,y1]     取景框在原精灵图里的位置（仅存档参考）
-#    frame   : [宽, 高]          原精灵图的整张画布（dol 128×128，au 512×256）
+#    frame   : [宽, 高]          原精灵图的整张画布（AU 512×256）
 #    base    : [{name, file, z}] 身体 / 脸 / 头发
 #    items   : {物品 id: {layers:[{name,file,z}], z, icon}}
 #    slot_z  : {槽位: z}         每个槽位的默认层号
 # ============================================================
 
-# ★ 用哪一套美术 —— 改这一个常量就能整包切换：
-#     "dol" = Degrees of Lewdity 官方原版（人物矮胖、无腿，取景框 41×92）
-#     "au"  = AUfemale 图包（人物更高、有完整双腿，取景框 68×203）
-#   两套产物都由 tools/dol_prepare.py 烘出来（--pack dol / --pack au）。
-#   界面上凡是要摆小人的地方都走 frame_size()，不要写死数字。
+# ★★ 第三十七轮：用户口径「现在和之后只使用 au 源的服装」——
+#   原来这里有一张 `PACKS` 表可以在两套美术之间整包切换（dol 官方原版 / AUfemale）。
+#   现在只剩 **AUfemale** 一套：DoL 那套的产物（assets/dol + data/doll.json）
+#   与烘焙脚本里的 dol 分支一起停掉了。
+#   界面上凡是要摆小人的地方仍然走 frame_size()，不要写死数字 ——
+#   取景框是 68×203（AU），不是 DoL 的 41×92。
 const PACK := "au"
-const PACKS := {
-	"dol": {"root": "res://assets/dol/", "data": "res://data/doll.json"},
-	"au": {"root": "res://assets/dol_au/", "data": "res://data/doll_au.json"},
-}
-const FALLBACK_SIZE := Vector2(41.0, 92.0)
+const ROOT := "res://assets/dol_au/"
+const DATA_PATH := "res://data/doll_au.json"
+const FALLBACK_SIZE := Vector2(68.0, 203.0)
 
 static var _data: Dictionary = {}
 static var _tex_cache: Dictionary = {}
@@ -54,10 +53,10 @@ static func pack() -> String:
 	return PACK
 
 static func root() -> String:
-	return str(PACKS.get(PACK, PACKS["dol"])["root"])
+	return ROOT
 
 static func data_path() -> String:
-	return str(PACKS.get(PACK, PACKS["dol"])["data"])
+	return DATA_PATH
 
 static func info() -> Dictionary:
 	if _data.is_empty():
@@ -93,7 +92,7 @@ static func frame_size() -> Vector2:
 	return FALLBACK_SIZE
 
 # 把取景框等比放进一个盒子 —— 预览区 / 卡片缩略图按这个算，
-# 换图包时（41×92 → 68×203）不用改任何写死的尺寸。
+# 尺寸不写死，将来换图包也不用改（AU 取景框 68×203 塞进 123×276 → 92×276）。
 static func fit_size(box: Vector2) -> Vector2:
 	var f := frame_size()
 	if f.x <= 0.0 or f.y <= 0.0:
@@ -116,7 +115,23 @@ static func layers_of(item_id: String) -> Array:
 
 # 这一身打扮要铺哪些图，按 z 从下到上排好。
 #   equipped = {槽位: 物品 id}（空件、未知件的层数为 0）
+#   ★ 第三十六轮：多件槽位（纹身）的值是 **Array**，会铺出多层。
 #   返回 [{z, file, slot, name}]；slot == "" 的是基础层（身体 / 脸 / 头发以外的底图）
+static func _ids_of(v: Variant) -> Array:
+	var out := []
+	if v == null:
+		return out
+	if typeof(v) == TYPE_ARRAY:
+		for x in (v as Array):
+			var s := str(x)
+			if s != "" and not out.has(s):
+				out.append(s)
+		return out
+	var s1 := str(v)
+	if s1 != "":
+		out.append(s1)
+	return out
+
 static func plan(equipped: Dictionary) -> Array:
 	var d := info()
 	var out: Array = []
@@ -125,13 +140,11 @@ static func plan(equipped: Dictionary) -> Array:
 			"slot": "", "name": str(L.get("name", ""))})
 	var items: Dictionary = d.get("items", {})
 	for slot in equipped.keys():
-		var id := str(equipped[slot])
-		if id == "":
-			continue
-		var info2: Dictionary = items.get(id, {})
-		for L in info2.get("layers", []):
-			out.append({"z": float(L.get("z", 0.0)), "file": str(L.get("file", "")),
-				"slot": str(slot), "name": str(L.get("name", ""))})
+		for id in _ids_of(equipped[slot]):
+			var info2: Dictionary = items.get(str(id), {})
+			for L in info2.get("layers", []):
+				out.append({"z": float(L.get("z", 0.0)), "file": str(L.get("file", "")),
+					"slot": str(slot), "name": str(L.get("name", ""))})
 	out.sort_custom(func(a, b): return float(a["z"]) < float(b["z"]))
 	return out
 

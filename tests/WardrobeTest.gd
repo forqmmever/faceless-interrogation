@@ -42,6 +42,7 @@ func _ready() -> void:
 	_test_slots()
 	_test_disabled_slots()
 	_test_underwear_gate()
+	_test_tattoo_multi()
 	_test_true_pool()
 	_test_scenario_data()
 	_test_run_randomization()
@@ -75,9 +76,14 @@ func _ready() -> void:
 func _test_slots() -> void:
 	print("\n-- 槽位体系（移植自 WTS）--")
 	var m := WardrobeModel.new(OutfitData)
-	_check("槽位数量为 19", OutfitData.SLOT_ORDER.size() == 19)
-	_check("绘制顺序槽位数一致", OutfitData.PREVIEW_ORDER.size() == 19)
-	_check("zorder 表覆盖全部槽位", OutfitData.SLOT_ZORDER.size() == 19)
+	# ★ 第三十七轮：吊袜带整栏并入袜类，槽位 19 → 18
+	_check("槽位数量为 18", OutfitData.SLOT_ORDER.size() == 18)
+	_check("绘制顺序槽位数一致", OutfitData.PREVIEW_ORDER.size() == 18)
+	_check("zorder 表覆盖全部槽位", OutfitData.SLOT_ZORDER.size() == 18)
+	_check("已无 garterbelt 槽位（并入袜类）", not OutfitData.SLOT_ORDER.has("garterbelt"))
+	_check("garterbelt 不在绘制顺序里", not OutfitData.PREVIEW_ORDER.has("garterbelt"))
+	_check("garterbelt 不在 zorder 表里", not OutfitData.SLOT_ZORDER.has("garterbelt"))
+	_check("原吊袜带两件已挂到袜类槽", _garter_items_moved_to_stockings())
 	_check("含 piercing 穿环槽位", OutfitData.SLOT_ORDER.has("piercing"))
 	_check("含 neckwear 颈饰槽位", OutfitData.SLOT_ORDER.has("neckwear"))
 	_check("含 gloves 手套槽位", OutfitData.SLOT_ORDER.has("gloves"))
@@ -92,14 +98,18 @@ func _test_slots() -> void:
 	_check("所有槽位都有默认装备", m.equipped.size() == OutfitData.active_slots().size())
 
 	# ★ 第三十五轮：纹身槽补了 heart / paw 两件（都落左大腿）
+	# ★ 第三十六轮：再补四件刻字（bitch / free-use / slave / cum-rag），共 10 件
 	var tattoo_ids := []
 	for it in OutfitData.ITEMS:
 		if str(it["slot"]) == "tattoo":
 			tattoo_ids.append(str(it["id"]))
-	_check("纹身槽现有 6 件", tattoo_ids.size() == 6)
+	_check("纹身槽现有 10 件", tattoo_ids.size() == 10)
 	_check("含大腿心形纹身", tattoo_ids.has("tattoo_heart"))
 	_check("含大腿爪印", tattoo_ids.has("tattoo_paw"))
-	_check("★ 四款有图案的纹身都写了目击描述（第三十五轮补齐 cheek / thigh）",
+	_check("★ 四件刻字纹身都在（bitch / free-use / slave / cum-rag）",
+		tattoo_ids.has("tattoo_bitch") and tattoo_ids.has("tattoo_freeuse")
+		and tattoo_ids.has("tattoo_slave") and tattoo_ids.has("tattoo_cumrag"))
+	_check("★ 每件纹身都写了目击描述（第三十五 / 三十六轮补齐）",
 		_tattoo_desc_ok())
 
 # ------------------------------------------------------------
@@ -255,6 +265,163 @@ func _test_underwear_gate() -> void:
 	_check("分组后槽位一个没漏",
 		_group_slot_count(groups) == OutfitData.active_slots().size())
 
+# ------------------------------------------------------------
+#  纹身的「多件 + 露出门控」（第三十六轮）
+#
+#  用户口径两条：
+#    ① 「可装备的纹身上限设为 2，将纹身暴露度设置为 2」
+#    ② 「纹身与内衣内裤处理方法相同，不漏出来时，不计算暴露值反差度」
+# ------------------------------------------------------------
+func _test_tattoo_multi() -> void:
+	print("\n-- 纹身：多件槽位 + 露出门控（第三十六轮）--")
+
+	# ---- ① 多件槽位的声明 ----
+	_check("tattoo 是多件槽位，上限 2", OutfitData.is_multi_slot("tattoo")
+		and OutfitData.max_equip("tattoo") == 2)
+	_check("其余槽位仍是单件", not OutfitData.is_multi_slot("top")
+		and OutfitData.max_equip("top") == 1
+		and OutfitData.max_equip("bra") == 1)
+
+	# ---- ② 每件纹身的暴露值都是 2（「（无）」除外） ----
+	var bad := []
+	for it in OutfitData.ITEMS:
+		if str(it["slot"]) != "tattoo" or str(it["id"]) == "tattoo_none":
+			continue
+		if int(it["exposure"]) != 2:
+			bad.append("%s=%d" % [it["id"], int(it["exposure"])])
+	_check("除「（无）」外每件纹身暴露值都是 2", bad.is_empty())
+	if not bad.is_empty():
+		print("      偏离的：", ", ".join(bad))
+	_check("「（无）」仍然是 0", int(OutfitData.get_item("tattoo_none")["exposure"]) == 0)
+
+	# ---- ③ 按件门控：大腿看下装 / 胸口看上装 / 面颊不受门控 ----
+	_check("大腿纹身的开门人是 bottom / dress",
+		OutfitData.outer_slots_of_item(OutfitData.get_item("tattoo_bitch")) == ["bottom", "dress"])
+	_check("胸口纹身的开门人是 top / dress",
+		OutfitData.outer_slots_of_item(OutfitData.get_item("tattoo_slave")) == ["top", "dress"])
+	_check("面颊纹身不受门控（没有衣服盖得住脸）",
+		not OutfitData.is_gated_item(OutfitData.get_item("tattoo_cheek")))
+	_check("内衣仍然走槽位级门控（按件表里没有它）",
+		OutfitData.outer_slots_of_item(OutfitData.get_item("bra_lace")) == ["top", "dress", "robe"])
+
+	# ---- ④ 装上 / 装满 / 顶掉 / 再点脱下 ----
+	var m := WardrobeModel.new(OutfitData)
+	m.acceptance = 40
+	_check("开局纹身槽是「（无）」", m.ids_at("tattoo") == ["tattoo_none"])
+	m.equip(OutfitData.get_item("tattoo_bitch"))
+	_check("装第 1 件后槽里是它", m.ids_at("tattoo") == ["tattoo_bitch"])
+	m.equip(OutfitData.get_item("tattoo_slave"))
+	_check("装第 2 件后两件并存", m.ids_at("tattoo") == ["tattoo_bitch", "tattoo_slave"])
+	_check("实体件计数为 2", m.solid_ids("tattoo").size() == 2)
+	m.equip(OutfitData.get_item("tattoo_cumrag"))
+	_check("★ 装第 3 件时顶掉最早那件（上限 2）",
+		m.ids_at("tattoo") == ["tattoo_slave", "tattoo_cumrag"])
+	_check("★ 再点已装备的那件 → 脱下",
+		m.toggle(OutfitData.get_item("tattoo_slave"))
+		and m.ids_at("tattoo") == ["tattoo_cumrag"])
+	_check("装「（无）」= 全部卸掉",
+		m.equip(OutfitData.get_item("tattoo_none"))
+		and m.ids_at("tattoo") == ["tattoo_none"])
+
+	# ---- ⑤ 门控真的作用在暴露值上 ----
+	var g := WardrobeModel.new(OutfitData)
+	g.acceptance = 40
+	# 大腿纹身 × 下装：下装穿着 = 盖住 → 0；下装「（不穿）」= 露着 → 2
+	g.equipped["bottom"] = "bottom_longskirt"        # 不透明长裙
+	g.equipped["top"] = "top_highneck"
+	g.equipped["tattoo"] = ["tattoo_bitch"]
+	_check("大腿纹身被长裙盖住 → 不计入", not g.item_counts("tattoo", "tattoo_bitch"))
+	_check("被盖住时「这一槽位不计入」", not g.counts_toward_totals("tattoo"))
+	_check("被盖住时这一槽位算 0 点", g.effective_stat("tattoo", "exposure") == 0)
+	_check("门控原因是 hidden", g.item_visibility("tattoo", "tattoo_bitch") == "hidden")
+	g.equipped["bottom"] = "bottom_none"             # 直接外穿
+	_check("下装换成「（不穿）」→ 大腿纹身露出来",
+		g.item_counts("tattoo", "tattoo_bitch"))
+	_check("露出来之后这一槽位正好算 2 点", g.effective_stat("tattoo", "exposure") == 2)
+	g.equipped["bottom"] = "bottom_pleat"            # see = sheer
+	_check("半透下装也能透出纹身", g.item_counts("tattoo", "tattoo_bitch"))
+	_check("门控原因是 sheer", g.item_visibility("tattoo", "tattoo_bitch") == "sheer")
+
+	# 胸口纹身：下装换开不影响它，上装才是它的开门人
+	g.equipped["tattoo"] = ["tattoo_slave"]
+	_check("上装还穿着 → 胸口纹身仍被盖住", not g.item_counts("tattoo", "tattoo_slave"))
+	g.equipped["top"] = "top_none"
+	_check("上装换成「（不穿）」→ 胸口纹身露出来",
+		g.item_counts("tattoo", "tattoo_slave"))
+
+	# 面颊纹身不受门控
+	g.equipped["tattoo"] = ["tattoo_cheek"]
+	_check("面颊纹身恒计入", g.item_counts("tattoo", "tattoo_cheek"))
+	_check("面颊纹身的门控原因是 always",
+		g.item_visibility("tattoo", "tattoo_cheek") == "always")
+
+	# ---- ⑥ 两件同时露出来 = 4 点；盖住就一分不给 ----
+	# 对照组：同样一身衣服、但纹身槽是「（无）」。
+	var two := WardrobeModel.new(OutfitData)
+	two.acceptance = 40
+	two.equipped["top"] = "top_none"
+	two.equipped["bottom"] = "bottom_none"
+	two.equipped["tattoo"] = ["tattoo_bitch", "tattoo_slave"]
+	var two_bare := WardrobeModel.new(OutfitData)
+	two_bare.acceptance = 40
+	two_bare.equipped["top"] = "top_none"
+	two_bare.equipped["bottom"] = "bottom_none"
+	_check("★ 两件纹身同时露出来 = 比不穿纹身正好多 4 点",
+		two.total_exposure() == two_bare.total_exposure() + 4)
+	# 盖回去：纹身一分不给，总量与对照组完全一致
+	two.equipped["top"] = "top_highneck"
+	two.equipped["bottom"] = "bottom_longskirt"
+	var two_bare2 := WardrobeModel.new(OutfitData)
+	two_bare2.acceptance = 40
+	two_bare2.equipped["top"] = "top_highneck"
+	two_bare2.equipped["bottom"] = "bottom_longskirt"
+	_check("★ 两件纹身被盖住 → 与不穿纹身一模一样",
+		two.total_exposure() == two_bare2.total_exposure())
+
+	# ---- ⑦ 与原貌一致性的口径 ----
+	var t := WardrobeModel.new(OutfitData)
+	t.acceptance = 40
+	_check("纹身槽开局与原貌一致", t._matches_true("tattoo"))
+	t.equip(OutfitData.get_item("tattoo_paw"))
+	_check("装上纹身后不再与原貌一致", not t._matches_true("tattoo"))
+
+	# ---- ⑧ DP 把多件槽位单独成组，且选项含「一件不穿」 ----
+	var d := WardrobeModel.new(OutfitData)
+	d.acceptance = 40
+	var groups2: Array = d.dp_groups(OutfitData.active_slots())
+	var solo := {}
+	for gg in groups2:
+		var sl: Array = gg["slots"]
+		if sl.size() == 1 and str(sl[0]) == "tattoo":
+			solo = gg
+	_check("★ DP 里纹身自成一个单元素组", not solo.is_empty())
+	if not solo.is_empty():
+		var has_empty := false
+		var has_pair := false
+		for o in (solo["opts"] as Array):
+			var ids: Array = (o["pick"] as Dictionary).get("tattoo", [])
+			if ids == ["tattoo_none"]:
+				has_empty = true
+			if (ids as Array).size() == 2:
+				has_pair = true
+		_check("选项里有「一件不穿」", has_empty)
+		_check("选项里有两件的组合", has_pair)
+	_check("分组后槽位一个没漏（含纹身）",
+		_group_slot_count(groups2) == OutfitData.active_slots().size())
+
+	# ---- ⑨ 一键达标后总量与逐件重算一致（多件槽位不能算漏） ----
+	var a := WardrobeModel.new(OutfitData)
+	a.acceptance = 40
+	var rep: Dictionary = a.auto_complete_outfit()
+	var sum_e := 0
+	for s in OutfitData.active_slots():
+		sum_e += a.effective_stat(str(s), "exposure")
+	_check("★ 一键达标：暴露值总和 == 逐槽位门控后求和",
+		a.total_exposure() == sum_e)
+	_check("一键达标不超上限", not a.is_over_cap())
+	_check("一键达标后纹身槽是合法的（0 ~ 2 件实体 + 最多 1 个空件）",
+		a.solid_ids("tattoo").size() <= 2 and a.ids_at("tattoo").size() >= 1)
+
 func _forced_pool_excludes_bare() -> bool:
 	for acc in [0, 6, 12, 24, 40]:
 		for it in OutfitData.forced_pool(acc):
@@ -277,31 +444,35 @@ func _group_slot_count(groups: Array) -> int:
 func _test_disabled_slots() -> void:
 	print("\n-- 暂时下架的槽位 DISABLED_SLOTS --")
 	var off: Array = OutfitData.DISABLED_SLOTS
-	_check("当前下架列表是外袍 + 耳饰 + 手套 + 头饰",
-		off.size() == 4 and off.has("robe") and off.has("earrings")
-		and off.has("gloves") and off.has("headgear"))
+	_check("当前下架列表是外袍 + 耳饰 + 手套 + 头饰 + 穿环",
+		off.size() == 5 and off.has("robe") and off.has("earrings")
+		and off.has("gloves") and off.has("headgear") and off.has("piercing"))
 	_check("下架的槽位仍在 SLOT_ORDER 里（数据没删）",
 		OutfitData.SLOT_ORDER.has("robe") and OutfitData.SLOT_ORDER.has("earrings")
-		and OutfitData.SLOT_ORDER.has("gloves") and OutfitData.SLOT_ORDER.has("headgear"))
+		and OutfitData.SLOT_ORDER.has("gloves") and OutfitData.SLOT_ORDER.has("headgear")
+		and OutfitData.SLOT_ORDER.has("piercing"))
 	_check("active_slots() = SLOT_ORDER - DISABLED_SLOTS",
 		OutfitData.active_slots().size() == OutfitData.SLOT_ORDER.size() - off.size())
 	_check("active_slots() 不含下架的槽位",
 		not OutfitData.active_slots().has("robe")
 		and not OutfitData.active_slots().has("earrings")
 		and not OutfitData.active_slots().has("gloves")
-		and not OutfitData.active_slots().has("headgear"))
+		and not OutfitData.active_slots().has("headgear")
+		and not OutfitData.active_slots().has("piercing"))
 	_check("slot_enabled() 语义正确",
 		OutfitData.slot_enabled("top") and not OutfitData.slot_enabled("robe")
 		and not OutfitData.slot_enabled("earrings")
 		and not OutfitData.slot_enabled("gloves")
-		and not OutfitData.slot_enabled("headgear"))
+		and not OutfitData.slot_enabled("headgear")
+		and not OutfitData.slot_enabled("piercing"))
 	_check("下架槽位对外「一件都没有」",
 		OutfitData.get_items_for_slot("robe").is_empty()
 		and OutfitData.get_items_for_slot("earrings").is_empty()
 		and OutfitData.get_items_for_slot("gloves").is_empty()
-		and OutfitData.get_items_for_slot("headgear").is_empty())
+		and OutfitData.get_items_for_slot("headgear").is_empty()
+		and OutfitData.get_items_for_slot("piercing").is_empty())
 	_check("下架槽位不进强制装备池", _forced_pool_excludes_disabled())
-	_check("下架的物品仍然完整定义着（4 外袍 + 4 耳饰 + 4 手套 + 4 头饰）", _disabled_items_intact())
+	_check("下架的物品仍然完整定义着（4 外袍 + 4 耳饰 + 4 手套 + 4 头饰 + 4 穿环）", _disabled_items_intact())
 	_check("下架的物品仍有目击描述（恢复后立刻可用）", _disabled_items_have_desc())
 	_check("每局原貌不含下架的槽位", _true_appearance_excludes_disabled())
 	_check("每局相册不含下架的槽位", _photos_exclude_disabled())
@@ -320,7 +491,8 @@ func _disabled_items_intact() -> bool:
 			n += 1
 	# ★ 第二十七轮：手套与头饰也下架了 → 8 → 16
 	#   （robe 4 + earrings 4 + gloves 4 + headgear 4）
-	return n == 16
+	# ★ 第三十七轮：穿环也下架了 → 16 → 20（再加 piercing 4）
+	return n == 20
 
 func _disabled_items_have_desc() -> bool:
 	# 只有「可能是 A 的原貌」的那些才需要目击描述（robe_none / robe_travel）；
@@ -731,7 +903,7 @@ func _test_model_basics() -> void:
 		"earrings": "ear_stud", "makeup": "makeup_light", "piercing": "piercing_none",
 		"tattoo": "tattoo_none", "neckwear": "neck_none", "top": "top_plain",
 		"bra": "bra_plain", "gloves": "gloves_none", "accessory": "acc_belt",
-		"bottom": "bottom_trousers", "garterbelt": "garter_none", "panties": "panties_plain",
+		"bottom": "bottom_trousers", "panties": "panties_plain",
 		"stockings": "stockings_opaque", "shoes": "shoes_boots", "robe": "robe_none",
 		"dress": "dress_none",
 	}
@@ -2095,6 +2267,22 @@ func _default_true_in_pool() -> bool:
 			return false
 	return true
 
+# ★ 第三十七轮：吊袜带整栏并入袜类 —— 原来那两件现在必须挂在 stockings 槽，
+#   而且 garter_none（这一栏的空件）已经被删掉。
+func _garter_items_moved_to_stockings() -> bool:
+	var moved := 0
+	for it in OutfitData.ITEMS:
+		var id := str(it["id"])
+		if id == "garter_none":
+			print("      garter_none 应该已删除")
+			return false
+		if id.begins_with("garter_"):
+			if str(it["slot"]) != "stockings":
+				print("      %s 仍在 %s 槽" % [id, str(it["slot"])])
+				return false
+			moved += 1
+	return moved == 2
+
 func _desc_matches_pool() -> bool:
 	# 候选池里的每一件都必须有描述；反过来，多余的描述不算错（便于以后扩池）
 	for slot in OutfitData.SLOT_ORDER:
@@ -2237,8 +2425,8 @@ func _all_assets_exist(sub: String) -> bool:
 #   · 每件物品都有 30×30 的卡片图标 —— 空件（不戴/素颜）也要有一枚，
 #     否则那一排卡片会缺一块。
 #   · 当前图包的图层表里每个非空件的图层文件都要真的存在。
-#   ★ 路径一律走 DolDoll.root()，不要写死 assets/dol —— 否则切到 AU 那套时
-#     测试会去查 DoL 的目录，出现「假通过」。
+#   ★ 路径一律走 DolDoll.root()，不要写死目录名 —— 换图包时测试才不会去
+#     查一个不存在的目录，出现「假通过」。
 func _doll_icons_complete() -> bool:
 	var root := DolDoll.root()
 	for it in OutfitData.ITEMS:

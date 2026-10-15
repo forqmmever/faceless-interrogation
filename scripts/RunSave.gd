@@ -43,7 +43,7 @@ var seed_value: int = 0
 var level_index: int = 0
 var cleared_levels: int = 0
 var background_name: String = ""
-var equipped: Dictionary = {}          # slot -> item id
+var equipped: Dictionary = {}          # slot -> item id（多件槽位为 Array，见 WardrobeModel）
 var game: Dictionary = {}              # GameData 里与「本局」有关的那几个字段
 
 # ---------- 运行时开关 ----------
@@ -68,7 +68,7 @@ func save_progress(outfit: Dictionary = {}) -> void:
 	cleared_levels = RunData.cleared_levels
 	background_name = RunData.background_name()
 	if not outfit.is_empty():
-		equipped = outfit.duplicate()
+		equipped = outfit.duplicate(true)   # 深拷贝：多件槽位的值是 Array，浅拷贝会共享
 	has_run = true
 	_write()
 

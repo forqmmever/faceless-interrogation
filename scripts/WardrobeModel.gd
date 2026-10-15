@@ -14,7 +14,12 @@ extends RefCounted
 signal changed
 
 var data: Node                       # OutfitData 实例
-var equipped: Dictionary = {}        # slot -> item id
+# ★ 第三十六轮起，`equipped` 的值有两种形态：
+#   · 单件槽位 → String（槽位 → 物品 id），和以前完全一样；
+#   · 多件槽位（MULTI_SLOTS，目前只有 tattoo）→ Array[String]。
+# 所以**不要**再直接 `str(equipped.get(slot, ""))` —— 多件槽位上那会得到
+# `["a", "b"]` 这种字符串。一律走下面的 ids_at / id_at / set_ids / has_id。
+var equipped: Dictionary = {}        # slot -> item id（多件槽位为 Array）
 var acceptance: int = 0              # 接受度（每关后提升）
 var level_index: int = 0             # 当前关卡
 var cleared_levels: int = 0
@@ -25,6 +30,81 @@ var forced_groups: Array = []        # 本关的强制规则表（「几件选�
 # ★ 第二十七轮：被互斥「顶掉」的槽位顶掉之前穿的是什么 —— 玩家把成装脱下来时原样还回去。
 #   （见 _apply_exclusive / _restore_exclusive）
 var _exclusive_stash: Dictionary = {}
+
+# ---------- 多件槽位的读写（第三十六轮）----------
+# 把 equipped 里某个值「归一化」成一串 id —— String / Array / null 都能吃。
+func _ids_of(v: Variant) -> Array:
+	var out := []
+	if v == null:
+		return out
+	if typeof(v) == TYPE_ARRAY:
+		for x in (v as Array):
+			var s := str(x)
+			if s != "" and not out.has(s):
+				out.append(s)
+		return out
+	var s1 := str(v)
+	if s1 != "":
+		out.append(s1)
+	return out
+
+# 这一槽位当前装着的全部 id（单件槽位 0 ~ 1 个，多件槽位 0 ~ 上限个）
+func ids_at(slot: String) -> Array:
+	return _ids_of(equipped.get(slot, null))
+
+# 这一槽位的第一件（单件槽位的全部）
+func id_at(slot: String) -> String:
+	var a := ids_at(slot)
+	return str(a[0]) if not a.is_empty() else ""
+
+# 这件东西现在身上有没有（跨槽位查）
+func has_id(item_id: String) -> bool:
+	for s in equipped.keys():
+		if ids_at(str(s)).has(item_id):
+			return true
+	return false
+
+# 这一槽位里「实体件」（非空件）的 id —— 多件槽位的计数用
+func solid_ids(slot: String) -> Array:
+	var out := []
+	for id in ids_at(slot):
+		var it: Dictionary = data.get_item(str(id))
+		if not it.is_empty() and not data.is_bare(it):
+			out.append(str(id))
+	return out
+
+# 写入一槽位。单件槽位存 String（取第一件），多件槽位存 Array；空 → 擦掉这个键。
+func set_ids(slot: String, ids: Array) -> void:
+	var clean := []
+	for x in ids:
+		var s := str(x)
+		if s != "" and not clean.has(s):
+			clean.append(s)
+	if clean.is_empty():
+		equipped.erase(slot)
+	elif data.is_multi_slot(slot):
+		equipped[slot] = clean
+	else:
+		equipped[slot] = str(clean[0])
+
+# 多件槽位的落定：去掉空件 → 超上限就顶掉最早那件 → 一件不剩就退回「（无）」空件。
+func _settle_multi(slot: String, ids: Array) -> void:
+	var solids := []
+	for x in ids:
+		var s := str(x)
+		var it: Dictionary = data.get_item(s)
+		if it.is_empty() or data.is_bare(it):
+			continue
+		if not solids.has(s):
+			solids.append(s)
+	var cap: int = data.max_equip(slot)
+	while solids.size() > cap:
+		solids.pop_front()
+	if solids.is_empty():
+		var bid: String = data.bare_id_of(slot)
+		if bid != "":
+			solids = [bid]
+	set_ids(slot, solids)
 
 func _init(outfit_data: Node, true_app: Dictionary = {}, levels_in: Array = []) -> void:
 	data = outfit_data
@@ -167,7 +247,7 @@ func missing_forced() -> Array:
 				var it: Dictionary = data.get_item(str(id))
 				if it.is_empty():
 					continue
-				if str(equipped.get(str(it.get("slot", "")), "")) == str(id):
+				if has_id(str(id)):
 					ok = true
 					break
 			if not ok:
@@ -179,7 +259,7 @@ func missing_forced() -> Array:
 			var it2: Dictionary = data.get_item(str(id))
 			if it2.is_empty():
 				continue
-			if str(equipped.get(str(it2.get("slot", "")), "")) != str(id):
+			if not has_id(str(id)):
 				out.append(it2)
 	# 没有规则表时（random / none 模式）退回老口径：forced_items 逐件检查
 	if forced_groups.is_empty():
@@ -187,7 +267,7 @@ func missing_forced() -> Array:
 			var it3: Dictionary = data.get_item(str(id))
 			if it3.is_empty():
 				continue
-			if str(equipped.get(str(it3.get("slot", "")), "")) != str(id):
+			if not has_id(str(id)):
 				out.append(it3)
 	return out
 
@@ -207,7 +287,7 @@ func missing_forced_text() -> Array:
 			var ok := false
 			for id in items:
 				var it: Dictionary = data.get_item(str(id))
-				if not it.is_empty() and str(equipped.get(str(it.get("slot", "")), "")) == str(id):
+				if not it.is_empty() and has_id(str(id)):
 					ok = true
 					break
 			if not ok:
@@ -217,7 +297,7 @@ func missing_forced_text() -> Array:
 			var it2: Dictionary = data.get_item(str(id))
 			if it2.is_empty():
 				continue
-			if str(equipped.get(str(it2.get("slot", "")), "")) != str(id):
+			if not has_id(str(id)):
 				out.append("必须穿：" + str(it2.get("name", id)))
 	if forced_groups.is_empty():
 		for it3 in missing_forced():
@@ -235,14 +315,18 @@ func _equip_defaults() -> void:
 	# 只铺「玩家能看到的槽位」—— 下架的槽位不进 equipped，
 	# 这样暴露值 / 反差值 / 一致数 / 存档都不会多出一处
 	for slot in data.active_slots():
-		var id: String = str(true_appearance.get(slot, ""))
-		if id != "" and not data.get_item(id).is_empty():
-			equipped[slot] = id
-		else:
+		var s := str(slot)
+		var ids := []
+		for x in _ids_of(true_appearance.get(s, "")):
+			var it: Dictionary = data.get_item(str(x))
+			if not it.is_empty() and str(it.get("slot", "")) == s:
+				ids.append(str(x))
+		if ids.is_empty():
 			# 兜底：该槽位取最朴素的物品
-			var cheapest: Dictionary = data.cheapest_for_slot(slot)
+			var cheapest: Dictionary = data.cheapest_for_slot(s)
 			if not cheapest.is_empty():
-				equipped[slot] = cheapest["id"]
+				ids = [str(cheapest["id"])]
+		set_ids(s, ids)
 	# ★ 第二十七轮：原貌也要过一遍互斥归一化。
 	#   原貌是**逐槽位独立抽**的，理论上可能同时抽到「成装」与「上装 / 下装」——
 	#   那是穿不到一起的组合。规则：**成装优先**（成装那一侧赢了就把上装 / 下装归零）。
@@ -274,8 +358,7 @@ func _normalize_exclusive() -> void:
 # 这一组里有没有「实体衣物」（非空件、非下架）
 func _any_solid(slots: Array) -> bool:
 	for s in slots:
-		var it: Dictionary = data.get_item(str(equipped.get(str(s), "")))
-		if not it.is_empty() and not data.is_bare(it):
+		if not solid_ids(str(s)).is_empty():
 			return true
 	return false
 
@@ -285,7 +368,7 @@ func _blank_group(slots: Array) -> void:
 		var ps := str(s)
 		var bid: String = data.bare_id_of(ps)
 		if bid != "":
-			equipped[ps] = bid
+			set_ids(ps, [bid])
 
 # ★ 互斥执行：玩家主动装备 `slot` 之后，把它**对面那一组**脱掉。
 #   语义与 _normalize_exclusive 不同 —— 这里是「**后装备的赢**」：
@@ -297,19 +380,19 @@ func _apply_exclusive(slot: String) -> void:
 	var peers: Array = data.exclusive_peers(slot)
 	if peers.is_empty():
 		return
-	var it: Dictionary = data.get_item(str(equipped.get(slot, "")))
+	var it: Dictionary = item_at(slot)
 	if it.is_empty() or data.is_bare(it):
 		_restore_exclusive(peers)         # 装的是空件 → 把之前顶掉的还回去
 		return
 	for p in peers:
 		var ps := str(p)
-		var cur := str(equipped.get(ps, ""))
+		var cur := id_at(ps)
 		var cur_it: Dictionary = data.get_item(cur)
 		if cur != "" and not cur_it.is_empty() and not data.is_bare(cur_it):
 			_exclusive_stash[ps] = cur   # 先留个底
 		var bid: String = data.bare_id_of(ps)
 		if bid != "":
-			equipped[ps] = bid
+			set_ids(ps, [bid])
 
 func _restore_exclusive(peers: Array) -> void:
 	for p in peers:
@@ -323,7 +406,16 @@ func _restore_exclusive(peers: Array) -> void:
 
 # ---------- 查询 ----------
 func item_at(slot: String) -> Dictionary:
-	return data.get_item(equipped.get(slot, ""))
+	return data.get_item(id_at(slot))
+
+# 这一槽位当前装着的全部物品（多件槽位会有多件；空件也在里面）
+func items_at(slot: String) -> Array:
+	var out := []
+	for id in ids_at(slot):
+		var it: Dictionary = data.get_item(str(id))
+		if not it.is_empty():
+			out.append(it)
+	return out
 
 func can_equip(item: Dictionary) -> bool:
 	return data.can_equip(item, acceptance)
@@ -338,8 +430,43 @@ func equip(item: Dictionary) -> bool:
 	#   再被 `_counts_with`（非门控槽位一律返回 true）算进反差值。补上更干净。
 	if not data.slot_enabled(slot):
 		return false
-	equipped[slot] = str(item["id"])
+	var id := str(item["id"])
+	var it: Dictionary = data.get_item(id)
+	if it.is_empty():
+		return false
+	# ★ 第三十六轮：多件槽位（纹身）—— 装上一件不是「替换」，而是「加一件」；
+	#   满了（默认 2 件）就顶掉最早装上的那一件；装「（无）」= 全部卸掉。
+	if data.is_multi_slot(slot):
+		var keep := ids_at(slot)
+		if data.is_bare(it):
+			_settle_multi(slot, [])
+		else:
+			keep.append(id)
+			_settle_multi(slot, keep)
+		changed.emit()
+		return true
+	equipped[slot] = id
 	_apply_exclusive(slot)
+	changed.emit()
+	return true
+
+# ★ 第三十六轮：界面点卡片走这个 —— 单件槽位语义不变（再点一次是空操作），
+#   多件槽位才是真正的「开关」：已装备的再点一次 = 脱下来。
+func toggle(item: Dictionary) -> bool:
+	var slot := str(item["slot"])
+	var id := str(item["id"])
+	if not data.is_multi_slot(slot):
+		return equip(item)
+	var cur := ids_at(slot)
+	if not cur.has(id):
+		return equip(item)
+	if data.is_bare(data.get_item(id)):
+		return false                       # 「（无）」本来就是空的，再点没意义
+	var keep := []
+	for x in cur:
+		if str(x) != id:
+			keep.append(str(x))
+	_settle_multi(slot, keep)
 	changed.emit()
 	return true
 
@@ -363,48 +490,63 @@ func is_over_cap() -> bool:
 	return total_exposure() > exposure_cap()
 
 # ============================================================
-#  内衣内裤的曝光门控（第二十二轮）
+#  内衣内裤 / 纹身的「曝光门控」（第二十二轮起，第三十六轮扩到纹身）
 #
 #  用户口径：「内裤内衣的反差值和暴露值只有在**能够显示在人物身上**时才会计算，
 #            如透明外衣能计算、直接外穿能计算、镂空开档能计算」
+#  第三十六轮追加：「纹身与内衣内裤处理方法相同，不漏出来时，不计算暴露值反差度。」
 #
-#  判定的是「这件内衣到底看不看得见」，而不是「穿没穿外衣」。三条路：
+#  判定的是「这一件到底看不看得见」，而不是「穿没穿外衣」。三条路：
 #    ① 透明外衣  —— 外衣标了 "see": "sheer"（薄纱 / 蕾丝半透）
 #    ② 镂空开档  —— 外衣标了 "see": "cutout"（开衩 / 超短 / 露腰）
 #    ③ 直接外穿  —— 同侧外衣是空件（"bare"，例如「（不穿上衣）」）或压根没有
-#  三条都不成立（盖得严严实实），这件内衣就既不算暴露值、也不算反差值。
+#  三条都不成立（盖得严严实实），这一件就既不算暴露值、也不算反差值。
 #
 #  ★ 暴露值与反差值**用同一条门控** —— 看不见就既没风险、也没意义。
+#
+#  ★ 开门人是**按件**给的（OutfitData.outer_slots_of_item）：
+#    内衣内裤退回槽位级表（UNDER_GATE），纹身写在自己身上（不同部位不同遮盖）。
 # ============================================================
-# 这一件内衣（当前装备的）是不是真的露在外面
-func underwear_shown(slot: String) -> bool:
-	return _counts_with(equipped, slot)
+# 这一件（当前装备的）是不是真的露在外面
+func item_counts(slot: String, id: String) -> bool:
+	return _item_counts(equipped, slot, id)
 
 # 这一槽位的数值要不要计入总和（当前装备下）。界面与测试都走它。
+# 多件槽位（纹身）：只要有**任意一件**露着就算「计入」。
 func counts_toward_totals(slot: String) -> bool:
 	return _counts_with(equipped, slot)
 
-# 当前装备下，这件内衣「为什么看得见 / 为什么看不见」——
+# 旧名（第二十二轮的叫法），保留给老调用点
+func underwear_shown(slot: String) -> bool:
+	return _counts_with(equipped, slot)
+
+# 当前装备下，这一件「为什么看得见 / 为什么看不见」——
 # 返回 "always"（不受门控）/ "sheer" / "cutout" / "bare" / "hidden"。界面文案用。
-func underwear_visibility(slot: String) -> String:
-	if not data.is_gated_slot(slot):
+func item_visibility(slot: String, id: String) -> String:
+	var it: Dictionary = data.get_item(id)
+	if it.is_empty():
+		return "hidden"
+	var outers: Array = data.outer_slots_of_item(it)
+	if outers.is_empty():
 		return "always"
 	# 从外往内找第一层「真的存在」的衣服 —— 它就是决定看得见看不见的那一层。
-	# 找不到（每一层都是空件 / 下架）→ 内衣直接外穿。
-	var outers: Array = data.outer_slots_of(slot)
+	# 找不到（每一层都是空件 / 下架）→ 直接外穿。
 	for i in range(outers.size() - 1, -1, -1):
 		var os := str(outers[i])
 		if not data.slot_enabled(os):
 			continue
-		var it: Dictionary = data.get_item(str(equipped.get(os, "")))
-		if it.is_empty() or data.is_bare(it):
+		var oit: Dictionary = data.get_item(id_at(os))
+		if oit.is_empty() or data.is_bare(oit):
 			continue                              # 这一层等于没有
-		var kind: String = data.see_through_kind(it)
+		var kind: String = data.see_through_kind(oit)
 		return kind if kind != "" else "hidden"
 	return "bare"
 
+func underwear_visibility(slot: String) -> String:
+	return item_visibility(slot, id_at(slot))
+
 # 按「假想的装备表」判断某一槽位要不要计入 ——
-# 换装界面判断「装上后会不会超上限」时，换的是上衣 / 下装会连带开关内衣的门控，
+# 换装界面判断「装上后会不会超上限」时，换的是上衣 / 下装会连带开关内衣（或纹身）的门控，
 # 所以必须整套重算，不能只看被点的那一件。
 #
 # 判据：**上面没有任何一层把它挡住**。逐层从里往外看（bra → top → robe）：
@@ -412,8 +554,23 @@ func underwear_visibility(slot: String) -> String:
 #   · 空件（「（不穿上衣）」）等于这一层没有东西，不挡也不透；
 #   · 标了 see 的那一层（透明 / 镂空）不挡；
 #   · 其余（普通衣服）一律挡死 —— 里面再花哨也看不见。
-# 一层都不剩 → 内衣就是最外层，也就是用户说的「直接外穿」。
+# 一层都不剩 → 就是最外层，也就是用户说的「直接外穿」。
 func _counts_with(eq: Dictionary, slot: String) -> bool:
+	# ★ 这里刻意**不**走 `_ids_of()` —— 它是 DP 的最内层（每个候选搭配都要问好几遍），
+	#   每次多分配一个数组会实打实地拖慢整套测试。单件槽位（绝大多数）直接走快路径。
+	var v: Variant = eq.get(slot, null)
+	if v == null:
+		return false
+	if typeof(v) == TYPE_ARRAY:
+		for id in (v as Array):
+			if _item_counts(eq, slot, str(id)):
+				return true
+		return false
+	var s := str(v)
+	return s != "" and _item_counts(eq, slot, s)
+
+# 单件的门控判定（第三十六轮拆出来的 —— 一个槽位里每件的可见性可以不一样）
+func _item_counts(eq: Dictionary, slot: String, id: String) -> bool:
 	# ★ 第二十七轮：被互斥组赢家顶掉的槽位，整件都不参与计算。
 	#   互斥（EXCLUSIVE_GROUPS）执行时，落败的一方被换成「该槽位的空件」——
 	#   而空件（`top_none` 暴露 9 / `bottom_none` 暴露 9 反差 8）本身是**高数值**的
@@ -422,16 +579,35 @@ func _counts_with(eq: Dictionary, slot: String) -> bool:
 	#   所以这里补一道闸：同组已经有实体件了 → 被顶掉的那个槽位按 0 计。
 	if _covered_by_exclusive(eq, slot):
 		return false
-	if not data.is_gated_slot(slot):
-		return true
-	for o in data.outer_slots_of(slot):
+	var it: Dictionary = data.get_item(id)
+	if it.is_empty():
+		return false
+	var outers: Array = data.outer_slots_of_item(it)
+	if outers.is_empty():
+		return true                               # 不受门控 → 恒计入
+	for o in outers:
 		var os := str(o)
 		if not data.slot_enabled(os):
 			continue                              # 下架的槽位不算一层
-		var it: Dictionary = data.get_item(str(eq.get(str(os), "")))
-		if it.is_empty() or data.is_bare(it):
+		# 快路径：外层槽位永远是单件（top / bottom / dress / neckwear）
+		var ov: Variant = eq.get(os, null)
+		if ov == null:
+			continue
+		if typeof(ov) == TYPE_ARRAY:
+			for oid in (ov as Array):
+				var oit: Dictionary = data.get_item(str(oid))
+				if oit.is_empty() or data.is_bare(oit):
+					continue
+				if data.see_through_kind(oit) == "":
+					return false
+			continue
+		var oid2 := str(ov)
+		if oid2 == "":
+			continue
+		var oit2: Dictionary = data.get_item(oid2)
+		if oit2.is_empty() or data.is_bare(oit2):
 			continue                              # 这一层等于没有 —— 不挡
-		if data.see_through_kind(it) == "":
+		if data.see_through_kind(oit2) == "":
 			return false                          # 这一层是普通衣服 → 挡住了
 	return true
 
@@ -439,25 +615,28 @@ func _counts_with(eq: Dictionary, slot: String) -> bool:
 #   判据：它所在的那一组互斥槽位里，有**别的**槽位装着实体衣物。
 func _covered_by_exclusive(eq: Dictionary, slot: String) -> bool:
 	for p in data.exclusive_peers(slot):
-		var it: Dictionary = data.get_item(str(eq.get(str(p), "")))
-		if it.is_empty() or data.is_bare(it):
-			continue
-		return true
+		for oid in _ids_of(eq.get(str(p), null)):
+			var it: Dictionary = data.get_item(str(oid))
+			if it.is_empty() or data.is_bare(it):
+				continue
+			return true
 	return false
 
 # 这几个槽位里有没有实体衣物（`_delta` 的短路判断用）
 func _any_peer_solid(slots: Array) -> bool:
 	for p in slots:
-		var it: Dictionary = data.get_item(str(equipped.get(str(p), "")))
-		if not it.is_empty() and not data.is_bare(it):
+		if not solid_ids(str(p)).is_empty():
 			return true
 	return false
 
-# 门控下这件内衣「实际算多少」—— 露不出来就是 0。单项读数用得上。
+# 门控下这一槽位「实际算多少」—— 露不出来就是 0。单项读数用得上。
+# 多件槽位：逐件过门控后求和。
 func effective_stat(slot: String, field: String) -> int:
-	if not counts_toward_totals(slot):
-		return 0
-	return int(item_at(slot).get(field, 0))
+	var t := 0
+	for id in ids_at(slot):
+		if _item_counts(equipped, slot, str(id)):
+			t += int(data.get_item(str(id)).get(field, 0))
+	return t
 
 # ---------- 反差值 ----------
 # 语义：与「A 的原貌」的偏离程度。
@@ -465,7 +644,7 @@ func effective_stat(slot: String, field: String) -> int:
 # 穿得和原貌一模一样时反差值为 0，意味着审讯官一眼就认出你。
 # 第二十二轮起，受门控的内衣内裤还要额外过一道「露出来了吗」的关。
 func _matches_true(slot: String) -> bool:
-	return str(equipped.get(slot, "")) == str(true_appearance.get(slot, ""))
+	return ids_at(slot) == _ids_of(true_appearance.get(slot, ""))
 
 func total_contrast() -> int:
 	return total_contrast_with({})
@@ -473,7 +652,13 @@ func total_contrast() -> int:
 func total_contrast_with(override: Dictionary) -> int:
 	return _sum_with(override, "contrast")
 
-# 通用求和：把 override 套进当前装备，逐槽位累加某个字段。
+# 覆盖值的归一化：多件槽位传 Array，单件槽位传 String / 单元素 Array 都行
+func _norm_val(v: Variant) -> Variant:
+	if typeof(v) == TYPE_ARRAY:
+		return (v as Array).duplicate()
+	return str(v)
+
+# 通用求和：把 override 套进当前装备，逐件累加某个字段。
 #   ★ 这里刻意**不** duplicate 整个 equipped —— 换装界面的贪心/DP 会问几万遍，
 #     复制一份 17 键的字典会把整个流程拖慢一个量级。改成「临时改、算完还原」。
 func _sum_with(override: Dictionary, field: String) -> int:
@@ -483,7 +668,7 @@ func _sum_with(override: Dictionary, field: String) -> int:
 	for k in override:
 		var ks := str(k)
 		saved[ks] = equipped.get(ks, null)
-		equipped[ks] = str(override[ks])
+		equipped[ks] = _norm_val(override[ks])
 	var v := _sum_now(field)
 	for k in saved:
 		if saved[k] == null:
@@ -494,12 +679,32 @@ func _sum_with(override: Dictionary, field: String) -> int:
 
 func _sum_now(field: String) -> int:
 	var t := 0
-	for s in equipped:
+	for s in equipped.keys():
 		var slot := str(s)
-		if not _counts_with(equipped, slot):
+		var v: Variant = equipped[s]
+		if typeof(v) == TYPE_ARRAY:
+			for id in (v as Array):
+				if _item_counts(equipped, slot, str(id)):
+					t += _contrib(slot, str(id), field)
 			continue
-		t += _contrib(slot, str(equipped[slot]), field)
+		var id2 := str(v)
+		if id2 != "" and _item_counts(equipped, slot, id2):
+			t += _contrib(slot, id2, field)
 	return t
+
+# 某一槽位当前实际计入多少（逐件过门控）—— `_delta` 的连带项用
+func _slot_contrib(slot: String, field: String) -> int:
+	var t := 0
+	for id in ids_at(slot):
+		if _item_counts(equipped, slot, str(id)):
+			t += _contrib(slot, str(id), field)
+	return t
+
+# 单件的「门控后贡献」：露不出来就是 0
+func _item_contrib(slot: String, id: String, field: String) -> int:
+	if not _item_counts(equipped, slot, id):
+		return 0
+	return _contrib(slot, id, field)
 
 # 单件的贡献（门控之外的部分）。
 #
@@ -553,7 +758,27 @@ func contrast_delta(changed: String, new_id: String) -> int:
 
 func _delta(changed: String, new_id: String, field: String) -> int:
 	var slot := str(changed)
-	var old_id := str(equipped.get(slot, ""))
+
+	# ★ 第三十六轮：多件槽位（纹身）的增量 = 「这一件装上 / 脱下」的贡献差。
+	#   它的可见性只取决于外面的衣服（top / bottom / dress），与同槽位另一件无关，
+	#   所以不用整套重算。满员时是「顶掉最早那件」，被顶掉那件的贡献也要算进去。
+	if data.is_multi_slot(slot):
+		var cur := ids_at(slot)
+		if cur.has(new_id):
+			return -_item_contrib(slot, new_id, field)
+		var nit: Dictionary = data.get_item(new_id)
+		if not nit.is_empty() and data.is_bare(nit):
+			var dt := 0                          # 「（无）」= 全部卸掉
+			for id in cur:
+				dt -= _item_contrib(slot, str(id), field)
+			return dt
+		var solids := solid_ids(slot)
+		var dm := _item_contrib(slot, new_id, field)
+		if solids.size() >= data.max_equip(slot):
+			dm -= _item_contrib(slot, str(solids[0]), field)
+		return dm
+
+	var old_id := id_at(slot)
 
 	# ★ 第二十七轮：互斥槽位的增量不能用「只改一个槽位」的算法 ——
 	#   换上成装会把上装 / 下装一起清空（`_apply_exclusive`），
@@ -580,27 +805,26 @@ func _delta(changed: String, new_id: String, field: String) -> int:
 	if _counts_with(equipped, slot):
 		d = _contrib(slot, new_id, field) - _contrib(slot, old_id, field)
 
-	# ② 连带：被它盖住 / 露出的那些内衣内裤
-	var watch := []
-	for g in data.UNDER_GATE.keys():
-		var gs := str(g)
-		if data.outer_slots_of(gs).has(slot):
-			watch.append(gs)
+	# ② 连带：被它盖住 / 露出的那些内衣内裤、以及纹身（按件门控）
+	var watch: Array = data.gate_dependents(slot)
 	if watch.is_empty():
 		return d
 
+	# ★ 只在「这一槽位的可见性真的翻转了」时才重算它的贡献 ——
+	#   `_delta` 是热路径（求解器要问几万遍），无条件重算会拖慢好几倍。
 	var was := {}
 	for gs in watch:
-		was[gs] = _counts_with(equipped, str(gs))
+		var g0 := str(gs)
+		was[g0] = {"on": _counts_with(equipped, g0), "c": _slot_contrib(g0, field)}
 	var saved: Variant = equipped.get(slot, null)
 	equipped[slot] = new_id
 	for gs in watch:
 		var g := str(gs)
+		var st: Dictionary = was[g]
 		var now: bool = _counts_with(equipped, g)
-		if now == bool(was[g]):
+		if now == bool(st["on"]):
 			continue
-		var c := _contrib(g, str(equipped.get(g, "")), field)
-		d += c if now else -c
+		d += _slot_contrib(g, field) if now else -int(st["c"])
 	if saved == null:
 		equipped.erase(slot)
 	else:
@@ -657,10 +881,10 @@ func is_contrast_sufficient() -> bool:
 func covered_defect_ids() -> Array:
 	var covered := []
 	var tags := []
-	for slot in equipped:
-		var it := item_at(slot)
-		for t in it.get("tags", []):
-			tags.append(t)
+	for slot in equipped.keys():
+		for it in items_at(str(slot)):
+			for t in (it as Dictionary).get("tags", []):
+				tags.append(t)
 
 	for d in data.defects():
 		var need: Array = d.get("cover_tags", [])
@@ -822,10 +1046,13 @@ func auto_complete_outfit() -> Dictionary:
 				break
 			var pick: Dictionary = (groups[gi]["opts"] as Array)[oi]["pick"]
 			for slot in pick.keys():
-				var id := str(pick[slot])
-				if str(equipped.get(slot, "")) != id:
-					touched.append(slot)
-				equipped[slot] = id
+				var s2 := str(slot)
+				# ★ 第三十六轮：多件槽位的 pick 值是 Array（0 ~ 上限件），
+				#   单件槽位仍是 String —— 一律走 _ids_of / set_ids 落定。
+				var ids := _ids_of(pick[slot])
+				if ids != ids_at(s2):
+					touched.append(s2)
+				set_ids(s2, ids)
 			s = par_state[gi][s]
 
 	changed.emit()
@@ -845,6 +1072,13 @@ func auto_complete_outfit() -> Dictionary:
 #    漏掉跨组影响（换 dress 会改变 bra 与 panties 算不算数，而它们分属不同的组），
 #    DP 于是不再是精确解，测试里的「局部最优」「次级目标」两条会当场挂掉。
 #    并成一个连通分量之后就又是精确的了。
+#
+#  ★ 第三十六轮：多件槽位（纹身）**不进**这张门控图 —— 它故意不在 UNDER_GATE 里，
+#    所以天然自成一个单元素组。理由：纹身只影响暴露值、不影响反差值
+#    （CONTRAST_SLOTS 只有 top / bottom），DP 的目标函数与它无关；
+#    把它并进 top / bra / dress / bottom / panties 那一大块，光选项数就会
+#    从两万五涨到上百万，直接跑不动。它的暴露值按**保守口径**计入
+#    （见 _multi_option_of），所以解依旧不会超上限。
 # ------------------------------------------------------------
 func _gate_root(parent: Dictionary, x: String) -> String:
 	while str(parent[x]) != x:
@@ -895,6 +1129,10 @@ func dp_groups(slots: Array) -> Array:
 #   ★ 第二十三轮：被强制占用的槽位不再「只有一件」——
 #     「固定一件」的组锁死那一件；「几件选一件」的组只放开组内那几件。
 func _group_options(group_slots: Array) -> Array:
+	# ★ 第三十六轮：多件槽位自成一组，选项是「0 ~ 上限件的各种组合」——
+	#   不能走下面那套「每槽位选一件」的笛卡尔积。
+	if group_slots.size() == 1 and data.is_multi_slot(str(group_slots[0])):
+		return _multi_group_options(str(group_slots[0]))
 	var lists := []
 	for slot in group_slots:
 		var s := str(slot)
@@ -927,14 +1165,179 @@ func _group_options(group_slots: Array) -> Array:
 				list2.append(cur2)
 		lists.append(list2)
 
+	# ★ 第三十七轮：每个槽位先按「对 DP 而言等价的字段」去重（见 _dedupe_equivalent）
+	for i in lists.size():
+		lists[i] = _dedupe_equivalent(lists[i], str(group_slots[i]))
+
 	var out := []
-	_walk_options(group_slots, lists, 0, {}, out)
-	return out
+	# ★ 第三十七轮：整棵递归共用一份 `eq`（下去时改、回来时还原），
+	#   不要再每个叶子 `equipped.duplicate()` 一次 —— 门控组的叶子有八千多个。
+	var eq: Dictionary = equipped.duplicate()
+	_walk_options(group_slots, lists, 0, {}, out, eq)
+	return _prune_options(out)
+
+# ------------------------------------------------------------
+#  每槽位「等价项」去重（第三十七轮）
+#
+#  为什么要有这一步：
+#    门控组（top / bra / bottom / dress / panties）的选项是**笛卡尔积**。
+#    第三十七轮把 top 19→27、bra 5→9、bottom 18→23、panties 5→11、dress 3→11
+#    之后，积从 8.6k 涨到 **62,469**；生成这些选项要调 6 万多次
+#    `_counts_with` / `_score_of`，实测「一键达标」要 7~8 秒。
+#    `_prune_options` 只能剪**最终结果**，剪不掉生成过程本身。
+#
+#  为什么能去重（① 完全等价）：
+#    DP 从一个候选件身上只会读到这几件事 ——
+#      · 暴露值（可见时计入）
+#      · `tags`（折算缺陷掩码）
+#      · `see` / `gate`（决定**别的槽位**露不露）
+#      · 是不是空件 `bare`（决定互斥判定）
+#      · 是不是 A 的原貌那一件（「已经不是原貌」那 1 分）
+#    这六项全同的两件，对 DP 而言完全等价 —— 只留一件就够，
+#    求出来的搭配数值一模一样。
+#    （反差值只跟 `exposure` 有关，已含在键里；槽位是同一个，所以
+#      「是不是 CONTRAST_SLOTS」这一项不必进键。）
+#
+#  为什么还能再剪（② 帕累托支配）：
+#    ① 只吃掉「一模一样」的，剩下的仍然要参与笛卡尔积。实测 ① 之后
+#    top / bra / bottom / dress / panties 的积还有四万多，生成一遍仍要几百毫秒。
+#    但「对其他槽位的影响」一致（`gate` / `see` / `bare` 相同）的两件里，
+#    如果一件**暴露更低、遮缺陷更全、反差更高、更不像原貌**全都占优，
+#    那另一件永远不可能出现在最优解里 —— 直接丢掉。
+#    这里不取近似：只要有一项严格更差才允许丢，且必须在同一 `beh` 组内比。
+#
+#  ★ 被强制占用的槽位不会出错：`_group_options` 已经先把候选缩到
+#    `forced_allowed_ids()` 里那几件，所以留下来的任何一件都是合规的。
+# ------------------------------------------------------------
+func _dedupe_equivalent(items: Array, slot: String) -> Array:
+	if items.size() <= 1:
+		return items
+	var true_id := str(true_appearance.get(slot, ""))
+	# ---- ① 完全等价去重 ----
+	# 键一律用**归一化后**的字段（`_defect_mask_of` 而不是 `tags` 原文、
+	# `outer_slots_of_item` 而不是 `gate` 原文）—— 否则「tags 顺序不同」
+	# 或「gate 显式写 vs 回落」这种写法差异会漏过 ①，
+	# 进到 ② 里又因为语义确实相同而互相判定为被支配，**两边都被删掉**，
+	# 整个槽位的候选列表清空 → 那一组无解 → 一键达标返回「什么都不改」。
+	var seen := {}
+	var out := []
+	for it in items:
+		var d: Dictionary = it
+		var key := "%d|%d|%s|%s|%d|%d" % [
+			int(d.get("exposure", 0)),
+			_defect_mask_of(d),
+			data.see_through_kind(d),
+			str(data.outer_slots_of_item(d)),
+			int(1 if data.is_bare(d) else 0),
+			int(1 if str(d.get("id", "")) == true_id else 0),
+		]
+		if seen.has(key):
+			continue
+		seen[key] = true
+		out.append(d)
+	if out.size() <= 1:
+		return out
+
+	# ---- ② 帕累托剪枝（同槽位内，行为一致的那一组里比） ----
+	var prof := []
+	for d in out:
+		var it: Dictionary = d
+		var iid := str(it.get("id", ""))
+		prof.append({
+			"it": it,
+			"exp": int(it.get("exposure", 0)),        # 越低越好
+			"mask": _defect_mask_of(it),              # 位越多越好
+			"con": _contrast_of(slot, iid),           # 反差越高越好
+			"own": 0 if iid == true_id else 1,        # 1 = 已经不是原貌，更好
+			"beh": "%s|%s|%d" % [                     # 对其他槽位的影响
+				str(data.outer_slots_of_item(it)),
+				data.see_through_kind(it),
+				1 if data.is_bare(it) else 0,
+			],
+		})
+	var keep := []
+	for i in prof.size():
+		var a: Dictionary = prof[i]
+		var dominated := false
+		for j in prof.size():
+			if i == j:
+				continue
+			var b: Dictionary = prof[j]
+			if str(b["beh"]) != str(a["beh"]):
+				continue
+			if int(b["exp"]) > int(a["exp"]) \
+					or (int(b["mask"]) | int(a["mask"])) != int(b["mask"]) \
+					or int(b["con"]) < int(a["con"]) \
+					or int(b["own"]) < int(a["own"]):
+				continue                          # b 至少有一项更差 → 不构成支配
+			# 四项全同（理论上 ① 已经拦掉）→ 只让序号小的赢，绝不互删
+			if int(b["exp"]) == int(a["exp"]) \
+					and int(b["mask"]) == int(a["mask"]) \
+					and int(b["con"]) == int(a["con"]) \
+					and int(b["own"]) == int(a["own"]) \
+					and j > i:
+				continue
+			dominated = true
+			break
+		if not dominated:
+			keep.append(a["it"])
+	return keep
+
+# ------------------------------------------------------------
+#  选项剪枝（第三十七轮）
+#
+#  为什么要有这一步：
+#    `_group_options` 对「门控组」（top / bra / bottom / dress / panties）
+#    算的是**笛卡尔积**。第三十七轮补了 35 件衣物之后，这个积从 8.6k 涨到
+#    **62,469**，而 DP 的内层循环是「状态数 × 选项数」——
+#    实测「一键达标」从 0.2 秒涨到 **7~8 秒**（62,469 选项 × 约 124 个状态）。
+#    这不是理论担忧，是探针量出来的（`tools/PerfProbe.tscn`，用完已删）。
+#
+#  为什么能剪：
+#    DP 只从每个选项里读三个数 —— **暴露值 / 缺陷掩码 / 得分**。
+#    · 两个选项若 (暴露值, 掩码) 完全相同，DP 只会用得分高的那一个；
+#    · 若 A 的 暴露值 ≤ B、掩码 ⊇ B、得分 ≥ B（且至少一项更优），
+#      那么任何「用 B」的解换成 A 之后暴露更低、遮得更全、得分更高 ——
+#      B 永远不可能出现在最优解里。
+#    所以只留**帕累托前沿**，DP 的解一模一样。
+#
+#  效果：62,469 → 一百上下（去重后至多 (cap+1) × 掩码数），
+#        DP 内层循环少三个数量级，「一键达标」回到毫秒级。
+# ------------------------------------------------------------
+func _prune_options(opts: Array) -> Array:
+	# ① 同 (暴露值, 掩码) 只留得分最高的那一个
+	var best := {}
+	for o in opts:
+		var k := int(o["exposure"]) * 100000 + int(o["mask"])
+		var cur: Variant = best.get(k)
+		if cur == null or int(o["score"]) > int((cur as Dictionary)["score"]):
+			best[k] = o
+	var uniq: Array = best.values()
+	if uniq.size() <= 1:
+		return uniq
+	# ② 帕累托剪枝：被支配的选项直接丢掉
+	var keep: Array = []
+	for i in uniq.size():
+		var a: Dictionary = uniq[i]
+		var dominated := false
+		for j in uniq.size():
+			if i == j:
+				continue
+			var b: Dictionary = uniq[j]
+			if int(b["exposure"]) <= int(a["exposure"]) \
+					and (int(b["mask"]) | int(a["mask"])) == int(b["mask"]) \
+					and int(b["score"]) >= int(a["score"]):
+				# ① 已经去过重，所以这里 b 与 a 至少有一项真的更优
+				dominated = true
+				break
+		if not dominated:
+			keep.append(a)
+	return keep
 
 func _walk_options(group_slots: Array, lists: Array, i: int,
-		acc: Dictionary, out: Array) -> void:
+		acc: Dictionary, out: Array, eq: Dictionary) -> void:
 	if i >= group_slots.size():
-		out.append(_option_of(group_slots, acc))
+		out.append(_option_of(group_slots, acc, eq))
 		return
 	var slot := str(group_slots[i])
 	for it in lists[i]:
@@ -946,7 +1349,75 @@ func _walk_options(group_slots: Array, lists: Array, i: int,
 			continue
 		var nxt := acc.duplicate()
 		nxt[slot] = it
-		_walk_options(group_slots, lists, i + 1, nxt, out)
+		# eq 只在「往下走」这段时间里带这一件，回来时还原
+		var prev: Variant = eq.get(slot, null)
+		eq[slot] = str((it as Dictionary).get("id", ""))
+		_walk_options(group_slots, lists, i + 1, nxt, out, eq)
+		eq[slot] = prev
+
+# ------------------------------------------------------------
+#  多件槽位（纹身）的 DP 选项
+#
+#  选项 = 「从这一槽位里挑 0 ~ 上限件」的所有组合（含空组合）。
+#  每件的暴露值按**保守口径**计入（当作它露在外面）——
+#  真实判定只会更小（外衣盖住 → 0），所以 DP 解在真实判定下一定不超上限。
+#  反差值照旧走 _score_of：纹身不在 CONTRAST_SLOTS 里，所以恒为 0，
+#  DP 只会为了「已经不是原貌」那 1 分去挑纹身，绝不会白吃暴露值。
+# ------------------------------------------------------------
+func _multi_group_options(slot: String) -> Array:
+	var cands := []
+	for it in data.get_items_for_slot(slot):
+		if not data.is_bare(it) and can_equip(it):
+			cands.append(it)
+	# 被强制占用时只放开允许的那几件
+	var allowed: Variant = forced_allowed_ids(slot)
+	if allowed != null:
+		var keep := []
+		for it in cands:
+			if (allowed as Array).has(str((it as Dictionary)["id"])):
+				keep.append(it)
+		cands = keep
+
+	var bare_id: String = data.bare_id_of(slot)
+	var cap: int = data.max_equip(slot)
+	# 子集枚举：subsets 里的每一项是「已选物品的数组」
+	var subsets := [[]]
+	for it in cands:
+		var add := []
+		for sub in subsets:
+			var arr: Array = sub
+			if arr.size() < cap:
+				var ns: Array = arr.duplicate()
+				ns.append(it)
+				add.append(ns)
+		subsets.append_array(add)
+
+	var out := []
+	for sub in subsets:
+		var ids := []
+		for it in (sub as Array):
+			ids.append(str((it as Dictionary)["id"]))
+		if ids.is_empty() and bare_id != "":
+			ids = [bare_id]                    # 「一件不穿」= 那一槽位的空件
+		out.append(_multi_option_of(slot, ids, sub))
+	return out
+
+func _multi_option_of(slot: String, ids: Array, items: Array) -> Dictionary:
+	var eq: Dictionary = equipped.duplicate()
+	eq[slot] = ids
+	# ★ 第三十七轮：可见性对这一个组合里的每一件都是同一个值，算一次就够
+	var counts := _counts_with(eq, slot)
+	var exp := 0
+	var score := 0
+	var mask := 0
+	for x in items:
+		var it: Dictionary = x
+		mask |= _defect_mask_of(it)
+		exp += int(it.get("exposure", 0))      # ★ 保守口径：按「露着」计
+		score += _score_of_known(slot, it, counts)
+	var pick := {}
+	pick[slot] = ids
+	return {"pick": pick, "exposure": exp, "score": score, "mask": mask}
 
 # 把这一件放进这一槽位，会不会跟已经选好的同组槽位撞车
 func _exclusive_conflict(acc: Dictionary, slot: String, it: Dictionary) -> bool:
@@ -966,13 +1437,14 @@ func _exclusive_conflict(acc: Dictionary, slot: String, it: Dictionary) -> bool:
 
 # 把一组「选好的物品」折算成 DP 要的四个数：
 # 暴露值（◎ 已按门控算过）/ 得分 / 缺陷掩码 / 实际选了哪些 id
-func _option_of(group_slots: Array, picks: Dictionary) -> Dictionary:
+#   ★ 第三十七轮：`eq` 由调用方（`_walk_options`）在递归里维护，这里只读；
+#     而且 `_counts_with` 只问一次、结果同时喂给暴露值与得分 ——
+#     门控组的叶子有八千多个，每个叶子少一半的 `_counts_with` 调用。
+func _option_of(group_slots: Array, picks: Dictionary, eq: Dictionary) -> Dictionary:
 	var idmap := {}
-	var eq: Dictionary = equipped.duplicate()
 	for slot in group_slots:
 		var s := str(slot)
 		idmap[s] = str((picks[s] as Dictionary).get("id", ""))
-		eq[s] = idmap[s]
 
 	var exp := 0
 	var score := 0
@@ -981,10 +1453,21 @@ func _option_of(group_slots: Array, picks: Dictionary) -> Dictionary:
 		var s := str(slot)
 		var it: Dictionary = picks[s]
 		mask |= _defect_mask_of(it)
-		if _counts_with(eq, s):
+		var counts := _counts_with(eq, s)
+		if counts:
 			exp += int(it.get("exposure", 0))
-		score += _score_of(s, it, eq)
+		score += _score_of_known(s, it, counts)
 	return {"pick": idmap, "exposure": exp, "score": score, "mask": mask}
+
+# 与 `_score_of` 同一口径，但可见性由调用方算好传进来（少一次 `_counts_with`）
+func _score_of_known(slot: String, it: Dictionary, counts: bool) -> int:
+	var con := 0
+	if counts:
+		con = _contrast_in_slot(slot, it)
+	var s: int = con * 256
+	if str(it.get("id", "")) != str(true_appearance.get(slot, "")):
+		s += 1
+	return s
 
 func _auto_report(touched: Array) -> Dictionary:
 	var uncovered := exposed_defects()

@@ -9,7 +9,6 @@ layer_image -> tint -> transform，保证图里看到的就是游戏里会看到
 
 用法：
   python tools/round35_sheet.py
-  python tools/round35_sheet.py --pack dol
 """
 
 import argparse
@@ -27,12 +26,9 @@ sys.path.insert(0, HERE)
 import dol_map as M            # noqa: E402
 import dol_prepare as D        # noqa: E402
 
-PACKS = {
-    'au': ('assets/dol_au', 'data/doll_au.json', 'E:/DOWNLOAD/AUfemale.imgpack_v0.9.3'),
-    'dol': ('assets/dol', 'data/doll.json', 'E:/DOWNLOAD/Degrees of Lewdity/img'),
-}
+PACK = ('assets/dol_au', 'data/doll_au.json', 'E:/DOWNLOAD/AUfemale.imgpack_v0.9.3')
 
-# (标题, 覆盖参数, 目标放大倍数) —— 目标倍数就是 dol_map.PACK_OVERRIDE 里写的那个 s
+# (标题, 覆盖参数, 目标放大倍数) —— 目标倍数就是 dol_map.AU_OVERRIDE 里写的那个 s
 ROW1 = [
     ("（无）", None, None),
     ("颈侧暗纹", ("flower", "left-shoulder"), 1.0),
@@ -48,7 +44,6 @@ ROW2 = [
 ]
 
 THIGH_BOX_AU = (20, 90, 58, 175)     # 68×203 取景框里的大腿区
-THIGH_BOX_DOL = (6, 40, 34, 92)      # 41×92 取景框里的大腿区
 
 
 def font(sz):
@@ -64,20 +59,18 @@ def font(sz):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument('--pack', default='au', choices=sorted(PACKS))
     ap.add_argument('--out', default=os.path.join('screenshots', '_round35_tattoo.png'))
     args = ap.parse_args()
 
-    asset_dir, json_rel, src_root = PACKS[args.pack]
+    asset_dir, json_rel, src_root = PACK
     root = os.path.join(PROJ, asset_dir)
     with io.open(os.path.join(PROJ, json_rel), encoding='utf-8') as f:
         doll = json.load(f)
 
-    D.P = dict(D.PACKS[args.pack])
-    D.P['name'] = args.pack
+    D.P = dict(D.PACKS['au'])
+    D.P['name'] = 'au'
     D.P['root'] = src_root
     D.OUT = os.path.join(PROJ, asset_dir)
-    D.DOL_ROOT = D.PACKS['dol']['root']
 
     w, h = doll['size']
     base = [(L['z'], L['file']) for L in doll['base']]
@@ -118,7 +111,7 @@ def main() -> int:
 
     Z1, Z2 = 3, 8
     CW1, CH1 = w * Z1, h * Z1
-    tb = THIGH_BOX_AU if args.pack == 'au' else THIGH_BOX_DOL
+    tb = THIGH_BOX_AU
     CW2, CH2 = (tb[2] - tb[0]) * Z2, (tb[3] - tb[1]) * Z2
 
     width = max(len(ROW1) * (CW1 + 10) + 10, len(ROW2) * (CW2 + 10) + 10)

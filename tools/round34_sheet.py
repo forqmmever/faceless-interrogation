@@ -15,7 +15,6 @@
 
 用法：
   python tools/round34_sheet.py                # 当前图包（au）
-  python tools/round34_sheet.py --pack dol
 """
 
 import argparse
@@ -33,10 +32,7 @@ sys.path.insert(0, HERE)
 import dol_map as M            # noqa: E402
 import dol_prepare as D        # noqa: E402
 
-PACKS = {
-    'au': ('assets/dol_au', 'data/doll_au.json', 'E:/DOWNLOAD/AUfemale.imgpack_v0.9.3'),
-    'dol': ('assets/dol', 'data/doll.json', 'E:/DOWNLOAD/Degrees of Lewdity/img'),
-}
+PACK = ('assets/dol_au', 'data/doll_au.json', 'E:/DOWNLOAD/AUfemale.imgpack_v0.9.3')
 
 # AU bodywriting 下的 14 个图案 → 中文名（`text` 是一个目录集，另附图注）
 TATTOO_CN = {
@@ -75,7 +71,6 @@ ACC_ROW = [
 
 # 头部取景（在烘焙后的 68×203 取景框里）—— AU 头心大约在 (44, 30)
 HEAD_BOX_AU = (22, 6, 66, 54)
-HEAD_BOX_DOL = (8, 4, 40, 36)
 
 
 def font(sz):
@@ -91,22 +86,20 @@ def font(sz):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument('--pack', default='au', choices=sorted(PACKS))
     ap.add_argument('--out-new', default=os.path.join('screenshots', '_round34_new.png'))
     ap.add_argument('--out-tat', default=os.path.join('screenshots', '_tattoo_pick.png'))
     args = ap.parse_args()
 
-    asset_dir, json_rel, src_root = PACKS[args.pack]
+    asset_dir, json_rel, src_root = PACK
     root = os.path.join(PROJ, asset_dir)
     with io.open(os.path.join(PROJ, json_rel), encoding='utf-8') as f:
         doll = json.load(f)
 
     # ---- 让 dol_prepare 按这个图包工作（它平时只在 __main__ 里设这几个全局）----
-    D.P = dict(D.PACKS[args.pack])
-    D.P['name'] = args.pack
+    D.P = dict(D.PACKS['au'])
+    D.P['name'] = 'au'
     D.P['root'] = src_root
     D.OUT = os.path.join(PROJ, asset_dir)
-    D.DOL_ROOT = D.PACKS['dol']['root']
 
     slot_of = {}
     story_p = os.path.join(PROJ, 'data', 'story.json')
@@ -152,7 +145,7 @@ def main() -> int:
                 font=font(15))
 
     # ================= 图 1：妆容 + 配饰 =================
-    HB = HEAD_BOX_AU if args.pack == 'au' else HEAD_BOX_DOL
+    HB = HEAD_BOX_AU
     ZOOM = 8
     cw = (HB[2] - HB[0]) * ZOOM
     ch = (HB[3] - HB[1]) * ZOOM
@@ -221,7 +214,7 @@ def main() -> int:
             continue
         im = D.layer_image(cand)
         bb = im.getbbox()
-        # 把 bbox 中心反算回 DoL 坐标系（和 dol_map.PACK_OVERRIDE['au'] 同一套换算）
+        # 把 bbox 中心反算回 DoL 坐标系（和 dol_map.AU_OVERRIDE 同一套换算）
         cx, cy = (bb[0] + bb[2]) / 2.0, (bb[1] + bb[3]) / 2.0
         ax = (cx - D.P['align_origin'][0]) / D.P['align_scale'] + D.DOL_HEAD[0]
         ay = (cy - D.P['align_origin'][1]) / D.P['align_scale'] + D.DOL_HEAD[1]

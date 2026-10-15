@@ -26,14 +26,13 @@ extends Control
 
 signal wardrobe_confirmed
 
-# 小人素材来自 assets/dol/ 或 assets/dol_au/（由 tools/dol_prepare.py 从图包烘焙而来，
-# 用哪一套见 DolDoll.PACK），取图与分层都交给 DolDoll.gd。
+# 小人素材来自 assets/dol_au/（由 tools/dol_prepare.py 从 AUfemale 图包烘焙而来，
+# 见 DolDoll.ROOT），取图与分层都交给 DolDoll.gd。
 
 const ICON_SIZE := 60                  # 卡片里的缩略图边长（= DoL 的 30×30 图标放 2 倍）
 const CARD_H := 68                     # 卡片高度（缩略图 60 + 上下留白；文字区一行点阵 + 名称）
-# 预览区的**上限盒子** —— DoL 的 41×92 取景框放 3 倍正好是这么大。
-# 实际尺寸按当前图包的取景框等比缩进去（DolDoll.fit_size），
-# 换 AU 那套（68×203，人物更高）时这里不用动。
+# 预览区的**上限盒子** —— 实际尺寸由 DolDoll.fit_size() 把 AU 取景框 68×203
+# 等比塞进来算出（得 92×276），这里只是上限，不写死具体数字。
 const STAGE_BOX := Vector2(123, 276)
 const CARD_COLS := 3                   # 每个槽位下面几列卡片
 const SLOT_BAR_W := 3
@@ -101,24 +100,31 @@ func start_level() -> void:
 
 # 把一组「slot -> item id」套回模型 —— 续玩时用来还原玩家上次的打扮。
 # 只认合法、属于该槽位、且当前接受度穿得起的那些；其余一律跳过。
+# ★ 第三十六轮：多件槽位（纹身）的值是 Array，逐件校验后一起还原。
 func apply_outfit(outfit: Dictionary) -> void:
 	if outfit.is_empty():
 		return
 	for slot in outfit.keys():
 		var s := str(slot)
-		var id := str(outfit[slot])
-		if id == "":
-			continue
 		# ★ 第二十七轮：下架的槽位不还原 —— 旧存档里可能还留着外袍 / 手套 / 头饰，
 		#   还原回来就会让 equipped 多出几个「界面看不见、数值却算进去」的槽位。
 		if not OutfitData.slot_enabled(s):
 			continue
-		var it := OutfitData.get_item(id)
-		if it.is_empty() or str(it.get("slot", "")) != s:
+		var raw: Variant = outfit[slot]
+		var ids := []
+		for x in (raw as Array if typeof(raw) == TYPE_ARRAY else [raw]):
+			var id := str(x)
+			if id == "":
+				continue
+			var it := OutfitData.get_item(id)
+			if it.is_empty() or str(it.get("slot", "")) != s:
+				continue
+			if not model.can_equip(it):
+				continue
+			ids.append(id)
+		if ids.is_empty():
 			continue
-		if not model.can_equip(it):
-			continue
-		model.equipped[s] = id
+		model.set_ids(s, ids)
 	# ★ 第二十七轮：还原完之后过一遍互斥归一化 —— 存档里的搭配本来就该是自洽的
 	#   （装备时就会自动清空同组其它槽位），这里只是兜底：
 	#   万一存档来自旧版本、或者被手工改过，也不会出现「成装 + 长裤」这种半截搭配。
@@ -526,7 +532,9 @@ func _on_peek_toggled(on: bool) -> void:
 func _on_item_pressed(item: Dictionary) -> void:
 	# 玩家自己动了手 → 上一次「一键达标」的结果说明就作废了
 	_auto_msg = ""
-	if model.equip(item):
+	# ★ 第三十六轮：多件槽位（纹身）走 toggle —— 已装备的再点一次是「脱下来」；
+	#   单件槽位的语义没变（点已装备的那件仍是空操作）。
+	if model.toggle(item):
 		_refresh()
 
 # ---- 测试按钮：一键满足本关全部服装要求 ----
@@ -604,14 +612,13 @@ func _refresh_preview() -> void:
 				if id != "":
 					eq[slot] = id
 	else:
-		eq = model.equipped.duplicate()
+		eq = model.equipped.duplicate(true)   # 深拷贝：多件槽位的值是 Array
 	# DolDoll 会按 z 序把基础层 + 这一身的每一层铺好，并把每个槽位的首个
 	# TextureRect 记回来（layer_rects 的语义与旧版一致：可用来判断有没有贴图）
 	layer_rects = DolDoll.stack_into(preview_stage, eq, _stage_size())
 
 
-# 预览区实际尺寸：当前图包的取景框等比塞进 STAGE_BOX。
-# dol 41×92 → 123×276（和以前完全一样）；au 68×203 → 92×276。
+# 预览区实际尺寸：把 AU 取景框 68×203 等比塞进 STAGE_BOX，得 92×276。
 func _stage_size() -> Vector2:
 	return DolDoll.fit_size(STAGE_BOX)
 
@@ -636,11 +643,19 @@ func _tip_for(it: Dictionary, locked: bool, affordable: bool) -> String:
 	var tip := "%s\n暴露值 %d ｜ 需接受度 %d" % [
 		it["name"], it["exposure"], it["acceptance_req"]]
 	var slot: String = it["slot"]
-	# ★ 第二十二轮：受门控的内衣内裤 —— 只有「看得见」时这两项才算（见下文表格）。
+	# ★ 第二十二轮（第三十六轮扩到纹身）：受门控的件 —— 只有「看得见」时才算数值。
 	#   不写出来的话，读数跟量表对不上，玩家会以为出 bug 了。
-	if OutfitData.is_gated_slot(slot) and not model.underwear_shown(slot):
+	if OutfitData.is_gated_item(it) and not model.item_counts(slot, str(it["id"])):
 		tip += "\n外衣盖得严实 —— 这一件不计入暴露值"
 		tip += "\n（透出来才算：透明外衣 / 镂空开档 / 直接外穿）"
+	# ★ 第三十六轮：多件槽位（纹身）—— 说清上限与「再点一次脱下来」。
+	if OutfitData.is_multi_slot(slot):
+		var n: int = model.solid_ids(slot).size()
+		tip += "\n最多同时装备 %d 件（当前 %d 件）" % [OutfitData.max_equip(slot), n]
+		if model.ids_at(slot).has(str(it["id"])):
+			tip += "\n再点一次即脱下"
+		elif n >= OutfitData.max_equip(slot):
+			tip += "\n已满 —— 再装一件会顶掉最早那件"
 	# ★ 刻意**不**在悬停里提示「这件与原貌一致 / 不同」——
 	#   那等于把答案直接写在卡片上，搭配的乐趣全没了。玩家得自己去情报台比对。
 	# ★ 第二十七轮：互斥槽位（成装 / 上装 / 下装）要说清「穿上它会顶掉谁」——
@@ -694,22 +709,24 @@ func _refresh_buttons() -> void:
 				if bar != null:
 					bar.color = DolStyle.GREEN
 
-		# 分区标题右侧：当前穿的是什么
+		# 分区标题右侧：当前穿的是什么（多件槽位把名字串起来）
 		var note: Label = slot_notes.get(slot)
 		if note != null:
-			var cur := model.item_at(slot)
-			note.text = "当前：%s" % str(cur.get("name", "—")) if not cur.is_empty() else ""
+			var names := []
+			for it in model.items_at(slot):
+				names.append(str((it as Dictionary).get("name", "")))
+			note.text = "当前：%s" % "、".join(names) if not names.is_empty() else ""
 
 	for slot in OutfitData.active_slots():
 		var items := OutfitData.get_items_for_slot(slot)
-		var cur_id: String = model.equipped.get(slot, "")
+		var cur_ids: Array = model.ids_at(slot)
 		var refs: Array = card_refs[slot]
 
 		for i in items.size():
 			var it: Dictionary = items[i]
 			var pair: Dictionary = refs[i]
 			var b: Button = pair["btn"]
-			var is_equipped: bool = str(it["id"]) == cur_id
+			var is_equipped: bool = cur_ids.has(str(it["id"]))
 			var locked := not model.can_equip(it)
 			# ★ 判断「装上后会不会超上限」必须按门控后的真实值来算 ——
 			#   换上蕾丝内衣本身不加暴露值，但换上半透上衣会连带把内衣一起点亮。
@@ -743,9 +760,10 @@ func _refresh_buttons() -> void:
 			(pair["e"] as DolStyle.Pips).setup(float(it.get("exposure", 0)),
 				float(OutfitData.stat_max_of("exposure")), DolStyle.RAMP_EXPOSE)
 
-			# ★ 第二十二轮：受门控的内衣内裤，外衣不够露时把点阵压暗 ——
+			# ★ 第二十二轮（第三十六轮扩到纹身）：受门控的件，外衣不够露时把点阵压暗 ——
 			#   卡片上照旧印着它自己的数值，但一眼就能看出「目前不算数」。
-			var gate_alpha := 1.0 if model.counts_toward_totals(slot) else 0.32
+			#   ★ 逐件判定：多件槽位里可能一件露着、一件被盖住。
+			var gate_alpha := 1.0 if model.item_counts(slot, str(it["id"])) else 0.32
 			(pair["e"] as DolStyle.Pips).modulate = Color(1, 1, 1, gate_alpha)
 
 			# 边框：强制装备（橙）优先于「已装备」（绿）

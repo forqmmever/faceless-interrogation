@@ -259,6 +259,68 @@
 - 测试：TestRunner **901**、WardrobeTest **444**（+4 条）、编辑器冒烟 **166**、手机冒烟 **97**；
   截图 42 张全 `err=0`。
 
+### 第 36 轮：四件刻字纹身 + 纹身改成「多件槽位 + 露出门控」
+
+- 用户口径：「要 bitch free-use slave cum-rag」「纹身与内衣内裤处理方法相同，不漏出来时，
+  不计算暴露值反差度」「同时可装备的纹身上限设为 2，将纹身暴露度设置为 2」。
+- **纹身槽 6 → 10 件**，四件刻字取 AU `bodywriting/text/<词>/<位置>`，
+  按用户选的位置**分散到四处**（左大腿 / 右大腿 / 胸口 / 下腹 —— `text/` 只有 5 个位置，正好够）：
+  `tattoo_bitch`（`text/bitch/left-thigh`，7×39 → 缩 0.72）、
+  `tattoo_freeuse`（`text/free-use/right-thigh`，8×17 → 放 1.6）、
+  `tattoo_slave`（`text/slave/breasts`，19×5 → 放 1.4）、
+  `tattoo_cumrag`（`text/cum-rag/pubic`，13×11 → 放 1.4）。
+  这批是「按部位画好的整字」而不是可自由缩放的小图案，所以 `align` 由该部位字形 bbox 中心反算、
+  `s` 只在 0.72~1.6 之间微调；`scale` 字段 = `s / 1.5` = 0.4800 / 1.0667 / 0.9333 / 0.9333。
+- **纹身变成「多件槽位」**：新增 `OutfitData.MULTI_SLOTS := {"tattoo": 2}`；
+  模型层 `equipped` 的值从此单件槽位是 `String`、多件槽位是 `Array`，
+  全部读写改走 `ids_at` / `id_at` / `set_ids` / `has_id` / `solid_ids`。
+  交互：点没装备的 = 加一件；点已装备的 = 脱下来；满 2 件时再点 = 顶掉最早那件；
+  点「（无）」= 全部卸掉。`tattoo_none` 补上 `"bare": true`（它是这一槽位的空件）。
+- **一件纹身 = 2 点暴露值**（原有 6 件的 `exposure` 全部 `0 / 1 → 2`），穿满两件 = 4 点。
+- **纹身与内衣内裤走同一条「露出门控」**：门控从「按槽位」扩到「按件」——
+  新增 `OutfitData.outer_slots_of_item()`（先看这一件自己的 `gate`，没有才退回 `UNDER_GATE`）。
+  大腿 / 下腹看 `bottom` + `dress`，胸口看 `top` + `dress`，颈侧再多一个 `neckwear`，
+  面颊 / 额头不给 `gate`（没有衣服盖得住，恒计入）。
+  连带项改成扫 `OutfitData.gate_dependents(slot)`（带缓存），`_delta()` 只在可见性真的翻转时才重算。
+- 界面：暴露值点阵**逐件压暗**；悬停写清「外衣盖得严实 —— 这一件不计入暴露值」与
+  「最多同时装备 2 件（当前 N 件）」。
+- 一键达标（DP）：纹身自成一个单元素组，故意不并进那一大块（并进去选项数会从两万五涨到上百万）；
+  它的暴露值按保守口径计入，所以解在真实判定下也不超上限。
+- 物品总数 **117 → 121**（玩家可见 **101 → 105**），`item_desc` **40 → 44 条**；
+  两套图包都重烘。新增对照图 `screenshots/_round36_tattoo.png` 与脚本 `tools/round36_sheet.py`。
+- 测试：WardrobeTest 444 → **483**（新增一整段「纹身：多件槽位 + 露出门控」）、
+  TestRunner **901**、编辑器冒烟 **166**（两处目录计数 117 → 121）、手机冒烟 **97**；截图 42 张全 `err=0`。
+
+### 第 37 轮：去穿环栏 · 吊袜带并入袜类 · 补 35 件 · 全线只留 AU 图包
+
+- 用户口径：「去掉穿环一栏，au中还有什么分类目前没有加入，吊带袜和袜类归为一类，
+  补充各个暴露度层级的衣服，使数量尽量平衡」「现在和之后只使用au源的服装」。
+- **穿环（`piercing`）整栏下架**：`DISABLED_SLOTS` 4 → 5 项
+  `["robe","earrings","gloves","headgear","piercing"]`。走既有下架机制，4 件物品与贴图一件没删。
+- **吊袜带（`garterbelt`）整栏并入 `stockings`**：槽位从 **19 减到 18**（`SLOT_ORDER` /
+  `PREVIEW_ORDER` / `SLOT_ZORDER` / `SLOT_NAMES` / `TRUE_POOL` / `TRUE_APPEARANCE` 同步）；
+  `garter_none` 删除（袜类已有自己的空件）；`garter_lace` / `garter_black` 改挂 `stockings`。
+- **补 35 件衣物**，把 3~9 档暴露度拉平：成装 8 / 上衣 8 / 上内衣 4 / 下内衣 6 / 下装 5 / 袜类 4。
+  物品总数 **121 → 155**（玩家可见 **105 → 135**，下架 5 栏合计 20 件）。
+  补完之后 1~9 档全部落在 **9~12 件**（补之前 3~8 档）。
+- **全线只留 AU 图包**：`tools/dol_prepare.py` 的 `PACKS` 只剩 `au`（`DOL_ROOT` / `hue_shift()` /
+  `--pack` 两套分支删除）；`tools/dol_map.py` 的 `HAIR_STYLES_AU` → `HAIR_STYLES`、`PACK_HAIR` 删除、
+  `PACK_OVERRIDE['au']` → `AU_OVERRIDE`；`scripts/DolDoll.gd` 的 `PACKS` 表改成三个常量；
+  `ScenarioData.PHOTO_FOCUS` / `PHOTO_FOCUS_AU` 两张取景表合成一张；9 个对照图脚本收敛成 AU-only。
+  **产物 `assets/dol/`（552 文件 / 1.6 MB）与 `data/doll.json` 已删除。**
+- **修掉真 bug：强制装备可能凑出互斥组合**。补的 8 件高暴露成装让 `forced_pool` 第一次有了
+  `dress` 候选，而 `dress` 与 `top`/`bottom` 互斥 → 「强制穿成装 + 强制穿下装」永远无法同时满足。
+  `OutfitData.forced_locked_out_slots()` 把互斥对家一起锁掉；`RunData._roll_forced()` 抽件时
+  按 `EXCLUSIVE_GROUPS` 再筛一遍。
+- **修掉性能回归（本轮自己引入的）**：「一键达标」DP 的门控组笛卡尔积 8,626 → **62,469**，
+  实测从 0.2 秒涨到 **7~8 秒**。加两级剪枝（① 六项归一化字段完全等价去重、
+  ② 同行为签名组内帕累托支配剪枝），门控组 **676,269 → 27**，
+  `auto_complete_outfit()` 回到 **70~80 ms/次**。第一版 ① 用了 `tags` / `gate` 原文做键，
+  导致等价件漏过 ① 又在 ② 里互删、候选清空，被 WardrobeTest 7 条断言抓到，已改成归一化键。
+- 测试：WardrobeTest 483 → **487**、TestRunner **901**、编辑器冒烟 **166**
+  （`P.SLOTS` 19 → 18、候选池 35 → 34、catalog 121 → 155 三处硬编码同步）、手机冒烟 **97**；
+  截图 43 张全 `err=0`。`story.json` 的 `catalog.items` 121 → 155、`item_desc` 删 `garter_none`。
+
 ## 测试规模的变化（只有实测过的数据点）
 
 | 轮次 | WardrobeTest | TestRunner | 编辑器冒烟 | 手机冒烟 |
@@ -268,5 +330,7 @@
 | 第 33 轮末 | **440** | **901** | **166** | 97 |
 | 第 34 轮末 | 440 | 901 | 166 | 97 |
 | 第 35 轮末 | **444** | 901 | 166 | 97 |
+| 第 36 轮末 | **483** | 901 | 166 | 97 |
+| 第 37 轮末 | **487** | 901 | 166 | 97 |
 
-截图固定 **42 张**（第 29 轮起，此前 39 张 —— 有 3 张因为截图脚本按旧字段找题而漏拍，已修）。
+截图固定 **43 张**（第 36 轮加入 `01g_tattoo_multi` 后从 42 → 43）。

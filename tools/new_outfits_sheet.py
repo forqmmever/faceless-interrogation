@@ -20,7 +20,6 @@
 
 用法：
   python tools/new_outfits_sheet.py                 # 用当前图包（assets/dol_au + data/doll_au.json）
-  python tools/new_outfits_sheet.py --pack dol      # 换成 DoL 那套
   python tools/new_outfits_sheet.py --au-root <图包目录>   # 换 AU 原图包位置（只为「修之前」那两格）
 """
 
@@ -35,10 +34,7 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJ = os.path.dirname(HERE)
 
-PACKS = {
-    'au': ('assets/dol_au', 'data/doll_au.json'),
-    'dol': ('assets/dol', 'data/doll.json'),
-}
+PACK = ('assets/dol_au', 'data/doll_au.json')
 
 AU_ROOT_DEFAULT = 'E:/DOWNLOAD/AUfemale.imgpack_v0.9.3'
 
@@ -111,13 +107,12 @@ def bake_old_panties(au_root, frame, crop, tint):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument('--pack', default='au', choices=sorted(PACKS))
     ap.add_argument('--out', default=os.path.join('screenshots', '_new_outfits.png'))
     ap.add_argument('--au-root', default=AU_ROOT_DEFAULT,
                     help='AU 原图包目录（只为「修之前」那两格现烘一层 gstring）')
     args = ap.parse_args()
 
-    asset_dir, json_rel = PACKS[args.pack]
+    asset_dir, json_rel = PACK
     root = os.path.join(PROJ, asset_dir)
     with io.open(os.path.join(PROJ, json_rel), encoding='utf-8') as f:
         doll = json.load(f)
@@ -183,7 +178,7 @@ def main() -> int:
     big.convert('RGB').save(out_path)
 
     print("图包 %s ｜ 取景框 %s ｜ %d 格 → %s  %dx%d" % (
-        args.pack, doll.get('crop'), cols, args.out, big.width, big.height))
+        'au', doll.get('crop'), cols, args.out, big.width, big.height))
     print("顺序：" + " ｜ ".join(t for t, _ in ROWS))
     if skipped:
         print("★ 这几格需要 AU 原图包（%s）才能现烘旧丁字裤，已跳过：%s"

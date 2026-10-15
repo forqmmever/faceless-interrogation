@@ -151,6 +151,11 @@ func _viable_build(m: WardrobeModel) -> void:
 			#   把成装整栏跳过去，只在「上衣 + 下装」里求解（见函数开头的说明）。
 			if slot == "dress":
 				continue
+			# ★ 第三十六轮：纹身变成「多件槽位」（一个槽位可同时装 2 件），
+			#   而这一版贪心是「一个槽位一件」的模型 —— 它会把整条 Array 顶成单件。
+			#   纹身只加暴露值、不贡献反差，对「凑达标」没有帮助，索性整栏跳过。
+			if OutfitData.is_multi_slot(slot):
+				continue
 			var cur := m.item_at(slot)
 			for it in OutfitData.get_items_for_slot(slot):
 				if str(it["id"]) == str(cur.get("id", "")):
@@ -191,6 +196,11 @@ func _viable_build(m: WardrobeModel) -> void:
 			# ★ 第二十七轮：成装与上装 / 下装互斥，这一版贪心没有互斥剪枝 ——
 			#   把成装整栏跳过去，只在「上衣 + 下装」里求解（见函数开头的说明）。
 			if slot == "dress":
+				continue
+			# ★ 第三十六轮：纹身变成「多件槽位」（一个槽位可同时装 2 件），
+			#   而这一版贪心是「一个槽位一件」的模型 —— 它会把整条 Array 顶成单件。
+			#   纹身只加暴露值、不贡献反差，对「凑达标」没有帮助，索性整栏跳过。
+			if OutfitData.is_multi_slot(slot):
 				continue
 			var cur := m.item_at(slot)
 			var cur_id := str(cur.get("id", ""))
@@ -501,6 +511,30 @@ func _run() -> void:
 	wardrobe.start_level()
 	await _wait(10)
 
+	# ---------- 纹身：同时 2 件 + 逐件门控（第三十六轮）----------
+	#  用户口径：「可装备的纹身上限设为 2，将纹身暴露度设置为 2」+
+	#           「纹身与内衣内裤处理方法相同，不漏出来时，不计算暴露值反差度」。
+	#  这一张一次拍出两件事：
+	#    ① 纹身槽能**同时装 2 件** —— 两张卡片同时是「已装备」；
+	#    ② 门控是**逐件**的 —— 同一屏里一件露着（点阵正常）、一件被盖住（点阵压暗）。
+	_plog("--- 1g: 纹身 · 同时 2 件 + 逐件门控 —— 上装「（不穿）」露出胸口刻字、长裙盖住大腿刻字 ---")
+	gm.equipped["dress"] = "dress_none"
+	gm.equipped["top"] = "top_none"              # 胸口刻字露出来
+	gm.equipped["bottom"] = "bottom_longskirt"   # 大腿刻字被盖住
+	gm.equipped["tattoo"] = ["tattoo_slave", "tattoo_bitch"]
+	wardrobe._refresh()
+	_scroll_to_slot(wall, "tattoo")
+	await _wait(14)
+	_plog("     胸口「slave」%s ｜ 大腿「bitch」%s ｜ 纹身槽合计 %d 点（满 2 件 = 4 点）"
+		% ["计入" if gm.item_counts("tattoo", "tattoo_slave") else "不计入",
+		   "计入" if gm.item_counts("tattoo", "tattoo_bitch") else "不计入",
+		   gm.effective_stat("tattoo", "exposure")])
+	_plog("     两张卡片都是「已装备」；再点已装备的那张 = 脱下来，装满 2 件再点第三张 = 顶掉最早那件")
+	await _shot("01g_tattoo_multi")
+	wardrobe.start_level()
+	wall.scroll_vertical = 0
+	await _wait(10)
+
 	# ---------- 强制穿着：固定一件 + 几件选一件（第二十三轮，编辑器可写）----------
 	#  这张专门给「自由组合」留证据：一条「必须穿黑色蕾丝内裤」+ 一条
 	#  「超短皮裙 / 开衩短裙 里任选一件」。规则是编辑器里写死的，
@@ -690,7 +724,9 @@ func _run() -> void:
 			continue
 		var best: Dictionary = {}
 		for it in OutfitData.get_items_for_slot(slot):
-			var old: String = m.equipped[slot]
+			# ★ 第三十六轮：`equipped` 的值可能是 Array（多件槽位），这里用 Variant 接住 ——
+			#   上面那串槽位眼下都是单件，但别再埋一颗同类的雷。
+			var old: Variant = m.equipped[slot]
 			m.equipped[slot] = str(it["id"])
 			var keeps_covered: bool = m.exposed_defects().is_empty()
 			m.equipped[slot] = old

@@ -185,6 +185,16 @@ func _roll_forced_items(li: int) -> void:
 		var slot := str(it.get("slot", ""))
 		if used_slots.has(slot):
 			continue
+		# ★ 第三十七轮：互斥组里各挑一件 = 穿不到一起 = 本关死局。
+		#   典型是「强制穿成装」+「强制穿下装」——成装一上身，下装就被清空，
+		#   两条强制要求永远无法同时满足。这里按 EXCLUSIVE_GROUPS 互斥地筛一遍。
+		var clash := false
+		for peer in OutfitData.exclusive_peers(slot):
+			if used_slots.has(str(peer)):
+				clash = true
+				break
+		if clash:
+			continue
 		used_slots.append(slot)
 		forced_items.append(str(it.get("id", "")))
 

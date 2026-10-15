@@ -21,7 +21,6 @@
 
 用法：
   python tools/round26_sheet.py                 # 当前图包（assets/dol_au + data/doll_au.json）
-  python tools/round26_sheet.py --pack dol      # 换成 DoL 那套
   python tools/round26_sheet.py --rows a        # 只出第一行（刺青 + 项圈）
 """
 
@@ -36,10 +35,7 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJ = os.path.dirname(HERE)
 
-PACKS = {
-    'au': ('assets/dol_au', 'data/doll_au.json'),
-    'dol': ('assets/dol', 'data/doll.json'),
-}
+PACK = ('assets/dol_au', 'data/doll_au.json')
 
 # 每一行是一组 (标题, [物品 id])；空列表 = 只有身体。
 ROWS = {
@@ -75,12 +71,11 @@ ROW_GAP = 10
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument('--pack', default='au', choices=sorted(PACKS))
     ap.add_argument('--rows', default='ab', choices=['a', 'b', 'ab'])
     ap.add_argument('--out', default=os.path.join('screenshots', '_round26_new.png'))
     args = ap.parse_args()
 
-    asset_dir, json_rel = PACKS[args.pack]
+    asset_dir, json_rel = PACK
     root = os.path.join(PROJ, asset_dir)
     with io.open(os.path.join(PROJ, json_rel), encoding='utf-8') as f:
         doll = json.load(f)
@@ -128,7 +123,7 @@ def main() -> int:
     big.convert('RGB').save(out_path)
 
     print("图包 %s ｜ 取景框 %s ｜ %d 行 × 最多 %d 格 → %s  %dx%d" % (
-        args.pack, doll.get('crop'), rows, cols, args.out, big.width, big.height))
+        'au', doll.get('crop'), rows, cols, args.out, big.width, big.height))
     for ri, group in enumerate(picked):
         print("  第 %d 行：" % (ri + 1) + " ｜ ".join(t for t, _ in group))
     if missing:

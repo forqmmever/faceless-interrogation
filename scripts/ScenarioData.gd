@@ -1392,7 +1392,6 @@ const DEFAULT_CLUE_FRAME := {
 	"accessory": "「他衣襟上%s。」",
 	"bottom": "「他下身那条%s。」",
 	"dress": "「他%s。」",
-	"garterbelt": "「他腿上%s。」",
 	"panties": "「贴身的衣物%s。」",
 	"stockings": "「他两条腿%s。」",
 	"shoes": "「他脚上%s。」",
@@ -1415,7 +1414,6 @@ const DEFAULT_CLUE_SOURCES := {
 	"accessory": ["当铺朝奉", "街上小贩的回忆", "线人的报告"],
 	"bottom": ["街头目击", "洗衣妇的回忆", "巡夜人的记录"],
 	"dress": ["成衣铺的订单", "同船女客的说法", "码头洗衣妇的回忆"],
-	"garterbelt": ["线人的报告", "旧衣铺的账单", "同住旅人的说法"],
 	"panties": ["同一张账单背面", "内院仆妇的说法", "旧衣铺的账目"],
 	"stockings": ["医馆的记录", "洗衣妇的回忆", "码头脚夫的口供"],
 	"shoes": ["马夫的印象", "鞋匠铺的账目", "城门口的值守记录"],
@@ -1453,6 +1451,11 @@ const DEFAULT_ITEM_DESC := {
 	"tattoo_thigh": "大腿上攀着一枝暗色的藤蔓",
 	"tattoo_heart": "大腿上串着一列小小的暗色心形",
 	"tattoo_paw": "大腿外侧印着一枚小小的兽爪",
+	# ★ 第三十六轮新增的四件刻字纹身（各占一处，见 OutfitData 的 tattoo 段）
+	"tattoo_bitch": "左大腿内侧刻着「bitch」一行小字",
+	"tattoo_freeuse": "右大腿上刻着「free-use」一行小字",
+	"tattoo_slave": "胸口正中刻着「slave」一行小字",
+	"tattoo_cumrag": "小腹下方刻着「cum-rag」一行小字",
 	# ---- neckwear ----
 	"neck_none": "从来不挂东西，说是碍事",
 	"neck_collar": "领子总是立着，硬挺挺的",
@@ -1476,11 +1479,10 @@ const DEFAULT_ITEM_DESC := {
 	# ---- dress（第二十六轮新增的整件式槽位）----
 	"dress_none": "从没见穿过裙子，一贯是上衣配长裤",
 	"dress_sundress": "夏天会穿一条素色吊带连衣裙，肩上有两道晒痕",
-	# ---- garterbelt ----
-	"garter_none": "没有那种东西，他嫌麻烦",
 	# ---- panties ----
 	"panties_plain": "是素色棉质的，账单背面写着三条",
 	# ---- stockings ----
+	# ★ 第三十七轮：吊袜带整栏并入袜类，`garter_none` 一并撤掉。
 	"stockings_none": "从不穿袜，脚踝上留着一道旧疤",
 	"stockings_opaque": "常年裹着不透明的深色连裤袜",
 	# ---- shoes ----
@@ -1523,8 +1525,7 @@ func clue_text(slot: String, item_id: String) -> String:
 	return frame_of(slot) % d
 
 func photo_focus(slot: String) -> Rect2:
-	var table := PHOTO_FOCUS_AU if DolDoll.pack() == "au" else PHOTO_FOCUS
-	return table.get(slot, Rect2(0, 0, DolDoll.frame_size().x, DolDoll.frame_size().y))
+	return PHOTO_FOCUS.get(slot, Rect2(0, 0, DolDoll.frame_size().x, DolDoll.frame_size().y))
 
 # ============================================================
 #  手机相册
@@ -1558,31 +1559,13 @@ const PHOTO_CLEAR_AT := 0.70        # 清晰度达到这个值才能认出来
 
 # 每张照片「取景」在小人画布上的哪一块
 # （全身照太小，所以按槽位裁一个特写 —— 更像个偷拍的人凑近了拍）
-# ★ 坐标是**小人取景框**里的像素位置，见 data/doll.json 的 size。
-#   两套美术的取景框不一样大（DoL 41×92 / AU 68×203），而且 AU 的人是重画的
-#   （头 33 px vs DoL 22 px、有完整双腿），不能按比例硬套，所以各标一份。
-#   下面这份是 DoL 的（取景框 41×92）。
+# ★ 坐标是**小人取景框**里的像素位置，见 data/doll_au.json 的 size。
+#   第三十七轮起只剩 AU 一套美术（取景框 68×203），这份就是照它标定的。
+#   标定依据 —— 烘好后的实际 bbox：
+#     头 26..59 × 15..48、眼 32..49 × 33..42、嘴 41..44 × 43..44、
+#     躯干 26..59 × 47..187、上衣 26..59 × 52..102、下装 23..62 × 83..124、
+#     鞋 26..60 × 161..189、颈饰 39..46 × 48..53、帽子 12..68 × 0..26。
 const PHOTO_FOCUS := {
-	"hair": Rect2(5, 2, 32, 30),
-	"headgear": Rect2(2, 0, 37, 22),
-	"glasses": Rect2(11, 18, 22, 14),
-	"earrings": Rect2(6, 14, 29, 18),
-	"makeup": Rect2(12, 16, 20, 16),
-	"piercing": Rect2(12, 16, 20, 16),
-	"tattoo": Rect2(11, 24, 20, 20),
-	"neckwear": Rect2(8, 24, 26, 20),
-	"top": Rect2(11, 34, 24, 22),
-	"bottom": Rect2(9, 44, 26, 32),
-	"dress": Rect2(7, 26, 28, 44),
-	"shoes": Rect2(9, 70, 26, 18),
-	"robe": Rect2(8, 28, 28, 40),
-}
-
-# AU 那套（取景框 68×203）。标定依据 —— 烘好后的实际 bbox：
-#   头 26..59 × 15..48、眼 32..49 × 33..42、嘴 41..44 × 43..44、
-#   躯干 26..59 × 47..187、上衣 26..59 × 52..102、下装 23..62 × 83..124、
-#   鞋 26..60 × 161..189、颈饰 39..46 × 48..53、帽子 12..68 × 0..26。
-const PHOTO_FOCUS_AU := {
 	"hair": Rect2(16, 8, 50, 60),
 	"headgear": Rect2(14, 0, 54, 32),
 	"glasses": Rect2(28, 28, 30, 20),

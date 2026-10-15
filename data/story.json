@@ -20,8 +20,8 @@
 		"expr_qte_pass": 60,
 		"expr_qte_fail": 24,
 		"expr_qte_delay": 2.5,
-		"exposure_qte_min": 10.0,
-		"exposure_qte_full": 60.0,
+		"exposure_qte_min": 10,
+		"exposure_qte_full": 60,
 		"interference_window": 2.6,
 		"interference_base": 14,
 		"interference_fail_penalty": 18,
@@ -469,7 +469,7 @@
 				"contrast": 0,
 				"acceptance_req": 0,
 				"tags": [],
-				"disabled": false
+				"disabled": true
 			},
 			{
 				"id": "piercing_multi",
@@ -480,7 +480,7 @@
 				"contrast": 2,
 				"acceptance_req": 2,
 				"tags": [],
-				"disabled": false
+				"disabled": true
 			},
 			{
 				"id": "piercing_lip",
@@ -491,7 +491,7 @@
 				"contrast": 5,
 				"acceptance_req": 7,
 				"tags": [],
-				"disabled": false
+				"disabled": true
 			},
 			{
 				"id": "piercing_nose",
@@ -502,7 +502,7 @@
 				"contrast": 7,
 				"acceptance_req": 10,
 				"tags": [],
-				"disabled": false
+				"disabled": true
 			},
 			{
 				"id": "tattoo_none",
@@ -520,7 +520,7 @@
 				"name": "颈侧暗纹",
 				"slot": "tattoo",
 				"slot_name": "纹身",
-				"exposure": 0,
+				"exposure": 2,
 				"contrast": 2,
 				"acceptance_req": 3,
 				"tags": [],
@@ -531,7 +531,7 @@
 				"name": "面颊刺青",
 				"slot": "tattoo",
 				"slot_name": "纹身",
-				"exposure": 1,
+				"exposure": 2,
 				"contrast": 4,
 				"acceptance_req": 6,
 				"tags": [],
@@ -542,7 +542,7 @@
 				"name": "大腿藤蔓纹身",
 				"slot": "tattoo",
 				"slot_name": "纹身",
-				"exposure": 1,
+				"exposure": 2,
 				"contrast": 6,
 				"acceptance_req": 8,
 				"tags": [],
@@ -553,7 +553,7 @@
 				"name": "大腿心形纹身",
 				"slot": "tattoo",
 				"slot_name": "纹身",
-				"exposure": 1,
+				"exposure": 2,
 				"contrast": 6,
 				"acceptance_req": 8,
 				"tags": [],
@@ -564,9 +564,53 @@
 				"name": "大腿爪印",
 				"slot": "tattoo",
 				"slot_name": "纹身",
-				"exposure": 1,
+				"exposure": 2,
 				"contrast": 5,
 				"acceptance_req": 8,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "tattoo_bitch",
+				"name": "左大腿刻字「bitch」",
+				"slot": "tattoo",
+				"slot_name": "纹身",
+				"exposure": 2,
+				"contrast": 7,
+				"acceptance_req": 9,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "tattoo_freeuse",
+				"name": "右大腿刻字「free-use」",
+				"slot": "tattoo",
+				"slot_name": "纹身",
+				"exposure": 2,
+				"contrast": 7,
+				"acceptance_req": 9,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "tattoo_slave",
+				"name": "胸口刻字「slave」",
+				"slot": "tattoo",
+				"slot_name": "纹身",
+				"exposure": 2,
+				"contrast": 7,
+				"acceptance_req": 9,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "tattoo_cumrag",
+				"name": "下腹刻字「cum-rag」",
+				"slot": "tattoo",
+				"slot_name": "纹身",
+				"exposure": 2,
+				"contrast": 8,
+				"acceptance_req": 10,
 				"tags": [],
 				"disabled": false
 			},
@@ -894,6 +938,94 @@
 				"disabled": false
 			},
 			{
+				"id": "top_tank",
+				"name": "无袖针织背心",
+				"slot": "top",
+				"slot_name": "上衣",
+				"exposure": 3,
+				"contrast": 3,
+				"acceptance_req": 3,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "top_tube",
+				"name": "无肩带抹胸",
+				"slot": "top",
+				"slot_name": "上衣",
+				"exposure": 4,
+				"contrast": 4,
+				"acceptance_req": 5,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "top_swim",
+				"name": "泳衣式上衣",
+				"slot": "top",
+				"slot_name": "上衣",
+				"exposure": 4,
+				"contrast": 5,
+				"acceptance_req": 5,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "top_leathercrop",
+				"name": "皮质短上衣",
+				"slot": "top",
+				"slot_name": "上衣",
+				"exposure": 5,
+				"contrast": 5,
+				"acceptance_req": 6,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "top_chain",
+				"name": "锁链挂脖上衣",
+				"slot": "top",
+				"slot_name": "上衣",
+				"exposure": 7,
+				"contrast": 6,
+				"acceptance_req": 8,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "top_graphiccrop",
+				"name": "网眼印花短上衣",
+				"slot": "top",
+				"slot_name": "上衣",
+				"exposure": 8,
+				"contrast": 6,
+				"acceptance_req": 8,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "top_towel",
+				"name": "只围一条浴巾",
+				"slot": "top",
+				"slot_name": "上衣",
+				"exposure": 9,
+				"contrast": 6,
+				"acceptance_req": 10,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "top_bedsheet",
+				"name": "单披一条床单",
+				"slot": "top",
+				"slot_name": "上衣",
+				"exposure": 9,
+				"contrast": 5,
+				"acceptance_req": 10,
+				"tags": [],
+				"disabled": false
+			},
+			{
 				"id": "bra_plain",
 				"name": "素色无痕内衣",
 				"slot": "bra",
@@ -945,6 +1077,50 @@
 				"exposure": 5,
 				"contrast": 8,
 				"acceptance_req": 9,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "bra_bikini",
+				"name": "系带比基尼上衣",
+				"slot": "bra",
+				"slot_name": "上内衣",
+				"exposure": 4,
+				"contrast": 5,
+				"acceptance_req": 5,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "bra_latex",
+				"name": "乳胶连体上衣",
+				"slot": "bra",
+				"slot_name": "上内衣",
+				"exposure": 8,
+				"contrast": 7,
+				"acceptance_req": 9,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "bra_seethrough",
+				"name": "透明泳衣上衣",
+				"slot": "bra",
+				"slot_name": "上内衣",
+				"exposure": 9,
+				"contrast": 7,
+				"acceptance_req": 10,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "bra_tape",
+				"name": "胶带束胸",
+				"slot": "bra",
+				"slot_name": "上内衣",
+				"exposure": 9,
+				"contrast": 8,
+				"acceptance_req": 10,
 				"tags": [],
 				"disabled": false
 			},
@@ -1252,6 +1428,61 @@
 				"disabled": false
 			},
 			{
+				"id": "bottom_pencil",
+				"name": "包臀铅笔裙",
+				"slot": "bottom",
+				"slot_name": "下装",
+				"exposure": 3,
+				"contrast": 4,
+				"acceptance_req": 4,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "bottom_shortshort",
+				"name": "牛仔超短热裤",
+				"slot": "bottom",
+				"slot_name": "下装",
+				"exposure": 4,
+				"contrast": 4,
+				"acceptance_req": 4,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "bottom_leathershort",
+				"name": "皮质超短裤",
+				"slot": "bottom",
+				"slot_name": "下装",
+				"exposure": 5,
+				"contrast": 6,
+				"acceptance_req": 6,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "bottom_chain",
+				"name": "锁链短裙",
+				"slot": "bottom",
+				"slot_name": "下装",
+				"exposure": 7,
+				"contrast": 6,
+				"acceptance_req": 8,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "bottom_sarong",
+				"name": "一片式裹裙",
+				"slot": "bottom",
+				"slot_name": "下装",
+				"exposure": 8,
+				"contrast": 6,
+				"acceptance_req": 8,
+				"tags": [],
+				"disabled": false
+			},
+			{
 				"id": "dress_none",
 				"name": "（不穿成装）",
 				"slot": "dress",
@@ -1285,35 +1516,90 @@
 				"disabled": false
 			},
 			{
-				"id": "garter_none",
-				"name": "（不穿）",
-				"slot": "garterbelt",
-				"slot_name": "吊袜带",
-				"exposure": 0,
-				"contrast": 0,
-				"acceptance_req": 0,
+				"id": "dress_kimono",
+				"name": "短款和服",
+				"slot": "dress",
+				"slot_name": "成装",
+				"exposure": 3,
+				"contrast": 4,
+				"acceptance_req": 4,
 				"tags": [],
 				"disabled": false
 			},
 			{
-				"id": "garter_lace",
-				"name": "蕾丝吊袜带",
-				"slot": "garterbelt",
-				"slot_name": "吊袜带",
-				"exposure": 1,
-				"contrast": 4,
+				"id": "dress_maid",
+				"name": "黑白女仆装",
+				"slot": "dress",
+				"slot_name": "成装",
+				"exposure": 3,
+				"contrast": 5,
 				"acceptance_req": 5,
 				"tags": [],
 				"disabled": false
 			},
 			{
-				"id": "garter_black",
-				"name": "黑色皮革吊袜带",
-				"slot": "garterbelt",
-				"slot_name": "吊袜带",
-				"exposure": 2,
+				"id": "dress_slip",
+				"name": "缎面吊带睡裙",
+				"slot": "dress",
+				"slot_name": "成装",
+				"exposure": 4,
 				"contrast": 5,
+				"acceptance_req": 5,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "dress_nurse",
+				"name": "粉色护士服",
+				"slot": "dress",
+				"slot_name": "成装",
+				"exposure": 4,
+				"contrast": 6,
+				"acceptance_req": 6,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "dress_cheongsam",
+				"name": "开衩短旗袍",
+				"slot": "dress",
+				"slot_name": "成装",
+				"exposure": 5,
+				"contrast": 6,
 				"acceptance_req": 7,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "dress_leather",
+				"name": "皮质紧身裙",
+				"slot": "dress",
+				"slot_name": "成装",
+				"exposure": 7,
+				"contrast": 7,
+				"acceptance_req": 8,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "dress_swan",
+				"name": "高开衩天鹅绒长裙",
+				"slot": "dress",
+				"slot_name": "成装",
+				"exposure": 8,
+				"contrast": 7,
+				"acceptance_req": 9,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "dress_transparent",
+				"name": "透明纱睡袍",
+				"slot": "dress",
+				"slot_name": "成装",
+				"exposure": 9,
+				"contrast": 7,
+				"acceptance_req": 11,
 				"tags": [],
 				"disabled": false
 			},
@@ -1369,6 +1655,72 @@
 				"exposure": 8,
 				"contrast": 7,
 				"acceptance_req": 8,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "panties_bikini",
+				"name": "系带比基尼内裤",
+				"slot": "panties",
+				"slot_name": "下内衣",
+				"exposure": 4,
+				"contrast": 5,
+				"acceptance_req": 5,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "panties_shibari",
+				"name": "绳缚式内裤",
+				"slot": "panties",
+				"slot_name": "下内衣",
+				"exposure": 8,
+				"contrast": 8,
+				"acceptance_req": 9,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "panties_gstring",
+				"name": "细绳丁字裤",
+				"slot": "panties",
+				"slot_name": "下内衣",
+				"exposure": 9,
+				"contrast": 8,
+				"acceptance_req": 10,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "panties_loincloth",
+				"name": "遮羞布",
+				"slot": "panties",
+				"slot_name": "下内衣",
+				"exposure": 9,
+				"contrast": 7,
+				"acceptance_req": 10,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "panties_tieside",
+				"name": "系带开衩比基尼内裤",
+				"slot": "panties",
+				"slot_name": "下内衣",
+				"exposure": 9,
+				"contrast": 8,
+				"acceptance_req": 11,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "panties_seethrough",
+				"name": "透明连体泳裤",
+				"slot": "panties",
+				"slot_name": "下内衣",
+				"exposure": 9,
+				"contrast": 8,
+				"acceptance_req": 11,
 				"tags": [],
 				"disabled": false
 			},
@@ -1435,6 +1787,72 @@
 				"exposure": 1,
 				"contrast": 2,
 				"acceptance_req": 2,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "garter_lace",
+				"name": "蕾丝吊袜带",
+				"slot": "stockings",
+				"slot_name": "袜类",
+				"exposure": 1,
+				"contrast": 4,
+				"acceptance_req": 5,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "garter_black",
+				"name": "黑色皮革吊袜带",
+				"slot": "stockings",
+				"slot_name": "袜类",
+				"exposure": 2,
+				"contrast": 5,
+				"acceptance_req": 7,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "stockings_sheer",
+				"name": "超薄丝袜",
+				"slot": "stockings",
+				"slot_name": "袜类",
+				"exposure": 5,
+				"contrast": 5,
+				"acceptance_req": 6,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "stockings_fishnettights",
+				"name": "网眼连裤袜",
+				"slot": "stockings",
+				"slot_name": "袜类",
+				"exposure": 7,
+				"contrast": 6,
+				"acceptance_req": 8,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "stockings_chainnet",
+				"name": "金属环网眼腿套",
+				"slot": "stockings",
+				"slot_name": "袜类",
+				"exposure": 8,
+				"contrast": 6,
+				"acceptance_req": 9,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "stockings_sheerskin",
+				"name": "透肉连裤袜",
+				"slot": "stockings",
+				"slot_name": "袜类",
+				"exposure": 9,
+				"contrast": 6,
+				"acceptance_req": 10,
 				"tags": [],
 				"disabled": false
 			},
@@ -1550,7 +1968,6 @@
 			"accessory",
 			"bottom",
 			"dress",
-			"garterbelt",
 			"panties",
 			"stockings",
 			"shoes",
@@ -1571,7 +1988,6 @@
 			"accessory": "配饰",
 			"bottom": "下装",
 			"dress": "成装",
-			"garterbelt": "吊袜带",
 			"panties": "下内衣",
 			"stockings": "袜类",
 			"shoes": "鞋履",
@@ -1581,7 +1997,6 @@
 			"hair",
 			"glasses",
 			"makeup",
-			"piercing",
 			"tattoo",
 			"neckwear",
 			"top",
@@ -1589,7 +2004,6 @@
 			"accessory",
 			"bottom",
 			"dress",
-			"garterbelt",
 			"panties",
 			"stockings",
 			"shoes"
@@ -1598,7 +2012,8 @@
 			"robe",
 			"earrings",
 			"gloves",
-			"headgear"
+			"headgear",
+			"piercing"
 		]
 	},
 	"backgrounds": [
@@ -2134,19 +2549,19 @@
 						{
 							"text": "「你记错了。我从寒霜港来，码头往上第三条巷子。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "harbor"
 						},
 						{
 							"text": "「……对，山脚那边。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "inland"
 						},
 						{
 							"text": "「我不太想聊家乡。」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -2162,19 +2577,19 @@
 						{
 							"text": "「是香料。丁香、肉桂、肉豆蔻，货单上写着。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "spice"
 						},
 						{
 							"text": "「……也有几匹布。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "cloth"
 						},
 						{
 							"text": "「货的事，您看单子就好。」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -2190,19 +2605,19 @@
 						{
 							"text": "「替东家送样品，顺路讨一笔旧账。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "deliver"
 						},
 						{
 							"text": "「……也见个朋友。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "visit"
 						},
 						{
 							"text": "「私事，不方便讲。」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -2218,19 +2633,19 @@
 						{
 							"text": "「幼年在香料工坊帮工，被蒸煮锅的蒸汽烫的。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "workshop"
 						},
 						{
 							"text": "「……年轻时打过一架。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "fight"
 						},
 						{
 							"text": "「旧伤，没什么好说的。」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -3181,19 +3596,19 @@
 						{
 							"text": "「芦荡边上的柳溪镇，小地方。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "reed"
 						},
 						{
 							"text": "「……府城边上。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "city"
 						},
 						{
 							"text": "「问这些做什么。」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -3209,19 +3624,19 @@
 						{
 							"text": "「师父传的，跟了我十年。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "master"
 						},
 						{
 							"text": "「……淘的，不值钱。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "bought"
 						},
 						{
 							"text": "「一把琴而已，有什么好说的。」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -3237,19 +3652,19 @@
 						{
 							"text": "「我是来讨个落脚的地方，卖唱换宿。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "lodge"
 						},
 						{
 							"text": "「……也等等人。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "friend"
 						},
 						{
 							"text": "「私事。」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -3265,19 +3680,19 @@
 						{
 							"text": "「缆绳勒的。早年在码头搬货。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "rope"
 						},
 						{
 							"text": "「……收网时被刀划了一下。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "knife"
 						},
 						{
 							"text": "「旧伤，忘了。」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -4228,19 +4643,19 @@
 						{
 							"text": "「在书坊街街尾，开了三代人。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "tail"
 						},
 						{
 							"text": "「……对，旧市口。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "market"
 						},
 						{
 							"text": "「我不记得跟你说过这个。」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -4256,19 +4671,19 @@
 						{
 							"text": "「家里三代做笔墨，自小跟着抄。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "family"
 						},
 						{
 							"text": "「……在义学待过几年。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "academy"
 						},
 						{
 							"text": "「字而已，能看就行。」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -4284,19 +4699,19 @@
 						{
 							"text": "「是执事传我来核对租册的。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "ledger"
 						},
 						{
 							"text": "「……是有人举荐。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "recommend"
 						},
 						{
 							"text": "「谁说的？」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -4312,19 +4727,19 @@
 						{
 							"text": "「磨墨磨的。常年压着砚台。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "ink"
 						},
 						{
 							"text": "「……早年在工地上干过。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "labor"
 						},
 						{
 							"text": "「写字的人，手都这样。」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -5275,19 +5690,19 @@
 						{
 							"text": "「我住灯塔下头四排棚户，本地人。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "four"
 						},
 						{
 							"text": "「……算是船上长大的。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "boat"
 						},
 						{
 							"text": "「问这个做什么。」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -5303,19 +5718,19 @@
 						{
 							"text": "「都是近海捞的，今早刚上岸。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "near"
 						},
 						{
 							"text": "「……有几筐是收来的。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "bought"
 						},
 						{
 							"text": "「货的事，看单子。」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -5331,19 +5746,19 @@
 						{
 							"text": "「送两筐新鲜货，顺带办通关文书。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "papers"
 						},
 						{
 							"text": "「……对，也是来讨个说法。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "claim"
 						},
 						{
 							"text": "「我不太想谈这个。」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -5359,19 +5774,19 @@
 						{
 							"text": "「收网时被缆绳绞的。」",
 							"tone": "version",
-							"suspicion": -2.0,
+							"suspicion": -2,
 							"value": "net"
 						},
 						{
 							"text": "「……船上炉子翻过，烫的。」",
 							"tone": "version",
-							"suspicion": 16.0,
+							"suspicion": 16,
 							"value": "burn"
 						},
 						{
 							"text": "「旧伤了，记不清。」",
 							"tone": "evade",
-							"suspicion": 6.0
+							"suspicion": 6
 						}
 					],
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
@@ -5888,6 +6303,10 @@
 		"tattoo_thigh": "大腿上攀着一枝暗色的藤蔓",
 		"tattoo_heart": "大腿上串着一列小小的暗色心形",
 		"tattoo_paw": "大腿外侧印着一枚小小的兽爪",
+		"tattoo_bitch": "左大腿内侧刻着「bitch」一行小字",
+		"tattoo_freeuse": "右大腿上刻着「free-use」一行小字",
+		"tattoo_slave": "胸口正中刻着「slave」一行小字",
+		"tattoo_cumrag": "小腹下方刻着「cum-rag」一行小字",
 		"neck_none": "从来不挂东西，说是碍事",
 		"neck_collar": "领子总是立着，硬挺挺的",
 		"neck_scarf": "总围着一条暗红的羊毛围巾",
@@ -5902,7 +6321,6 @@
 		"bottom_trousers": "是条直筒长裤，裤脚沾着泥",
 		"dress_none": "从没见穿过裙子，一贯是上衣配长裤",
 		"dress_sundress": "夏天会穿一条素色吊带连衣裙，肩上有两道晒痕",
-		"garter_none": "没有那种东西，他嫌麻烦",
 		"panties_plain": "是素色棉质的，账单背面写着三条",
 		"stockings_none": "从不穿袜，脚踝上留着一道旧疤",
 		"stockings_opaque": "常年裹着不透明的深色连裤袜",
@@ -5925,7 +6343,6 @@
 		"accessory": "「他衣襟上%s。」",
 		"bottom": "「他下身那条%s。」",
 		"dress": "「他%s。」",
-		"garterbelt": "「他腿上%s。」",
 		"panties": "「贴身的衣物%s。」",
 		"stockings": "「他两条腿%s。」",
 		"shoes": "「他脚上%s。」",
@@ -6001,11 +6418,6 @@
 			"成衣铺的订单",
 			"同船女客的说法",
 			"码头洗衣妇的回忆"
-		],
-		"garterbelt": [
-			"线人的报告",
-			"旧衣铺的账单",
-			"同住旅人的说法"
 		],
 		"panties": [
 			"同一张账单背面",

@@ -424,26 +424,26 @@
 | zorder | 槽位 | 中文名 | 件数 |
 |---|---|---|---|
 | 111 | `makeup` | 妆容 | **6** |
-| 121 | `accessory` | 配饰 | **5** |
+| 121 | `accessory` | 配饰 | **3** ← 第四十六轮删金脚链 / 金色手铐 |
 | 131 | `piercing` | 穿环 | 4 ← **暂时下架**（第三十七轮） |
 | 141 | `tattoo` | 纹身 | **10** ← 第三十六轮起是**多件槽位**（同时最多 2 件） |
 | 161 | `stockings` | 袜类 | **12** ← 第三十七轮并入吊袜带 |
-| 171 | `panties` | 下内衣 | **12** ← 第三十九轮加入「平坦贞操笼」 |
-| 191 | `bottom` | 下装 | **23** ← 第三十二轮起含两件丁字裤 |
+| 171 | `panties` | 下内衣 | **13** ← 第四十六轮黑色丁字裤挪回来 |
+| 191 | `bottom` | 下装 | **22** ← 第四十六轮黑色丁字裤挪去下内衣（只留牛仔那条） |
 | **196** | `tool` | **妙妙工具** | **2** ← 第三十九轮新增，**只能手动装备** |
 | 201 | `bra` | 上内衣 | **9** |
 | 211 | `top` | 上衣 | **27** |
 | 216 | `dress` | **成装**（整件式） | **11** |
 | 221 | `gloves` | 手套 | 4 ← **暂时下架** |
-| 225 | `shoes` | 鞋履 | 4 |
+| 225 | `shoes` | 鞋履 | **9** ← 第四十六轮从 AU 补 5 双 |
 | 231 | `robe` | 外袍 | 4 ← **暂时下架** |
 | 241 | `neckwear` | 颈饰 | 9 |
-| 251 | `hair` | 发型 | 4 |
+| 251 | `hair` | 发型 | **7** ← 第四十六轮从 AU 补 3 款 |
 | 261 | `earrings` | 耳饰 | 4 ← **暂时下架** |
 | 271 | `glasses` | 眼镜 | 4 |
 | 281 | `headgear` | 头饰 | 4 ← **暂时下架** |
 
-合计 **158 件**（玩家可见 138 件）。`hair` 槽没有"不戴"选项（头发始终存在），因此角色底图
+合计 **164 件**（玩家可见 144 件）。`hair` 槽没有"不戴"选项（头发始终存在），因此角色底图
 `body.png` 不再自带头发，发型完全由该槽位提供。
 
 > **★ `tool` 的 zorder 为什么是 196**：它是本项目自创的一栏（WTS 没有），
@@ -1599,7 +1599,7 @@ scenes/
   Main.tscn              # 主场景（准备室 + 盘问 两个 Control 节点，UI 全部代码构建）
 scripts/
   GameData.gd            # 全局状态单例：怀疑度（轮内只涨不跌 + 轮间衰减）/ 情报进度 / 手机进度 / 前后矛盾 / 审问者性情 / ★ 换装判定结果 / 审问者短信 / ★ 逐轮问答记录 answer_log
-  OutfitData.gd          # 服装数据库：19 槽位（robe / earrings / gloves / headgear / piercing 暂时下架；tool 妙妙工具只能手动装备）/ 158 件 / 内衣曝光门控 / 成装互斥 / 原貌池 / 强制装备池
+  OutfitData.gd          # 服装数据库：19 槽位（robe / earrings / gloves / headgear / piercing 暂时下架；tool 妙妙工具只能手动装备）/ 164 件 / 内衣曝光门控 / 成装互斥 / 原貌池 / 强制装备池
                          #   —— 另加三张「可从 story.json 编辑」的运行时表：关卡 LEVELS / 强制规则 FORCED_RULES / 缺陷 DEFECTS
   ScenarioData.gd        # 内容库：出厂文本（DEFAULT_* 常量）+ 从 data/story.json 读入的覆盖层
   ProfileData.gd         # ★ 账号级存档（user://profile.json）：跨局保留的接受度 + 战绩（永不清零）
@@ -1623,10 +1623,10 @@ data/
                          #   ★ 第三十七轮起 DoL 那套（data/doll.json + assets/dol/）已整条停掉、文件已删
 assets/dol_au/           # ★ 小人素材 · AUfemale 图包（社区重画，人物更高、有完整双腿；第三十七轮起唯一一套）
   base/*.png             # 身体 / 脸 / 四套头发（按 ZIndices 的 z 序叠）
-  clothes/*.png          # 158 件里非空件的贴图（已染色、已裁到统一取景框 68×203）
+  clothes/*.png          # 164 件里非空件的贴图（已染色、已裁到统一取景框 68×203）
   icons/*.png            # 每件物品的卡片图标（30×30 图标，落盘时放大到 60×60；按 AU 自己的贴图烘，不是沿用 DoL 的）
 tools/
-  dol_map.py             # ★ 158 件衣物 → AU 图包款式 / 染色 / 位置搬移的映射表（人工挑的）
+  dol_map.py             # ★ 164 件衣物 → AU 图包款式 / 染色 / 位置搬移的映射表（人工挑的）
   dol_prepare.py         # ★ 按映射取帧 / 染色 / 裁框，烘进 assets/dol_au/ 与 data/doll_au.json（只剩 AU 一套）
   flow_overview.py       # 把 screenshots/ 下的 43 张截图拼成一张流程总览图
   scan_unused_cats.py    # ★★ 第三十八轮：量 AU 图包里未接入的四类（尺寸 / bbox / 几何 / 重复），出明细
@@ -1753,7 +1753,7 @@ ScenarioData.gd 里的 DEFAULT_* 常量   ← 出厂兜底文本
 | `item_overrides` | ★ 服装数值覆写：`{物品 id: {exposure, acceptance_req}}` —— **只写改过的那几件**，没写的用代码内置值 | 👕 服装数值 | **全局一套** |
 | `backgrounds[].levels` / `forced_rules` / `qte_plan` / `defects` / `true_presets` | ★ 第四十一轮：**本局（这一套背景）** 的流程覆写 —— 轮数 / 强制穿着 / QTE 计划 / 缺陷 / 原貌。**五项都空 = 用下面那几行全局的**（默认就是这样） | 背景页的「⑥ 本局覆写」几节 | **每套背景一份** |
 | `true_presets` | ★ 原貌预设：`{pool: [{name, slots}], by_level: [{name, slots} \| null]}` —— 两处都空 = 走原来的随机逻辑 | 🎭 原貌 | pool 全局 / by_level 每关一条 |
-| `catalog` | **只读目录**（158 件衣物 / 4 个标签 / 19 个槽位 + `manual_slots` 名单 + `base_values` 内置值 + `true_pool` 原貌池），给编辑器做下拉与勾选用；**游戏不读它** | （不用手改） | 全局 |
+| `catalog` | **只读目录**（164 件衣物 / 4 个标签 / 19 个槽位 + `manual_slots` 名单 + `base_values` 内置值 + `true_pool` 原貌池），给编辑器做下拉与勾选用；**游戏不读它** | （不用手改） | 全局 |
 | `backgrounds[]` | 每套背景的 `intro` / `levels` / `cards` / `questions` / `facts` / `sms` / `companion_questions` / `blind_questions` / `interference_lines` | 背景页各节 | 每套背景一份 |
 | `backgrounds[].endings` | 结局文案 **27 条**（一眼认出 / 身份暴露 / 怀疑度满 / 一关收场 / 结果浮层 / 大覆盖层） | 🎬 结局文案 | **每个背景一套** |
 | `traits[]` | 审问者性情（撒谎 / 回避的代价、反馈文案、手机备忘录三条） | 🎭 审问者性情 | 全局 |
@@ -1867,7 +1867,7 @@ x256..511  上面两列的逐像素复制
 ### 管线
 
 ```
-tools/dol_map.py       ← 158 件衣物 → 款式 + 染色 + 搬运规则（人工挑的映射表）
+tools/dol_map.py       ← 164 件衣物 → 款式 + 染色 + 搬运规则（人工挑的映射表）
 tools/dol_prepare.py   ← 按映射取帧 / 染色 / 裁框，烘进 assets/dol*/ 与 data/doll*.json
 data/doll*.json        ← 产物清单：每层画哪张图、z 是多少、取景框多大
 scripts/DolDoll.gd     ← 运行时只负责按 z 序把 PNG 铺成 TextureRect，GPU 去叠
@@ -3030,6 +3030,68 @@ const PHOTO_ONE_OF := ["glasses", "hair", "shoes"]
 | **点缀** | `glasses` / `hair` / `shoes` | 整局掷，每张照片 50% 决定要不要用掉一个名额；**用过就不再出现** |
 
 兜底：两个都没选中时一定补一件主体，所以照片不会空。
+
+### 第四十六轮：加入挑中的 3 款发型 + 5 双鞋 · 丁字裤归位 · 删两件配饰 · 清点 AU 配饰
+
+用户口径四句：「加入 half up twintail pigtails princess wave basketball belly
+dresssandals field trainers」「黑色丁字裤归在下内衣」「金脚链和金色手铐删去」
+「列出 au 配饰有什么」。
+
+**① 加入 8 款**（都是第四十五轮清点表里的 A 档）
+
+| 槽位 | 新增 | 件数 |
+|---|---|---|
+| `hair` | 双马尾（`pigtails`）/ 半扎双马尾（`half up twintail`）/ 公主大波浪（`princess wave`） | 4 → **7** |
+| `shoes` | 运动鞋（`trainers`）/ 篮球鞋（`basketball`）/ 户外及膝靴（`field`）/ 正装凉鞋（`dresssandals`）/ 露趾凉鞋（`belly`） | 4 → **9** |
+
+> ★ **长度档是逐个量出来的，不能凭名字猜** —— 这几款的档位跨度极大且不线性：
+>
+> | 款 | short | shoulder | chest |
+> |---|---|---|---|
+> | `pigtails` | y到120（腰上） | y到158 | y到192（到脚） |
+> | `half up twintail` | y到60（浅扎） | **y到192** | y到193 |
+> | `princess wave` | **y到197** | y到197 | y到197 |
+>
+> `princess wave` **所有档都是 197** —— 它天生长发，换档只改浓密不改长度。
+> `half up twintail` 的辨识度就在垂下的两条马尾，用 short 会退化成「半扎小揪」。
+> 作为参照：现有 4 款发型的头发最低点都在 **84 以内**、小人鞋底在 y=189。
+
+数值口径：**头发不吃暴露值**（`exposure` 恒 0），三款的作用是把接受度 / 反差梯度铺开
+（0 / 1 / 2 / 4 / 5 / 6 / 8）；五双鞋填的是鞋槽原来最缺的**高暴露**那一头
+（原来只有细跟高跟鞋一件在 2 档），两双凉鞋一路到 4 / 5 档。
+
+**② 黑色丁字裤挪回下内衣**
+
+`slot` 由 `bottom` → `panties`，连带三件事：z 从下装层(90)回到内衣层(67)、
+重新受 `UNDER_GATE` 门控（被普通下装盖住时不计数值）、不再与成装互斥。
+
+★ **只挪黑色那条** —— 牛仔丁字裤（`panties_janties`）留在下装（用户只点名了黑色）。
+id 仍是 `panties_thong`，贴图也没换（源图一直在 `under-lower/thong`）。
+
+**③ 删掉金脚链与金色手铐**
+
+`acc_anklet`（`legs/goldanklets`）、`acc_shackle`（`hands/goldshackles`）。
+与当初撤眉钉、撤黄铜胸针同一档处理：物品定义 + `dol_map` 映射 + 烘焙产物一起清掉。
+配饰栏 5 → **3 件**。
+
+**④ 清点 AU 配饰**
+
+★ **AU 没有 `accessory` 目录** —— 「配饰」是各部位凑出来的。现有三件的来源就是证据：
+`acc_locket` ← `neck/lovelocket`（锁骨）、`acc_belt` ← `lower/belted`（腰）。
+所以按**部位**扫四处，产出 `AU配饰候选.md` + 四张对照图 `screenshots/_pick_acc_*.png`：
+
+| 部位 | 来源 | 可用 |
+|---|---|---|
+| 手 / 腕 | `hands/` 全部 | **14**（A 11 / B 3） |
+| 腿 / 踝 | `legs/` 排除袜子 | **8**（A 5 / B 3） |
+| 腰 | `lower/` 只挑腰带类 | **2**（A 2） |
+| 颈 / 锁骨 | `neck/` 全部（与「颈饰」槽共用） | **42**（A 32 / B 10） |
+
+> ★ 两个查明的事实：
+> 1. **`lower/` 其实是下装目录**（183 项，绝大多数是裤子裙子）——
+>    第一版把整个目录当配饰列了出来，改成「只挑名字含 belt/chain/garter/harness/strap」才对。
+> 2. **`acc_belt` 的 `src` 指向一个不存在的目录** —— `dol_map` 写的是
+>    `lower/chainbelt skirt`，但 AU 里没有这个目录，它实际走 `alt` 分支 `lower/belted`。
 
 ## 位置
 

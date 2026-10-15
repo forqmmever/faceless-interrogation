@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://fl1sfo4vogcg"
-path="res://.godot/imported/acc_shackle.png-8b75bf1d3df7fa68a0426030cd3ef8cd.ctex"
+uid="uid://bq05i4sdy4kds"
+path="res://.godot/imported/shoes_dress_sandal.png-9371debe8d81a8a3d0d4234728675119.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/dol_au/clothes/acc_shackle.png"
-dest_files=["res://.godot/imported/acc_shackle.png-8b75bf1d3df7fa68a0426030cd3ef8cd.ctex"]
+source_file="res://assets/dol_au/clothes/shoes_dress_sandal.png"
+dest_files=["res://.godot/imported/shoes_dress_sandal.png-9371debe8d81a8a3d0d4234728675119.ctex"]
 
 [params]
 

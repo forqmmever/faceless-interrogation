@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://h6g6ovkhveay"
-path="res://.godot/imported/acc_shackle.png-64ca26076cbd55e568ccadb6e086c133.ctex"
+uid="uid://bh1o8lerjcbdu"
+path="res://.godot/imported/hair_pigtails.png-0074e28152d84453a5daf0597e6efda6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/dol_au/icons/acc_shackle.png"
-dest_files=["res://.godot/imported/acc_shackle.png-64ca26076cbd55e568ccadb6e086c133.ctex"]
+source_file="res://assets/dol_au/icons/hair_pigtails.png"
+dest_files=["res://.godot/imported/hair_pigtails.png-0074e28152d84453a5daf0597e6efda6.ctex"]
 
 [params]
 

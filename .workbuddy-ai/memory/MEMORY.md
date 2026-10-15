@@ -203,6 +203,29 @@ godot --path . res://tests/Screenshot.tscn                    # 43 张截图（�
 WardrobeTest 的「全部物品均有卡片图标」会挂 —— 而烘焙产物其实是好的，
 只是没被 Godot 写进 `.godot/imported/`。这个坑第三十四轮踩过一次。
 
+### 烘图之后 `--import`、改数据之后重建编辑器快照（第四十六轮）
+
+加新物品时最容易漏的两步，**漏了测试会挂，但症状看起来像「资源缺失 / 数据没生效」**：
+
+| 漏了什么 | 症状 | 修法 |
+|---|---|---|
+| 没跑 `godot --headless --path . --import` | WardrobeTest 报「每件物品都有卡片图标」挂 | 新烘的 png 必须让 Godot 登记进 `.godot/imported/` |
+| 没重建编辑器内嵌快照 | `editor_smoke.js` 报 catalog 件数是旧值 | 跑 `build_story_editor.py` + `build_phone_editor.py` |
+
+顺序：改代码 → 烘图 → `--import` → 导出 story.json → 重建快照 → 跑测试。
+
+### 挑图包款式时，「长度档 / 部位」要实测，不能按名字推（第四十六轮）
+
+同一系列里不同款的档位跨度可能**差几倍**：`pigtails` 的 `short` 档（109px 高）
+约等于 `neat/short`（39px）的三倍；`princess wave` 更是**所有档都是 197px**（天生长发，
+换档只改浓密不改长度）。
+
+**规矩**：选长度档前先量 `bbox`（尤其**最低点 y** = 头发垂到哪儿），
+必要时逐行统计像素分布。参照系：现有款的最低点都在 84 以内、小人鞋底在 y=189。
+
+另：`clothes/lower/` 是**下装**目录（183 项，绝大多数是裤子裙子）——
+要找「腰带 / 配饰」得按部位去 `hands/` `legs/` `neck/` 里翻，别整目录扫。
+
 ### 只使用 AU 图包（第三十七轮定下的硬约定）
 
 用户口径：「现在和之后只使用 au 源的服装」。这不是「挑衣服时优先 AU」，

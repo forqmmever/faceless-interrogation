@@ -72,16 +72,6 @@
   256
  ],
  "items": {
-  "acc_anklet": {
-   "icon": "icons/acc_anklet.png",
-   "layers": [
-    {
-     "file": "clothes/acc_anklet.png",
-     "name": "acc_anklet",
-     "z": 105.0
-    }
-   ]
-  },
   "acc_belt": {
    "icon": "icons/acc_belt.png",
    "layers": [
@@ -106,16 +96,6 @@
    "icon": "icons/acc_none.png",
    "layers": [],
    "z": 105.0
-  },
-  "acc_shackle": {
-   "icon": "icons/acc_shackle.png",
-   "layers": [
-    {
-     "file": "clothes/acc_shackle.png",
-     "name": "acc_shackle",
-     "z": 105.0
-    }
-   ]
   },
   "bottom_chain": {
    "icon": "icons/bottom_chain.png",
@@ -653,6 +633,27 @@
    ],
    "z": 60.0
   },
+  "hair_half_twin": {
+   "icon": "icons/hair_half_twin.png",
+   "layers": [
+    {
+     "file": "base/hair_half_twin_back.png",
+     "name": "hair_half_twin_back",
+     "z": 10.0
+    },
+    {
+     "file": "base/hair_half_twin_sides.png",
+     "name": "hair_half_twin_sides",
+     "z": 60.0
+    },
+    {
+     "file": "base/hair_half_twin_fringe.png",
+     "name": "hair_half_twin_fringe",
+     "z": 132.0
+    }
+   ],
+   "z": 60.0
+  },
   "hair_long": {
    "icon": "icons/hair_long.png",
    "layers": [
@@ -669,6 +670,22 @@
     {
      "file": "base/hair_long_fringe.png",
      "name": "hair_long_fringe",
+     "z": 132.0
+    }
+   ],
+   "z": 60.0
+  },
+  "hair_pigtails": {
+   "icon": "icons/hair_pigtails.png",
+   "layers": [
+    {
+     "file": "base/hair_pigtails_sides.png",
+     "name": "hair_pigtails_sides",
+     "z": 60.0
+    },
+    {
+     "file": "base/hair_pigtails_fringe.png",
+     "name": "hair_pigtails_fringe",
      "z": 132.0
     }
    ],
@@ -701,6 +718,22 @@
     {
      "file": "base/hair_up_fringe.png",
      "name": "hair_up_fringe",
+     "z": 132.0
+    }
+   ],
+   "z": 60.0
+  },
+  "hair_wave": {
+   "icon": "icons/hair_wave.png",
+   "layers": [
+    {
+     "file": "base/hair_wave_sides.png",
+     "name": "hair_wave_sides",
+     "z": 60.0
+    },
+    {
+     "file": "base/hair_wave_fringe.png",
+     "name": "hair_wave_fringe",
      "z": 132.0
     }
    ],
@@ -1002,7 +1035,7 @@
     {
      "file": "clothes/panties_thong.png",
      "name": "panties_thong",
-     "z": 90.0
+     "z": 67.0
     }
    ]
   },
@@ -1086,6 +1119,16 @@
     }
    ]
   },
+  "shoes_basketball": {
+   "icon": "icons/shoes_basketball.png",
+   "layers": [
+    {
+     "file": "clothes/shoes_basketball.png",
+     "name": "shoes_basketball",
+     "z": 85.0
+    }
+   ]
+  },
   "shoes_boots": {
    "icon": "icons/shoes_boots.png",
    "layers": [
@@ -1096,12 +1139,42 @@
     }
    ]
   },
+  "shoes_dress_sandal": {
+   "icon": "icons/shoes_dress_sandal.png",
+   "layers": [
+    {
+     "file": "clothes/shoes_dress_sandal.png",
+     "name": "shoes_dress_sandal",
+     "z": 85.0
+    }
+   ]
+  },
+  "shoes_field": {
+   "icon": "icons/shoes_field.png",
+   "layers": [
+    {
+     "file": "clothes/shoes_field.png",
+     "name": "shoes_field",
+     "z": 85.0
+    }
+   ]
+  },
   "shoes_heels": {
    "icon": "icons/shoes_heels.png",
    "layers": [
     {
      "file": "clothes/shoes_heels.png",
      "name": "shoes_heels",
+     "z": 85.0
+    }
+   ]
+  },
+  "shoes_open_sandal": {
+   "icon": "icons/shoes_open_sandal.png",
+   "layers": [
+    {
+     "file": "clothes/shoes_open_sandal.png",
+     "name": "shoes_open_sandal",
      "z": 85.0
     }
    ]
@@ -1122,6 +1195,16 @@
     {
      "file": "clothes/shoes_school_navy.png",
      "name": "shoes_school_navy",
+     "z": 85.0
+    }
+   ]
+  },
+  "shoes_trainers": {
+   "icon": "icons/shoes_trainers.png",
+   "layers": [
+    {
+     "file": "clothes/shoes_trainers.png",
+     "name": "shoes_trainers",
      "z": 85.0
     }
    ]

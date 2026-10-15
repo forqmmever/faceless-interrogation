@@ -423,6 +423,12 @@ const ITEMS_BASE := [
 	{"id": "hair_braid", "name": "侧编辫", "slot": "hair", "exposure": 0, "acceptance_req": 1, "contrast": 1, "covers": [], "tags": []},
 	{"id": "hair_long", "name": "垂肩长发", "slot": "hair", "exposure": 0, "acceptance_req": 2, "contrast": 1, "covers": [], "tags": []},
 	{"id": "hair_up", "name": "高盘发髻", "slot": "hair", "exposure": 0, "acceptance_req": 5, "contrast": 3, "covers": [], "tags": []},
+	# ★ 第四十六轮：按用户挑的三款补进来（AU 清点表里都是 A 档）。
+	#   头发不吃暴露值（exposure 恒 0），所以这三件的作用是把**接受度门槛与反差值**
+	#   的梯度铺开 —— 原来只有 0 / 1 / 2 / 5 四档，补完是 0 / 1 / 2 / 4 / 5 / 6 / 8 七档。
+	{"id": "hair_pigtails", "name": "双马尾", "slot": "hair", "exposure": 0, "acceptance_req": 4, "contrast": 2, "covers": [], "tags": []},
+	{"id": "hair_half_twin", "name": "半扎双马尾", "slot": "hair", "exposure": 0, "acceptance_req": 6, "contrast": 4, "covers": [], "tags": []},
+	{"id": "hair_wave", "name": "公主大波浪", "slot": "hair", "exposure": 0, "acceptance_req": 8, "contrast": 5, "covers": [], "tags": []},
 
 	# ================= 头饰 =================
 	{"id": "head_none", "name": "（不戴）", "slot": "headgear", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
@@ -645,20 +651,26 @@ const ITEMS_BASE := [
 	#     · 金色手铐     —— 双腕 + 垂下来的链子（AU `hands/goldshackles`，左右手各一层）
 	#   ★ 数值也排成 2 / 3 / 5 的斜坡：吊坠最便宜，脚链要裙短才露得出来，
 	#     手铐最扎眼（也是这一栏唯一带暴露值的 —— 腕上那串链子本身就惹眼）。
+	# ★★ 第四十六轮：按用户口径「金脚链和金色手铐删去」撤掉后两件
+	#   （`acc_anklet` / `acc_shackle`）—— 整条从表里撤掉，与当初撤眉钉、
+	#   撤黄铜胸针是同一档处理：`dol_map.py` 的映射、烘焙产物一起清掉。
+	#   于是这一栏只剩「（不戴）/ 银质心形吊坠 / 束腰皮带」三件。
 	{"id": "acc_locket", "name": "银质心形吊坠", "slot": "accessory", "exposure": 0, "acceptance_req": 2, "contrast": 2, "covers": [], "tags": []},
-	{"id": "acc_anklet", "name": "金脚链", "slot": "accessory", "exposure": 0, "acceptance_req": 4, "contrast": 3, "covers": [], "tags": []},
-	{"id": "acc_shackle", "name": "金色手铐", "slot": "accessory", "exposure": 1, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
 	{"id": "acc_belt", "name": "束腰皮带", "slot": "accessory", "exposure": 1, "acceptance_req": 4, "contrast": 3, "covers": [], "tags": []},
 
 	# ================= 下装 =================
-	# ★ 第三十一轮（用户口径「丁字裤归在下装」）：这两件从「下内衣」移到了「下装」。
-	#   它们本来就在 AU 图包的 under-lower/ 下，贴图不用换 —— 变的只是**算哪一栏**：
+	# ★ 第三十一轮（用户口径「丁字裤归在下装」）：黑色丁字裤与牛仔丁字裤从
+	#   「下内衣」移到了「下装」。它们本来就在 AU 图包的 under-lower/ 下，
+	#   贴图不用换 —— 变的只是**算哪一栏**：
 	#     · 画在哪一层：z 由槽位决定，所以从内衣层(67)挪到了下装层(90)；
 	#     · 不再受内衣曝光门控（它们自己就是外面那层）；
 	#     · 会跟成装(dress)互斥 —— 本来就是「上装+下装」那一组的成员。
 	#   ★ 刻意**不**给它们 see: cutout：丁字裤当外裤穿时，里面的内裤仍按「被盖住」算。
 	#     想改成「露出内裤」的话，给这两件补上 "see": "cutout" 即可。
-	{"id": "panties_thong", "name": "黑色丁字裤", "slot": "bottom", "exposure": 5, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
+	#
+	# ★★ 第四十六轮（用户口径「黑色丁字裤归在下内衣」）：**只有黑色那条**挪回去，
+	#   牛仔丁字裤留在下装。挪回下内衣之后它重新受 UNDER_GATE 门控（被下装盖住
+	#   就不算数值），也不再与成装互斥 —— 也就是回到第三十一轮之前的状态。
 	{"id": "panties_janties", "name": "牛仔丁字裤", "slot": "bottom", "exposure": 5, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
 	# ★ 同上：「（不穿下装）」= 下装这一层空着，里面的内裤直接外穿。
 	{"id": "bottom_none", "name": "（不穿下装）", "slot": "bottom", "exposure": 9, "acceptance_req": 11, "contrast": 8, "covers": [], "tags": [], "bare": true},
@@ -768,6 +780,13 @@ const ITEMS_BASE := [
 	#   下面被普通下装盖住时一律不计入暴露 / 反差 —— 想让它真的算数，
 	#   得配「（不穿下装）」或者标了 see 的下装。
 	{"id": "panties_plain", "name": "素色棉质内裤", "slot": "panties", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
+	# ★★ 第四十六轮（用户口径「黑色丁字裤归在下内衣」）：从下装挪回来。
+	#   贴图不用换（源图一直在 AU 的 `under-lower/gstring`），变的是三件事：
+	#     · z 从下装层(90)回到内衣层(67)；
+	#     · 重新受 UNDER_GATE 门控 —— 被普通下装盖住时不计暴露 / 反差；
+	#     · 不再与成装(dress)互斥（那是「上装+下装」这一组的规矩）。
+	#   ★ id 保留 `panties_thong`（本来就叫这个，第三十一轮移栏时没改名）。
+	{"id": "panties_thong", "name": "黑色丁字裤", "slot": "panties", "exposure": 5, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
 	{"id": "panties_lace", "name": "黑色蕾丝内裤", "slot": "panties", "exposure": 5, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
 	{"id": "panties_micro", "name": "微型比基尼内裤", "slot": "panties", "exposure": 6, "acceptance_req": 7, "contrast": 6, "covers": [], "tags": []},
 	{"id": "panties_crotchless", "name": "开裆蕾丝内裤", "slot": "panties", "exposure": 7, "acceptance_req": 8, "contrast": 7, "covers": [], "tags": []},
@@ -823,6 +842,16 @@ const ITEMS_BASE := [
 	# ★ 第二十四轮：两套校服的鞋（藏青校服皮鞋 / 棕色便鞋）
 	{"id": "shoes_school_navy", "name": "藏青校服皮鞋", "slot": "shoes", "exposure": 0, "acceptance_req": 1, "contrast": 1, "covers": [], "tags": []},
 	{"id": "shoes_school_green", "name": "棕色校服皮鞋", "slot": "shoes", "exposure": 0, "acceptance_req": 1, "contrast": 1, "covers": [], "tags": []},
+	# ★ 第四十六轮：按用户挑的五双补进来（AU 清点表里都是 A 档）。
+	#   鞋槽原来最缺的是**高暴露**那一头（只有细跟高跟鞋一件在 2 档），
+	#   所以补的两双凉鞋（露趾 + 露脚背）一路铺到 4 / 5 档 ——
+	#   这样配「高暴露」那套搭配时，鞋也能出一份力。
+	#   另外三双是包脚的（及膝靴 / 篮球鞋 / 运动鞋），填的是中低档。
+	{"id": "shoes_trainers", "name": "运动鞋", "slot": "shoes", "exposure": 1, "acceptance_req": 1, "contrast": 2, "covers": [], "tags": []},
+	{"id": "shoes_basketball", "name": "篮球鞋", "slot": "shoes", "exposure": 1, "acceptance_req": 2, "contrast": 3, "covers": [], "tags": []},
+	{"id": "shoes_field", "name": "户外及膝靴", "slot": "shoes", "exposure": 0, "acceptance_req": 3, "contrast": 3, "covers": [], "tags": []},
+	{"id": "shoes_dress_sandal", "name": "正装凉鞋", "slot": "shoes", "exposure": 4, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
+	{"id": "shoes_open_sandal", "name": "露趾凉鞋", "slot": "shoes", "exposure": 5, "acceptance_req": 7, "contrast": 6, "covers": [], "tags": []},
 
 	# ================= 外袍（暂时下架，见 DISABLED_SLOTS）=================
 	# 这 4 件仍然定义着、贴图也照烘，只是玩家暂时看不到、也抽不到。

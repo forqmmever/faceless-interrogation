@@ -283,6 +283,39 @@
 				"disabled": false
 			},
 			{
+				"id": "hair_pigtails",
+				"name": "双马尾",
+				"slot": "hair",
+				"slot_name": "发型",
+				"exposure": 0,
+				"contrast": 2,
+				"acceptance_req": 4,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "hair_half_twin",
+				"name": "半扎双马尾",
+				"slot": "hair",
+				"slot_name": "发型",
+				"exposure": 0,
+				"contrast": 4,
+				"acceptance_req": 6,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "hair_wave",
+				"name": "公主大波浪",
+				"slot": "hair",
+				"slot_name": "发型",
+				"exposure": 0,
+				"contrast": 5,
+				"acceptance_req": 8,
+				"tags": [],
+				"disabled": false
+			},
+			{
 				"id": "head_none",
 				"name": "（不戴）",
 				"slot": "headgear",
@@ -1217,28 +1250,6 @@
 				"disabled": false
 			},
 			{
-				"id": "acc_anklet",
-				"name": "金脚链",
-				"slot": "accessory",
-				"slot_name": "配饰",
-				"exposure": 0,
-				"contrast": 3,
-				"acceptance_req": 4,
-				"tags": [],
-				"disabled": false
-			},
-			{
-				"id": "acc_shackle",
-				"name": "金色手铐",
-				"slot": "accessory",
-				"slot_name": "配饰",
-				"exposure": 1,
-				"contrast": 5,
-				"acceptance_req": 6,
-				"tags": [],
-				"disabled": false
-			},
-			{
 				"id": "acc_belt",
 				"name": "束腰皮带",
 				"slot": "accessory",
@@ -1246,17 +1257,6 @@
 				"exposure": 1,
 				"contrast": 3,
 				"acceptance_req": 4,
-				"tags": [],
-				"disabled": false
-			},
-			{
-				"id": "panties_thong",
-				"name": "黑色丁字裤",
-				"slot": "bottom",
-				"slot_name": "下装",
-				"exposure": 5,
-				"contrast": 5,
-				"acceptance_req": 5,
 				"tags": [],
 				"disabled": false
 			},
@@ -1635,6 +1635,17 @@
 				"disabled": false
 			},
 			{
+				"id": "panties_thong",
+				"name": "黑色丁字裤",
+				"slot": "panties",
+				"slot_name": "下内衣",
+				"exposure": 5,
+				"contrast": 5,
+				"acceptance_req": 5,
+				"tags": [],
+				"disabled": false
+			},
+			{
 				"id": "panties_lace",
 				"name": "黑色蕾丝内裤",
 				"slot": "panties",
@@ -1932,6 +1943,61 @@
 				"disabled": false
 			},
 			{
+				"id": "shoes_trainers",
+				"name": "运动鞋",
+				"slot": "shoes",
+				"slot_name": "鞋履",
+				"exposure": 1,
+				"contrast": 2,
+				"acceptance_req": 1,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "shoes_basketball",
+				"name": "篮球鞋",
+				"slot": "shoes",
+				"slot_name": "鞋履",
+				"exposure": 1,
+				"contrast": 3,
+				"acceptance_req": 2,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "shoes_field",
+				"name": "户外及膝靴",
+				"slot": "shoes",
+				"slot_name": "鞋履",
+				"exposure": 0,
+				"contrast": 3,
+				"acceptance_req": 3,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "shoes_dress_sandal",
+				"name": "正装凉鞋",
+				"slot": "shoes",
+				"slot_name": "鞋履",
+				"exposure": 4,
+				"contrast": 5,
+				"acceptance_req": 6,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "shoes_open_sandal",
+				"name": "露趾凉鞋",
+				"slot": "shoes",
+				"slot_name": "鞋履",
+				"exposure": 5,
+				"contrast": 6,
+				"acceptance_req": 7,
+				"tags": [],
+				"disabled": false
+			},
+			{
 				"id": "robe_none",
 				"name": "（不穿外袍）",
 				"slot": "robe",
@@ -2090,6 +2156,18 @@
 			"hair_up": {
 				"exposure": 0,
 				"acceptance_req": 5
+			},
+			"hair_pigtails": {
+				"exposure": 0,
+				"acceptance_req": 4
+			},
+			"hair_half_twin": {
+				"exposure": 0,
+				"acceptance_req": 6
+			},
+			"hair_wave": {
+				"exposure": 0,
+				"acceptance_req": 8
 			},
 			"head_none": {
 				"exposure": 0,
@@ -2423,21 +2501,9 @@
 				"exposure": 0,
 				"acceptance_req": 2
 			},
-			"acc_anklet": {
-				"exposure": 0,
-				"acceptance_req": 4
-			},
-			"acc_shackle": {
-				"exposure": 1,
-				"acceptance_req": 6
-			},
 			"acc_belt": {
 				"exposure": 1,
 				"acceptance_req": 4
-			},
-			"panties_thong": {
-				"exposure": 5,
-				"acceptance_req": 5
 			},
 			"panties_janties": {
 				"exposure": 5,
@@ -2575,6 +2641,10 @@
 				"exposure": 0,
 				"acceptance_req": 0
 			},
+			"panties_thong": {
+				"exposure": 5,
+				"acceptance_req": 5
+			},
 			"panties_lace": {
 				"exposure": 5,
 				"acceptance_req": 6
@@ -2682,6 +2752,26 @@
 			"shoes_school_green": {
 				"exposure": 0,
 				"acceptance_req": 1
+			},
+			"shoes_trainers": {
+				"exposure": 1,
+				"acceptance_req": 1
+			},
+			"shoes_basketball": {
+				"exposure": 1,
+				"acceptance_req": 2
+			},
+			"shoes_field": {
+				"exposure": 0,
+				"acceptance_req": 3
+			},
+			"shoes_dress_sandal": {
+				"exposure": 4,
+				"acceptance_req": 6
+			},
+			"shoes_open_sandal": {
+				"exposure": 5,
+				"acceptance_req": 7
 			},
 			"robe_none": {
 				"exposure": 0,

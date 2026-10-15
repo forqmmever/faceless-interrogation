@@ -84,6 +84,31 @@ HAIR_STYLES = {
     "hair_up":    {"style": "messy bun",   "length": "navel",
                    "fringe": "parted",     "back": None,
                    "tint": HAIR_TINT_AU, "gain": HAIR_GAIN_AU},
+
+    # ★ 第四十六轮：按用户挑的三款补进来（都取自清点表里的 A 档）。
+    #   这一批的共同点 —— AU 把它们画得很长（`sides` 的长度档是「头发垂到哪儿」，
+    #   而这几款在 shoulder 档就已经把辫子/发浪画到了膝下），所以长度档选得比
+    #   现有四款保守一档，免得整个人被头发包住。
+    #   · `half up twintail` 的 back 层有真实内容（thighs 档 37×126），配 back；
+    #   · `pigtails` / `princess wave` 的 back 要么没有同款、要么几乎是空的
+    #     （back/princess wave 只有 3×19）—— 所以不配 back，靠 sides 自己画全。
+    #   ★ 长度档是逐个量出来的（这几款的档位跨度很大，不是线性的）：
+    #     `pigtails`  short 档垂到 y=120（腰上）、shoulder 档就窜到 158、chest 以上到脚；
+    #     `half up twintail` 只有 short（y=60，浅扎）与 shoulder（y=192，两条长马尾）两档；
+    #     `princess wave` **所有档都是 y≈197** —— 它天生就是长发，换档只改浓密不改长度。
+    #     所以：双马尾用 short（到腰，最自然）；半扎双马尾用 shoulder
+    #     （它的辨识度就在垂下的那两条，short 档会退化成「半扎小揪」）；
+    #     大波浪用 chest（该档最丰盈）。
+    "hair_pigtails": {"style": "pigtails",        "length": "short",
+                      "fringe": "blunt locks",    "back": None,
+                      "tint": HAIR_TINT_AU, "gain": HAIR_GAIN_AU},
+    "hair_half_twin": {"style": "half up twintail", "length": "shoulder",
+                       "fringe": "curtain",       "back": "half up twintail",
+                       "back_len": "thighs",
+                       "tint": HAIR_TINT_AU, "gain": HAIR_GAIN_AU},
+    "hair_wave":     {"style": "princess wave",   "length": "chest",
+                      "fringe": "parted",         "back": None,
+                      "tint": HAIR_TINT_AU, "gain": HAIR_GAIN_AU},
 }
 
 # 我们每个槽位在小人身上的绘制层号（照 DoL 的 ZIndices 抄，robe 提到最外层）
@@ -175,6 +200,8 @@ PEWTER = (0.66, 0.68, 0.74)         # 银质心形吊坠（旧银，比 SILVER �
 ITEMS = {
     # ---- 发型（由 HAIR_STYLES 处理，这里只占位）----
     "hair_short": [], "hair_braid": [], "hair_long": [], "hair_up": [],
+    # ★ 第四十六轮
+    "hair_pigtails": [], "hair_half_twin": [], "hair_wave": [],
 
     # ---- 头饰 ----
     "head_none": [],
@@ -356,13 +383,11 @@ ITEMS = {
     #     · 三件都是 AU 图包自己那套贴图（`neck/lovelocket` / `legs/goldanklets` /
     #       `hands/goldshackles`），两套图包的路径一致，所以都不用 `alt`；
     #     · 位置也**本来就对**（吊坠在锁骨、脚链在脚踝、手铐垂在腕边），一律不给 align。
-    #   ★ 染色：吊坠源图是纯灰（实测彩度 0.00）→ 乘一层旧银；
-    #     脚链 / 手铐源图**本来就是金的**（彩度 0.67）→ 不给 tint，再乘一层只会发乌。
+    #   ★ 染色：吊坠源图是纯灰（实测彩度 0.00）→ 乘一层旧银。
+    # ★★ 第四十六轮：按用户口径「金脚链和金色手铐删去」——
+    #   `acc_anklet`（legs/goldanklets）与 `acc_shackle`（hands/goldshackles）两条映射撤掉。
     "acc_none": [],
     "acc_locket": [{"src": ("clothes", "neck", "lovelocket"), "tint": PEWTER}],                    # 11×21 纯灰
-    "acc_anklet": [{"src": ("clothes", "legs", "goldanklets")}],                                    # 29×8  已彩色
-    "acc_shackle": [{"src": ("clothes", "hands", "goldshackles", "left-idle")},                     # 10×78 已彩色
-                    {"src": ("clothes", "hands", "goldshackles", "right-idle")}],                   # 15×101
     "acc_belt":   [{"src": ("clothes", "lower", "chainbelt skirt", "acc"), "tint": LEATHER,
                     "alt": {"src": ("clothes", "lower", "belted"), "tint": LEATHER}}],
 
@@ -450,6 +475,16 @@ ITEMS = {
     # ★ 第二十四轮：两套校服的鞋（藏青校服皮鞋 / 棕色便鞋）
     "shoes_school_navy":  [{"src": ("clothes", "feet", "schoolshoes"), "tint": NAVY_DARK}],
     "shoes_school_green": [{"src": ("clothes", "feet", "loafers"),     "tint": SHOEBROWN}],
+    # ★ 第四十六轮：按用户挑的五双补进来（都取自清点表里的 A 档）。
+    #   ★ `belly` 这个目录名与「露趾」无关（图包里就叫 belly），形状实测量过：
+    #     27×23，比正装凉鞋（27×21）稍厚 —— 两双都是**露出脚趾与脚背**的凉鞋，
+    #     所以它们填的正是鞋槽原来最缺的「高暴露」档。
+    #   ★ `field` 是及膝长靴（内容最高到 y=126），包得最严实 → exposure 0。
+    "shoes_basketball":   [{"src": ("clothes", "feet", "basketball"),   "tint": WHITE}],
+    "shoes_trainers":     [{"src": ("clothes", "feet", "trainers"),     "tint": DARKGREY}],
+    "shoes_field":        [{"src": ("clothes", "feet", "field"),        "tint": LEATHER}],
+    "shoes_dress_sandal": [{"src": ("clothes", "feet", "dresssandals"), "tint": BLACK}],
+    "shoes_open_sandal":  [{"src": ("clothes", "feet", "belly"),        "tint": BROWN}],
 
     # ---- 外袍 ----
     "robe_none": [],

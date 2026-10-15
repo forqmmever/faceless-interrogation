@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ctod6r7hhdfw"
-path="res://.godot/imported/acc_anklet.png-6af052fd9d570a14259e15612cb828b8.ctex"
+uid="uid://yuwc2aixu6sf"
+path="res://.godot/imported/hair_half_twin_fringe.png-dfb66634e2839f36a4e9c5d95e3f708a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/dol_au/clothes/acc_anklet.png"
-dest_files=["res://.godot/imported/acc_anklet.png-6af052fd9d570a14259e15612cb828b8.ctex"]
+source_file="res://assets/dol_au/base/hair_half_twin_fringe.png"
+dest_files=["res://.godot/imported/hair_half_twin_fringe.png-dfb66634e2839f36a4e9c5d95e3f708a.ctex"]
 
 [params]
 

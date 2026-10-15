@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bdiymlpt104ab"
-path="res://.godot/imported/acc_anklet.png-650979403719b6c3698be9f079c58b85.ctex"
+uid="uid://ghaihoophwf"
+path="res://.godot/imported/hair_wave_fringe.png-cda647b64ef60c5312c505f66a5a89e5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/dol_au/icons/acc_anklet.png"
-dest_files=["res://.godot/imported/acc_anklet.png-650979403719b6c3698be9f079c58b85.ctex"]
+source_file="res://assets/dol_au/base/hair_wave_fringe.png"
+dest_files=["res://.godot/imported/hair_wave_fringe.png-cda647b64ef60c5312c505f66a5a89e5.ctex"]
 
 [params]
 

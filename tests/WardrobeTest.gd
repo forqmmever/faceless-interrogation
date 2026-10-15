@@ -1138,15 +1138,23 @@ func _test_photos_v2() -> void:
 				# ⑤ 发型必须与原貌一致
 				if s == "hair" and shown != RunData.true_item("hair"):
 					bad.append("发型与原貌不一致：%s vs %s" % [shown, RunData.true_item("hair")])
-				# ⑥ 其余各件必须是「暴露值与原貌最接近」的
+				# ⑥ 其余各件：**排除原貌**，取「暴露值最接近原貌」的那件
 				if s != "hair":
-					var te := int(OutfitData.get_item(RunData.true_item(s)).get("exposure", 0))
+					var tid := RunData.true_item(s)
+					var te := int(OutfitData.get_item(tid).get("exposure", 0))
 					var se := int(it.get("exposure", 0))
+					# ★ 第四十四轮：照片不该直接给出答案 —— 非发型件不得等于原貌那件
+					if shown == tid:
+						bad.append("%s 显示了原貌那件（%s）—— 应该排除" % [s, shown])
+					# 最优差要在**排除原貌之后**的候选里算
 					var best := 999
 					for x in OutfitData.get_items_for_slot(s):
+						var xid := str((x as Dictionary).get("id", ""))
+						if xid == tid:
+							continue
 						best = mini(best, absi(int((x as Dictionary).get("exposure", 0)) - te))
-					if absi(se - te) != best:
-						bad.append("%s 选了 e%d，原貌 e%d（最优差 %d，实际差 %d）" % [
+					if best < 999 and absi(se - te) != best:
+						bad.append("%s 选了 e%d，原貌 e%d（排除原貌后的最优差 %d，实际差 %d）" % [
 							s, se, te, best, absi(se - te)])
 
 	_check("★ %d 个种子：每张照片都符合全部约束（问题 %d 条）" % [PHOTO_SEEDS, bad.size()],
@@ -1159,6 +1167,46 @@ func _test_photos_v2() -> void:
 	_check("★ 确实出现过「一张照片里同时有好几件」（%d 张）" % multi, multi > 0)
 	_check("照片里出现过的槽位只有那五类：" + str(all_slots.keys()),
 		all_slots.size() <= ScenarioData.PHOTO_SLOTS.size())
+
+	# ---- ★ 第四十四轮：点缀（眼镜 / 发型 / 鞋子）整局各自最多一次 ----
+	#   用户口径：「鞋子、发型、眼镜这三样在**所有照片里各自最多出现一次**」，
+	#   理由「因为这三样东西类型太少」—— 款式少，重复出现容易被玩家对比出答案。
+	#   ★ 要跑**完整一局**（逐轮 +2 张）才能验到「累加之后也不重复」。
+	var one_of_over := 0
+	var one_of_runs := 0
+	var one_of_seen := {"glasses": 0, "hair": 0, "shoes": 0}
+	var main_repeat := 0
+	for k in 24:
+		ProfileData.reset_all()
+		RunData.start_new_run(880000 + k * 7919)
+		for li in range(1, OutfitData.level_count()):
+			RunData.advance_level()
+		one_of_runs += 1
+		var seen := {"glasses": 0, "hair": 0, "shoes": 0}
+		for i in RunData.photos.size():
+			for e in (RunData.photos[i] as Dictionary).get("items", []):
+				var s := str((e as Dictionary).get("slot", ""))
+				if seen.has(s):
+					seen[s] += 1
+		for s in seen.keys():
+			one_of_seen[s] = maxi(int(one_of_seen[s]), int(seen[s]))
+			if int(seen[s]) > 1:
+				one_of_over += 1
+		# 主体（上衣 / 下装）不受这条限制 —— 它们本来就该在多张照片里出现
+		var top_n := 0
+		for i in RunData.photos.size():
+			for e in (RunData.photos[i] as Dictionary).get("items", []):
+				if str((e as Dictionary).get("slot", "")) == "top":
+					top_n += 1
+		if top_n > 1:
+			main_repeat += 1
+	_check("★ %d 局完整跑完：眼镜 / 发型 / 鞋子 各自最多出现一次（超标 %d 次）" % [
+		one_of_runs, one_of_over], one_of_over == 0)
+	_check("★ 三样的单局出现次数上界都 ≤ 1：" + str(one_of_seen),
+		int(one_of_seen["glasses"]) <= 1 and int(one_of_seen["hair"]) <= 1
+		and int(one_of_seen["shoes"]) <= 1)
+	_check("★ 主体（上衣）**不受**这条限制、可以在多张照片里出现（%d 局如此）" % main_repeat,
+		main_repeat > 0)
 
 	# ---- 每轮 +2 张（累加、旧照片保留）----
 	ProfileData.reset_all()
@@ -1194,27 +1242,39 @@ func _test_photos_v2() -> void:
 			absf(ratio - vp_ratio) < 0.05)
 
 	# ---- 擦亮：只有「真拍到原貌」的槽位才算已还原 ----
-	ProfileData.reset_all()
-	RunData.start_new_run(161803)
-	var true_hits := 0
-	var miss_hits := 0
-	for i in RunData.photos.size():
-		var p: Dictionary = RunData.photos[i]
-		for e in p.get("items", []):
-			var d: Dictionary = e
-			var s := str(d.get("slot", ""))
-			var is_true: bool = bool(d.get("is_true", false))
-			var really_true: bool = str(d.get("shown", "")) == RunData.true_item(s)
-			if is_true != really_true:
-				true_hits = -1        # 标记出错
-			if is_true:
-				true_hits += 1
-			elif s != "hair":
-				miss_hits += 1
-	_check("★ `is_true` 与「显示的是不是原貌那件」完全一致",
-		true_hits >= 0)
-	_check("照片确实可能**没**拍到原貌（说明「相近」不是每次都命中原貌）",
-		miss_hits > 0 or true_hits > 0)
+	#   ★ 第四十四轮起照片**排除原貌**，所以非发型件的 `is_true` 应该全是 false；
+	#     只有**发型**照旧照实显示原貌（所以它的 `is_true` 是 true）。
+	#   ★ 统计要跨多个种子 —— 单一种子可能恰好没抽到发型（实测踩到过）。
+	var flag_ok := true        # is_true 与「显示的是不是原貌」是否一致
+	var nonhair_true := 0      # 非发型件里「恰好等于原貌」的次数（应为 0）
+	var nonhair_total := 0
+	var hair_total := 0
+	var hair_true := 0
+	for k in PHOTO_SEEDS:
+		ProfileData.reset_all()
+		RunData.start_new_run(160000 + k * 6151)
+		for i in RunData.photos.size():
+			var p: Dictionary = RunData.photos[i]
+			for e in p.get("items", []):
+				var d: Dictionary = e
+				var s := str(d.get("slot", ""))
+				var shown := str(d.get("shown", ""))
+				var is_true: bool = bool(d.get("is_true", false))
+				if is_true != (shown == RunData.true_item(s)):
+					flag_ok = false
+				if s == "hair":
+					hair_total += 1
+					if is_true:
+						hair_true += 1
+				else:
+					nonhair_total += 1
+					if is_true:
+						nonhair_true += 1
+	_check("★ `is_true` 与「显示的是不是原貌那件」完全一致", flag_ok)
+	_check("★ 非发型件**一律不出现原貌**（命中 %d 次 / 共抽样 %d 件）" % [
+		nonhair_true, nonhair_total], nonhair_true == 0 and nonhair_total > 0)
+	_check("★ 发型照旧与原貌一致（%d / %d）" % [hair_true, hair_total],
+		hair_total > 0 and hair_true == hair_total)
 	ProfileData.reset_all()
 
 # ------------------------------------------------------------

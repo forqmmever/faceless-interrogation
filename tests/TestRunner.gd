@@ -1173,6 +1173,15 @@ func _test_phone() -> void:
 		not p0.get("items", []).is_empty() and str(p0.get("half", "")) != "")
 	_check("★ 擦亮后文字会列出这张照片里的每一件（%d 件）" % true_slots.size(),
 		(p0.get("items", []) as Array).size() >= 1)
+	# ★ 第四十四轮：照片**排除原貌** —— 非发型件不该直接给出答案。
+	#   （发型是唯一例外：用户口径要求「发型与原貌保持一致」。）
+	var leak := 0
+	for e in p0.get("items", []):
+		var d2: Dictionary = e
+		var s2 := str(d2.get("slot", ""))
+		if s2 != "hair" and bool(d2.get("is_true", false)):
+			leak += 1
+	_check("★ 照片里没有把原貌那件直接摆出来（发型除外）", leak == 0)
 
 	# ---- 备忘录：第一条记的就是审问者 ----
 	phone._switch_app("memo")

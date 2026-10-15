@@ -37,6 +37,10 @@ var clues: Array = []                  # 本局的 18 条外貌情报（由原�
 var level_index: int = 0               # 当前轮次（0 起）
 var cleared_levels: int = 0            # 本局已通过的轮次数
 var photos: Array = []                 # 本局手机相册里的照片
+# ★ 第四十四轮：相册里「点缀」槽位（眼镜 / 发型 / 鞋子）**整局共享的名额** ——
+#   用过一次就不再出现在后续照片里（用户口径「各自最多出现一次」）。
+#   每开一局在 `_roll_photos()` 里清空。
+var _photo_used_one_of: Dictionary = {}
 var interrogator_trait_id: String = "" # 本局审讯官的性情（审问者的情报）
 var forced_items: Array = []           # 本轮强制装备的 item id（0 ~ 2 件）
 
@@ -442,13 +446,19 @@ func _build_clues() -> void:
 #    · 一张照片 = **一段身体**（上半身 / 下半身），不是一处特写；
 #    · 上半身组 = 眼镜 / 发型 / 上衣；下半身组 = 下装 / 鞋子 —— 两组不混；
 #    · 一张照片从它那一组里**随机取子集**（至少 1 件）→「可能会同时出现」；
-#    · 每件衣服取「暴露值与原貌那件**最接近**」的那件（并列随机，**含原貌本身**）
-#      —— 所以照片可能正好拍到原貌，也可能只是同一个暴露档位的别的件；
+#    · 每件衣服取「暴露值与原貌那件**最接近**」的那件（并列随机）——
+#      ★ 第四十四轮：**排除原貌本身** —— 照片只暗示「档位大概在哪儿」，不直接给答案；
 #    · **发型例外**：直接就是原貌那件（用户口径「发型与原貌保持一致」）；
 #    · 数量：开局 3 张，之后**每过一轮追加 2 张**（累加，旧照片保留）。
+#
+#  ★ 照片**不参与解锁原貌** —— `IntelDesk` 开局就把所有槽位标成已还原
+#    （见 `_fill_revealed()`），玩家本来就能在准备室里按 👁 看到 A 的样子。
+#    所以照片是「多一条线索」，不是「打开一扇门」；把它改成不给答案也不会卡关。
 # ============================================================
 func _roll_photos() -> void:
 	photos = []
+	# ★ 第四十四轮：点缀名额（眼镜 / 发型 / 鞋子）每局重新开一份
+	_photo_used_one_of = {}
 	_append_photos(ScenarioData.PHOTO_COUNT_START)
 
 # 追加 n 张照片（开局与每轮推进都走它）
@@ -464,8 +474,17 @@ func _make_photo() -> Dictionary:
 	var group: Array = ScenarioData.PHOTO_UPPER if half == ScenarioData.PHOTO_HALF_UPPER \
 		else ScenarioData.PHOTO_LOWER
 
-	# ---- 从这一组里随机取子集（至少 1 件）----
-	var cand := []
+	# ---- 从这一组里取件 ----
+	#   ★ 第四十四轮（用户补充口径）：
+	#     「鞋子、发型、眼镜这三样在**所有照片里各自最多出现一次**」
+	#     （理由：「这三样东西类型太少」——款式少，重复出现容易被玩家对比出答案）。
+	#   所以分成两类：
+	#     · **主体**（top / bottom）—— 各自独立按 PHOTO_MAIN_CHANCE 决定出不出现
+	#     · **点缀**（glasses / hair / shoes）—— 整局共享一份名额：
+	#       每张照片按 PHOTO_ONE_OF_CHANCE 决定要不要用掉一个，
+	#       用掉的那个**之后不再出现**（也可能一次都不用）。
+	var mains := []
+	var one_of := []
 	for s in group:
 		var slot := str(s)
 		# 下架的槽位不进相册（否则会出现「拍的是外袍」但画面上什么都没有）
@@ -473,20 +492,35 @@ func _make_photo() -> Dictionary:
 			continue
 		if OutfitData.is_manual_slot(slot):
 			continue
-		cand.append(slot)
+		if ScenarioData.PHOTO_ONE_OF.has(slot):
+			# ★ 已经被用掉的名额不再出现在候选里 —— 这就是「各自最多一次」
+			if not _photo_used_one_of.has(slot):
+				one_of.append(slot)
+		else:
+			mains.append(slot)
+
+	var cand := []
+	for s in mains:
+		if _rng.randf() < ScenarioData.PHOTO_MAIN_CHANCE:
+			cand.append(s)
+	if not one_of.is_empty() and _rng.randf() < ScenarioData.PHOTO_ONE_OF_CHANCE:
+		var pick := str(one_of[_rng.randi() % one_of.size()])
+		cand.append(pick)
+		_photo_used_one_of[pick] = true        # ★ 名额用掉了
+	# 兜底：一件都没选中 → 补一件（优先主体，保证照片里是「能看出档位」的衣服）
+	if cand.is_empty():
+		if not mains.is_empty():
+			cand.append(str(mains[_rng.randi() % mains.size()]))
+		elif not one_of.is_empty():
+			var pick2 := str(one_of[_rng.randi() % one_of.size()])
+			cand.append(pick2)
+			_photo_used_one_of[pick2] = true
 	if cand.is_empty():
 		return {}
-	# 洗牌后取前 k 件，k ∈ [1, cand.size()]
-	for i in range(cand.size() - 1, 0, -1):
-		var j := _rng.randi() % (i + 1)
-		var t = cand[i]
-		cand[i] = cand[j]
-		cand[j] = t
-	var k: int = 1 + _rng.randi() % cand.size()
 
 	var picked := []
-	for i in k:
-		var slot := str(cand[i])
+	for s in cand:
+		var slot := str(s)
 		# ★ 发型与原貌保持一致（不参与「暴露值相近」的挑选）
 		var shown := true_item(slot) if slot == "hair" else _shown_item_near(slot)
 		if shown == "":
@@ -528,8 +562,14 @@ func _make_photo() -> Dictionary:
 	}
 
 # 这一槽位「照片里显示哪件」—— 取暴露值与原貌那件**最接近**的。
-#   ★ 含原貌本身：所以照片确实可能正好拍到原貌（用户口径选的就是这个）。
+#
+#   ★ 第四十四轮（用户口径「改成排除原貌」）：候选里**排除原貌那件本身** ——
+#     照片不该直接把答案摆出来，只暗示「A 在那个部位的暴露档位大概在哪儿」。
+#     （原来含原貌，实测因为原貌池里同暴露值的件少，经常直接命中原貌，
+#      等于把答案白给了 —— 所以用户要求排掉。）
 #   ★ 并列时随机取一个，保证每张照片不完全一样。
+#   ★ 兜底：万一这一栏除了原貌那件再没别的可穿，就只能照实显示原貌
+#     （否则会返回空、照片里少一件）。`is_true` 会如实标出这种情况。
 func _shown_item_near(slot: String) -> String:
 	var true_id := true_item(slot)
 	var true_e := int(OutfitData.get_item(true_id).get("exposure", 0))
@@ -537,15 +577,17 @@ func _shown_item_near(slot: String) -> String:
 	var tied := []
 	for it in OutfitData.get_items_for_slot(slot):
 		var d: Dictionary = it
-		var e := int(d.get("exposure", 0))
-		var diff: int = absi(e - true_e)
+		var iid := str(d.get("id", ""))
+		if iid == true_id:
+			continue                          # ★ 排除原貌本身
+		var diff: int = absi(int(d.get("exposure", 0)) - true_e)
 		if best < 0 or diff < best:
 			best = diff
-			tied = [str(d.get("id", ""))]
+			tied = [iid]
 		elif diff == best:
-			tied.append(str(d.get("id", "")))
+			tied.append(iid)
 	if tied.is_empty():
-		return ""
+		return true_id
 	return str(tied[_rng.randi() % tied.size()])
 
 # 照片里这件是不是原貌那件（擦亮时用来决定要不要标「已还原」）

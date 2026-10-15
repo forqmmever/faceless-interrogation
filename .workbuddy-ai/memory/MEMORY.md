@@ -133,8 +133,13 @@ godot --headless --path . res://tests/WardrobeTest.tscn      # 换装 + 数据�
 godot --headless --path . res://tests/TestRunner.tscn        # 端到端
 node tools/editor_smoke.js                                    # 文本编辑器
 node tools/phone_editor_smoke.js                              # 手机编辑器
-godot --path . res://tests/Screenshot.tscn                    # 42 张截图（★ 非 headless）
+godot --path . res://tests/Screenshot.tscn                    # 43 张截图（★ 非 headless）
 ```
+
+★ **只在动了游戏代码 / 数据（`scripts/` / `data/` / `tests/` / `tools/*_editor.html`）时跑。**
+用户 2026-10-15 明确：「没动代码不用跑四套验证」。
+纯文档 / 纯清点 / 纯加工具这类轮次**不必跑** —— 跑了也是浪费时间。
+（判断标准：这一轮的改动会不会影响游戏运行时的行为或数据。）
 
 ## 技术约定
 

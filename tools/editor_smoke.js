@@ -125,6 +125,15 @@ try {
   errs.slice(0, 25).forEach(i => console.log("   [错误] " + i.m));
   warns.slice(0, 25).forEach(i => console.log("   [提醒] " + i.m));
   ok(errs.length === 0, "0 个错误（实际 " + errs.length + "）");
+  // ★★ 第五十四轮：**出厂数据下提醒也必须是 0 条。**
+  //   原来是 57 条 —— 用户口径「打开编辑器后出现了57个提醒修复这些问题」。
+  //   逐条查下来，其中 **3 类共 30 条是校验器自己算错了**（详见 CHANGELOG 第 54 轮），
+  //   其余是「数据现状说明」被塞进了问题面板（出厂就有，不是用户改坏的）。
+  //   ★ 这条断言是**这次的守门人**：以后谁再往校验器里加「出厂必然触发」的规则，
+  //     冒烟立刻挂 —— 而不是等用户又看到一片红字。
+  ok(warns.length === 0,
+    "出厂数据下 0 条提醒（实际 " + warns.length + " 条）"
+    + (warns.length ? "：\n      " + warns.slice(0, 8).map(i => i.m).join("\n      ") : ""));
   console.log("   错误 " + errs.length + " / 提醒 " + warns.length);
 
   console.log("\n-- 3. 全部视图渲染 --");
@@ -309,6 +318,17 @@ try {
     "每套背景的 intro 都写得够长（够撑起一个浮窗）");
   const metaSec3 = P.bgSections(P.story.backgrounds[0]).find(s => s.key === "meta");
   ok(!!metaSec3 && metaSec3.fields.some(f => f.k === "intro"), "基础信息里能改 intro");
+  console.log("\n-- 7f2. 衣物描述的「多出来的项」提示（第五十四轮从校验面板挪到这一节）--");
+  {
+    const gsec = P.globalSections().find(s => s.key === "item_desc");
+    ok(!!gsec, "全局文本页里有衣物描述这一节");
+    ok(typeof gsec.extra === "function", "这一节声明了 extra（多出来的项）");
+    const ex = gsec.extra ? gsec.extra() : [];
+    ok(ex.length > 0, "出厂数据里确实有多出来的项（实际 " + ex.length + " 条）");
+    ok(ex.every(k => !P.POOL_IDS.includes(k)), "extra 列出的都不在候选池里");
+    ok(gsec.missing().length === 0, "同时「缺失的」是 0 条（该有的都有）");
+  }
+
   console.log("\n-- 7g. 题目：逐题编辑的字段结构（★ 第五十三轮起在每套背景页里）--");
   // ★ 第二十九轮：题目不再按四类分区编辑，改成一份统一清单（每道题自带选项）。
   // ★ 第五十三轮：那份清单从「全局题库页」搬到了每套背景的「⑦ 题目」节 ——
@@ -549,11 +569,20 @@ try {
     P.validateNow();
     ok(!P.issues.some(i => i.lv === "e" && i.m.includes("第五关")),
       "新增一关不报错（合法的数值就该通过）");
-    // 反差要求定到「把每个部位最高反差的衣服都堆上也够不着」→ 一定无解，必须提醒
+    // 反差要求定到「暴露值上限 + 原貌最多能贡献」都够不着 → 一定无解，必须提醒
+    //   ★ 第五十四轮：这条上界原来算错了（用的是旧口径的「单件 contrast」，
+    //     会把 125 / 150 这种**有解**的曲线报成无解）。现在改成按
+    //     `倍率 × (暴露值上限 + Σ原貌上界)` 算，文案也从「理论上界」改成「宽松上界」。
     S.levels[S.levels.length - 1].contrast_req = 999;
     P.validateNow();
-    ok(P.issues.some(i => i.m.includes("理论") && i.m.includes("999")),
-      "反差要求超过理论上界会被提醒：" + (P.issues.filter(i => i.m.includes("999"))[0] || {}).m);
+    ok(P.issues.some(i => i.m.includes("宽松上界") && i.m.includes("999")),
+      "反差要求超过宽松上界会被提醒：" + (P.issues.filter(i => i.m.includes("999"))[0] || {}).m);
+    // ★ 反向：出厂那条曲线（125 / 150）**不该**被报成无解 ——
+    //   这正是第 54 轮修的那个 bug（旧公式把 125 报成「超过上界 59」）。
+    S.levels[S.levels.length - 1].contrast_req = S.levels[0].contrast_req;
+    P.validateNow();
+    ok(!P.issues.some(i => i.m.includes("宽松上界")),
+      "出厂的曲线（" + S.levels.map(l => l.contrast_req).join(" / ") + "）不该被报「超过上界」");
     S.levels.pop();
     P.validateNow();
     ok(S.levels.length === before, "关卡数改回原样（" + before + " 关）");
@@ -811,8 +840,15 @@ try {
     ok(!P.issues.some(i => i.lv === "e" && i.m.includes("true_presets")),
       "按关覆写（中间一关有值、其余 null）不报错");
     ok(P.presetSummary().includes("逐轮 1 轮"), "导航角标统计到逐轮覆写：" + P.presetSummary());
-    ok(P.issues.some(i => i.lv === "w" && i.m.includes("逐关变化")),
-      "按关覆写生效时会提醒「A 的样子会逐关变化」");
+    // ★★ 第五十四轮：这条「按关覆写生效时会提醒『A 的样子会逐关变化』」的断言
+    //   改成**反向**的 —— 那条提醒被**删掉**了（它是「设计说明」不是「问题」，
+    //   出厂就是按轮钉死原貌，等于每次打开都刷一条）。
+    //   改成反向断言 = 守住「它不该再回来」。
+    ok(!P.issues.some(i => i.m.includes("逐关变化")),
+      "不再常驻提醒「A 的样子会逐关变化」（第五十四轮起挪进背景页的说明里）");
+    // ★ 但「按关覆写本身是合法的」这条要留着 —— 别把功能一起删了
+    ok(P.presetSummary().includes("逐轮 1 轮"),
+      "按关覆写的数据仍然被正常识别：" + P.presetSummary());
 
     // ---- 按轮覆写：项数与轮数不匹配 → 提醒 ----
     //   ★ 第五十二轮：轮数从 4 变 2，所以「不匹配」的样本要从 2 项改成 3 项

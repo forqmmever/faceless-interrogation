@@ -58,6 +58,40 @@ bbox**，不能照抄别人的 `scale`。
   `"D:/WorkBuddy/godot/Godot_v4.3-stable_win64_console.exe"`。
 - **编辑大文件后要回读一眼** —— 出现过「替换时把换行一起吃掉、两行合成一行」。
 
+### ★★ 改 CRLF 文件：多行 old/new 必须先归一化行尾（第 54 轮定稿）
+
+`tools/story_editor.html` / `phone_editor.html` / `flow_overview.py` 都是 **CRLF**。
+用 `open(P,'rb').read().decode('utf-8')` 读进来时换行是 `\r\n`，
+而 Python 字符串字面量里写的是 `\n` → **多行匹配必然失败**（`substring not found`）。
+更阴的是：**匹配上了但 new 里写 `\n`，就会写出「混合行尾」**（第 52 轮踩过一次）。
+
+**固定下来这个 helper，以后照抄：**
+
+```python
+s = open(P, 'rb').read().decode('utf-8')
+NL = '\r\n' if '\r\n' in s else '\n'      # 先探测文件自己的行尾
+
+def N(t):
+    """把任意行尾归一化成文件自己的行尾 —— 不做这步就会匹配不上或写出混合行尾"""
+    return t.replace('\r\n', '\n').replace('\n', NL)
+
+def cut(a, b, new, label):
+    """把 [a 起点, b 终点] 这一段整体换成 new —— 比一整段长串的精确匹配稳得多"""
+    global s
+    A, B = N(a), N(b)
+    i = s.index(A); j = s.index(B, i) + len(B)
+    s = s[:i] + N(new) + s[j:]
+
+# 写回后立刻验一遍
+b = s.encode('utf-8'); open(P, 'wb').write(b)
+crlf = b.count(b'\r\n'); lone = b.count(b'\n') - crlf
+print('CRLF=%d 单独LF=%d %s' % (crlf, lone, '✓' if lone == 0 else '★ 混合行尾！'))
+```
+
+★ **定位技巧**：先用 `s.count(短锚点) == 1` 验证唯一，再用 `cut(起始锚点, 结束锚点, ...)`
+做区间替换 —— 比「一整段长字符串精确匹配」对空白 / 换行差异的容忍度高得多。
+第 54 轮就是靠这个才把 7 处改动一次做对。
+
 ### ★ 编辑器脚本里的两个坑（第 53 轮）
 
 1. **`editor_smoke.js` 第 74~94 行那段是「模板字符串里的 JS」**（反引号包围的

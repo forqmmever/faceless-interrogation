@@ -1272,7 +1272,9 @@ function globalSections(){
   return [
     { key:"item_desc", title:"衣物目击描述（ITEM_DESC）", kind:"strmap", map:()=>story.item_desc,
       hint:"每件「可能是原貌」的衣服一句描述，和 CLUE_FRAME 拼成目击者的话。必须覆盖候选池全部 " + POOL_IDS.length + " 件。",
-      keyLocked:true, missing:()=>POOL_IDS.filter(k => !(story.item_desc || {})[k]) },
+      keyLocked:true, missing:()=>POOL_IDS.filter(k => !(story.item_desc || {})[k]),
+      // ★ 第五十四轮：池外的那些（写了但原貌抽不到）—— 移到这一节里提示，见 strmap 的 extra
+      extra:()=>Object.keys(story.item_desc || {}).filter(k => POOL_IDS.indexOf(k) < 0) },
     { key:"clue_frame", title:"外貌情报句式模板（CLUE_FRAME）", kind:"strmap", map:()=>story.clue_frame,
       hint:"必须含 %s —— 那是插入衣物描述的位置。缺了 %s 游戏会在拼句子时报错。",
       keyLocked:true, missing:()=>SLOTS.filter(k => !(story.clue_frame || {})[k]) },
@@ -2635,6 +2637,18 @@ function renderStrMap(spec, path, isArr){
       commit(); markDirty(); renderAll();
     }}));
   }
+  // ★★ 第五十四轮：对称于 `missing` 的「多出来的项」提示。
+  //   这一条原来挂在校验面板里（每次打开编辑器都刷一行），但它是**数据现状说明**
+  //   而不是「你改坏了」—— 出厂数据本身就有 21 条这样的描述。
+  //   挪到这一节里显示：信息不丢（就在你编辑这张表的地方），也不再淹没别的问题。
+  const extra = spec.extra ? spec.extra() : [];
+  if (extra.length){
+    addRow.append(h("div", {class:"help", style:"margin-left:10px"},
+      h("div", {}, "· 另有 ", h("b", {text:extra.length + " 项是多出来的"}), "："
+        + extra.join("、")),
+      h("div", {}, "　这些衣服不在原貌候选池里（原貌抽不到它们），所以这几条描述"
+        + "**永远用不到**。留着不影响运行 —— 以后把这件衣服加进候选池，它就用上了。")));
+  }
   addRow.append(h("button", {text:"＋ 自定义键", onclick:()=>{
     const k = prompt("新键名（英文，例如 neck_scarf）：");
     if (!k) return;
@@ -2807,13 +2821,10 @@ function validateNow(){
     if (!bg.true_role) warn(tag + " 没有 true_role（A 的真实身份）", v);
     if (!bg.true_name) warn(tag + " 没有 true_name（A 的真身名字）—— 阶段二被认出来时会退回念 true_role", v);
     if (!bg.intro) warn(tag + " 没有 intro（开场介绍）—— 开局那个浮动窗口会退回显示一行场景描写", v);
-    // ★ 第五十二轮改判：空 = **回落全局那份**，这是运行时明确支持的语义
-    //   （`OutfitData.bg_levels()` 空 → 用 DEFAULT_LEVELS；
-    //     并且第五十二轮起「轮次名改成通用第一轮/第二轮」后，
-    //     每套背景的 `levels` 覆写就是**空的**——这是出厂状态，不能报错）。
-    //   要报的是「配了但条数与全局不一致」，那条另有专门检查。
-    if (!(bg.levels || []).length)
-      warn(tag + " 没有自己的关卡表 —— 会回落到全局那一份（出厂就是空的）", v);
+        // ★★ 第五十四轮：这里原来有一条「没有自己的关卡表 —— 会回落到全局那一份」的提醒。
+    //   **删掉了** —— 空 = 回落全局是出厂常态（第 52 轮起每套背景的 `levels` 就是空的），
+    //   每次打开编辑器都刷 4 条「你的数据没问题」的提醒，只会淹没真问题。
+    //   要报的是「配了但条数与全局不一致」，那条在下面的轮次段里另有专门检查。
 
     const cardIds = new Set();
     (bg.cards || []).forEach(c => {
@@ -3035,9 +3046,14 @@ function validateNow(){
   POOL_IDS.forEach(id => {
     if (!(id in idsc)) err("衣物描述缺 " + id + " —— 抽到这件原貌时情报拼不出来", {kind:"global"});
   });
-  Object.keys(idsc).forEach(k => {
-    if (POOL_IDS.indexOf(k) < 0) warn("衣物描述里多了一条 " + k + "（不在候选池里，永远用不到）", {kind:"global"});
-  });
+  // ★★ 第五十四轮：原来这里**逐条**报「衣物描述里多了一条 XXX（不在候选池里，永远用不到）」
+  //   —— 出厂就有 21 条，一屏刷 21 行。
+  //   ★ 现在**不再进校验面板**了 —— 它是「数据现状说明」而不是「你改坏了」，
+  //     挂在这里等于每次打开都刷一条。改成在「📝 外貌情报 / 全局文本」页的
+  //     衣物描述那一节里显示（见 `globalSections()` 的 `extra`），
+  //     就在你编辑那张表的地方，信息不丢。
+  //   ★ 判据本身是对的：`item_desc` 只用于「原貌的目击描述」（`clue_text`），
+  //     而原貌只会从候选池（+ 按轮钉死那几件）里出，所以池外的描述确实用不到。
   if (!(story.photo_notes || []).length) warn("照片背面一句话都没有", {kind:"global"});
 
   // ---- 玩法数值（rules）----
@@ -3152,31 +3168,51 @@ function validateNow(){
           warn(tag + " 的反差要求（" + resolved[i] + (rawReq > 0 ? "，手写" : "，自增") + "）比上一关（"
             + resolved[i - 1] + "）还低 —— 曲线反了", LV);
       });
-      // 最后一关还给接受度 = 白给（后面没有关卡用得上）
-      const last = lvs[lvs.length - 1] || {};
-      if (last.acceptance_gain > 0)
-        warn("最后一关（" + (last.name || ("第 " + lvs.length + " 关")) + "）还在给接受度 +" + last.acceptance_gain + " —— 后面没有关卡了，给了也用不上", LV);
-      // 「这一关会不会无解」的**宽松上界**：
-      //   反差是靠「换掉与原貌相同的部位」挣来的，单件反差最高就那么多。
-      //   把所有可见槽位在当前接受度下能穿到的**最高反差**加起来 —— 这个和
-      //   不扣暴露值预算，所以它是**上界**：要求高过它，那一关一定无解；
-      //   没高过也不保证有解（那要看暴露值够不够），所以只说“超过必无解”。
+      // ★★ 第五十四轮：这里原来有一条「最后一关还在给接受度 —— 给了也用不上」的提醒。
+      //   **删掉了 —— 它的判据是错的**：通关那一步走的也是 `RunData.advance_level()`
+      //   （`Main._on_overlay_pressed()` 的 `last_level` 分支），而 `advance_level()`
+      //   里有 `ProfileData.add_gain(gain)` —— 接受度是**跨局保留**的，
+      //   所以最后一轮给的接受度照样进账号，下一局开局就更宽松。不是白给。
+      // ★★ 第五十四轮：**这条「理论上界」原来是错的，整个重算。**
+      //
+      //   错在哪儿：它把「每件衣服的 `contrast` 字段」按槽位取最大值再求和。
+      //   但第 49 轮把反差的口径改成了 **`Σ|你穿的这件 − 原貌这件| × 倍率`** ——
+      //   单件反差**不再是一个固定值**（它取决于原貌那件穿的是什么），
+      //   所以「按槽位取 max(contrast)」算出来的 78（再被 `acc2 = 6` 这个旧起点
+      //   削到 59 / 77）与真实口径完全无关。它会把 125 / 150 这种**有解**的曲线
+      //   报成「一定无解」，属于**误导性告警**（比没有告警更糟）。
+      //
+      //   正确口径的上界，只用两条事实就能推：
+      //     ① `|a − b| ≤ a + b` → Σ|你 − 原貌| ≤ Σ你 + Σ原貌
+      //     ② 「你穿的暴露值合计」≤ 这一轮的暴露值上限 `cap = 10 + 接受度 × 2`
+      //   于是 **反差 ≤ 倍率 × (cap + Σ原貌)**。
+      //   `Σ原貌` 取「原貌候选池里每槽位最大暴露之和」—— 原貌只会从候选池
+      //   （以及按轮钉死的那几件）里出，所以这是它的上界。
+      //
+      //   ★ 这个上界是**安全**的（不会漏报无解），但**偏松** ——
+      //     真正的可解性要跑 DP（游戏里的 `auto_complete_outfit`），编辑器算不了。
+      //     所以它只拦「明显写飞了」的值，**没超上界不保证一定有解**。
+      //   ★ 三个常量与 `OutfitData` 对齐：START_ACCEPTANCE 14 /
+      //     EXPOSURE_BASE 10 / EXPOSURE_PER_ACCEPTANCE 2 —— 游戏侧改了要一起改。
       const cat = catItems().filter(x => !x.disabled);
       if (cat.length){
-        let acc2 = 6;
+        const perExp = Number((story.rules || {}).contrast_per_exposure) || 5;
+        const poolMax = {};
+        Object.keys(TRUE_POOL).forEach(sl => (TRUE_POOL[sl] || []).forEach(id => {
+          const it = cat.find(x => x.id === id);
+          if (it) poolMax[sl] = Math.max(poolMax[sl] || 0, it.exposure || 0);
+        }));
+        const trueUpper = Object.keys(poolMax).reduce((a, k) => a + poolMax[k], 0);
+        let acc2 = 14;
         lvs.forEach((l, i) => {
-          const best = {};
-          cat.forEach(x => {
-            if ((x.acceptance_req || 0) > acc2) return;
-            if (l.slot === undefined && best[x.slot] === undefined) best[x.slot] = 0;
-            if ((x.contrast || 0) > (best[x.slot] || 0)) best[x.slot] = x.contrast || 0;
-          });
-          const upper = Object.keys(best).reduce((a, k) => a + best[k], 0);
-          if (upper > 0 && resolved[i] > upper)
-            warn("【第 " + (i + 1) + " 关】反差要求 " + resolved[i]
+          const cap = 10 + acc2 * 2;
+          const upper = perExp * (cap + trueUpper);
+          if (resolved[i] > upper)
+            warn("【第 " + (i + 1) + " 轮】反差要求 " + resolved[i]
               + (l.contrast_req > 0 ? "（手写）" : "（自增出来的）")
-              + " 超过了这一关的理论上界 " + upper
-              + "（把每个部位最高反差的衣服都堆上也够不着）—— 这一关一定无解", LV);
+              + " 超过了这一轮的宽松上界 " + upper + "（暴露值上限 " + cap
+              + " ＋ 原貌最多能贡献 " + trueUpper + "，再乘反差倍率 " + perExp
+              + "）—— 这一轮一定无解", LV);
           acc2 += (typeof l.acceptance_gain === "number" ? l.acceptance_gain : 0);
         });
       }
@@ -3359,10 +3395,10 @@ function validateNow(){
       byLv.forEach((e, i) => checkPreset(e, "第 " + (i + 1) + " 关"));
     }
 
-    // 只在「按关覆写」实际生效时提一句它的副作用
-    const anyLv = Array.isArray(byLv) && byLv.some(x => x && x.slots && Object.keys(x.slots).length);
-    if (anyLv) warn("「按关覆写」生效时，同一局里 A 的样子会逐关变化（切关时原貌与情报一起换）"
-      + " —— 这是设计意图，不是 bug", VT);
+    // ★★ 第五十四轮：删掉了「「按关覆写」生效时 A 的样子会逐轮变化 —— 这是设计意图」
+    //   那条常驻提醒。理由：它是**设计说明**，不是**问题** —— 放在校验面板里
+    //   会让人以为数据有毛病，而且出厂就是按轮钉死原貌，等于每次打开都刷一条。
+    //   这段说明本来就写在「🎬 背景」页的「⑧ 本局覆写 · 怎么读」里，位置更合适。
   }
 
   // ---------- 第四十一轮：背景级「本局流程覆写」的校验 ----------
@@ -3382,7 +3418,9 @@ function validateNow(){
     if (bg.levels !== undefined){
       if (!Array.isArray(bg.levels)) err(tag + " 的 levels 必须是数组", VB);
       else {
-        if (!bg.levels.length) warn(tag + " 的 levels 是空数组 —— 等同于「用全局那套轮次」", VB);
+        // ★★ 第五十四轮：删掉「levels 是空数组 —— 等同于用全局那套轮次」这条提醒。
+        //   空数组就是出厂状态（回落全局那套轮次），而且上面已经删掉了同义的
+        //   「没有自己的关卡表」—— 两条规则报同一件事，且都不该报。
         bg.levels.forEach((lv, i) => {
           if (!lv || typeof lv !== "object"){ err(tag + " 第 " + (i+1) + " 轮不是一个对象", VB); return; }
           if (lv.contrast_req !== undefined && lv.contrast_req !== null
@@ -3393,7 +3431,11 @@ function validateNow(){
             err(tag + " 第 " + (i+1) + " 轮的 acceptance_gain 必须是数字或留空", VB);
         });
         // ★ 题目挂到「这一局不存在的轮次」上 → 那些题永远不会出现
-        const n = bg.levels.length;
+        // ★★ 第五十四轮修：`n` 原来直接取 `bg.levels.length` —— 而**空数组 = 回落全局**，
+        //   于是出厂那四套（levels 都是空的）算出来 n = 0，把每套的 6 道题全报成
+        //   「属于第 N 轮，而这一局只打 0 轮 —— 它永远不会出现」（4 套 × 6 = 24 条假警告）。
+        //   正确做法：本套没配就按**全局**的轮数算。
+        const n = bg.levels.length || (story.levels || []).length;
         (bg.questions || []).forEach(q => {
           const lv = Number(q.level);
           if (lv >= n) warn(tag + " 的题目「" + (q.id || "?") + "」属于第 " + (lv + 1)

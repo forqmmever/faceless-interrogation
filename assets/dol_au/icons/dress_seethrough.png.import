@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ctcrc1vgb0hoe"
-path="res://.godot/imported/bra_seethrough.png-22fc00d346798c099dbd1e01c7d3448b.ctex"
+uid="uid://cn67idjg6ubo5"
+path="res://.godot/imported/dress_seethrough.png-1436f8a85d7fe2394c921d72a9c7023e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/dol_au/clothes/bra_seethrough.png"
-dest_files=["res://.godot/imported/bra_seethrough.png-22fc00d346798c099dbd1e01c7d3448b.ctex"]
+source_file="res://assets/dol_au/icons/dress_seethrough.png"
+dest_files=["res://.godot/imported/dress_seethrough.png-1436f8a85d7fe2394c921d72a9c7023e.ctex"]
 
 [params]
 

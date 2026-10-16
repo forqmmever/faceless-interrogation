@@ -177,7 +177,7 @@
 			"name": "第四轮",
 			"acceptance_gain": 0,
 			"derived_profile": "即将被放行的清白之人",
-			"contrast_req": 165
+			"contrast_req": 160
 		}
 	],
 	"forced_rules": [
@@ -657,17 +657,6 @@
 				"disabled": false
 			},
 			{
-				"id": "tattoo_paw_face",
-				"name": "脸颊爪印",
-				"slot": "tattoo",
-				"slot_name": "纹身",
-				"exposure": 2,
-				"contrast": 6,
-				"acceptance_req": 7,
-				"tags": [],
-				"disabled": false
-			},
-			{
 				"id": "tattoo_bitch",
 				"name": "左大腿刻字「bitch」",
 				"slot": "tattoo",
@@ -811,6 +800,17 @@
 				"exposure": 2,
 				"contrast": 6,
 				"acceptance_req": 7,
+				"tags": [],
+				"disabled": false
+			},
+			{
+				"id": "acc_locket",
+				"name": "银质心形吊坠",
+				"slot": "neckwear",
+				"slot_name": "颈饰",
+				"exposure": 0,
+				"contrast": 2,
+				"acceptance_req": 2,
 				"tags": [],
 				"disabled": false
 			},
@@ -1200,17 +1200,6 @@
 				"disabled": false
 			},
 			{
-				"id": "bra_seethrough",
-				"name": "透明泳衣上衣",
-				"slot": "bra",
-				"slot_name": "上内衣",
-				"exposure": 9,
-				"contrast": 7,
-				"acceptance_req": 10,
-				"tags": [],
-				"disabled": false
-			},
-			{
 				"id": "bra_tape",
 				"name": "胶带束胸",
 				"slot": "bra",
@@ -1280,18 +1269,7 @@
 				"contrast": 0,
 				"acceptance_req": 0,
 				"tags": [],
-				"disabled": false
-			},
-			{
-				"id": "acc_locket",
-				"name": "银质心形吊坠",
-				"slot": "accessory",
-				"slot_name": "配饰",
-				"exposure": 0,
-				"contrast": 2,
-				"acceptance_req": 2,
-				"tags": [],
-				"disabled": false
+				"disabled": true
 			},
 			{
 				"id": "acc_belt",
@@ -1302,7 +1280,7 @@
 				"contrast": 3,
 				"acceptance_req": 4,
 				"tags": [],
-				"disabled": false
+				"disabled": true
 			},
 			{
 				"id": "acc_choker_bunny",
@@ -1313,7 +1291,7 @@
 				"contrast": 4,
 				"acceptance_req": 6,
 				"tags": [],
-				"disabled": false
+				"disabled": true
 			},
 			{
 				"id": "acc_choker_whitney",
@@ -1324,7 +1302,7 @@
 				"contrast": 5,
 				"acceptance_req": 7,
 				"tags": [],
-				"disabled": false
+				"disabled": true
 			},
 			{
 				"id": "acc_choker_leash",
@@ -1335,7 +1313,7 @@
 				"contrast": 6,
 				"acceptance_req": 8,
 				"tags": [],
-				"disabled": false
+				"disabled": true
 			},
 			{
 				"id": "acc_choker_whitney_leash",
@@ -1346,7 +1324,7 @@
 				"contrast": 7,
 				"acceptance_req": 9,
 				"tags": [],
-				"disabled": false
+				"disabled": true
 			},
 			{
 				"id": "panties_janties",
@@ -1712,6 +1690,17 @@
 				"disabled": false
 			},
 			{
+				"id": "dress_seethrough",
+				"name": "透明连体泳衣",
+				"slot": "dress",
+				"slot_name": "成装",
+				"exposure": 9,
+				"contrast": 7,
+				"acceptance_req": 15,
+				"tags": [],
+				"disabled": false
+			},
+			{
 				"id": "panties_plain",
 				"name": "素色棉质内裤",
 				"slot": "panties",
@@ -1811,30 +1800,8 @@
 				"disabled": false
 			},
 			{
-				"id": "panties_loincloth",
-				"name": "遮羞布",
-				"slot": "panties",
-				"slot_name": "下内衣",
-				"exposure": 9,
-				"contrast": 7,
-				"acceptance_req": 10,
-				"tags": [],
-				"disabled": false
-			},
-			{
 				"id": "panties_tieside",
 				"name": "系带开衩比基尼内裤",
-				"slot": "panties",
-				"slot_name": "下内衣",
-				"exposure": 9,
-				"contrast": 8,
-				"acceptance_req": 15,
-				"tags": [],
-				"disabled": false
-			},
-			{
-				"id": "panties_seethrough",
-				"name": "透明连体泳裤",
 				"slot": "panties",
 				"slot_name": "下内衣",
 				"exposure": 9,
@@ -2129,7 +2096,7 @@
 				"contrast": 0,
 				"acceptance_req": 0,
 				"tags": [],
-				"disabled": false
+				"disabled": true
 			},
 			{
 				"id": "tool_tail",
@@ -2140,7 +2107,7 @@
 				"contrast": 0,
 				"acceptance_req": 0,
 				"tags": [],
-				"disabled": false
+				"disabled": true
 			}
 		],
 		"tags": [
@@ -2199,20 +2166,20 @@
 			"neckwear",
 			"top",
 			"bra",
-			"accessory",
 			"bottom",
 			"dress",
 			"panties",
 			"stockings",
-			"shoes",
-			"tool"
+			"shoes"
 		],
 		"disabled_slots": [
 			"robe",
 			"earrings",
 			"gloves",
 			"headgear",
-			"piercing"
+			"piercing",
+			"accessory",
+			"tool"
 		],
 		"manual_slots": [
 			"tool"
@@ -2358,10 +2325,6 @@
 				"exposure": 2,
 				"acceptance_req": 8
 			},
-			"tattoo_paw_face": {
-				"exposure": 2,
-				"acceptance_req": 7
-			},
 			"tattoo_bitch": {
 				"exposure": 2,
 				"acceptance_req": 9
@@ -2413,6 +2376,10 @@
 			"neck_freeuse": {
 				"exposure": 2,
 				"acceptance_req": 7
+			},
+			"acc_locket": {
+				"exposure": 0,
+				"acceptance_req": 2
 			},
 			"top_none": {
 				"exposure": 9,
@@ -2550,10 +2517,6 @@
 				"exposure": 8,
 				"acceptance_req": 9
 			},
-			"bra_seethrough": {
-				"exposure": 9,
-				"acceptance_req": 10
-			},
 			"bra_tape": {
 				"exposure": 9,
 				"acceptance_req": 10
@@ -2577,10 +2540,6 @@
 			"acc_none": {
 				"exposure": 0,
 				"acceptance_req": 0
-			},
-			"acc_locket": {
-				"exposure": 0,
-				"acceptance_req": 2
 			},
 			"acc_belt": {
 				"exposure": 1,
@@ -2734,6 +2693,10 @@
 				"exposure": 9,
 				"acceptance_req": 15
 			},
+			"dress_seethrough": {
+				"exposure": 9,
+				"acceptance_req": 15
+			},
 			"panties_plain": {
 				"exposure": 0,
 				"acceptance_req": 0
@@ -2770,15 +2733,7 @@
 				"exposure": 9,
 				"acceptance_req": 10
 			},
-			"panties_loincloth": {
-				"exposure": 9,
-				"acceptance_req": 10
-			},
 			"panties_tieside": {
-				"exposure": 9,
-				"acceptance_req": 15
-			},
-			"panties_seethrough": {
 				"exposure": 9,
 				"acceptance_req": 15
 			},
@@ -7281,7 +7236,6 @@
 		"tattoo_heart": "大腿上串着一列小小的暗色心形",
 		"tattoo_paw": "大腿外侧印着一枚小小的兽爪",
 		"tattoo_paw_chest": "胸口正中印着一枚小小的兽爪",
-		"tattoo_paw_face": "脸颊上印着一枚小小的兽爪",
 		"tattoo_bitch": "左大腿内侧刻着「bitch」一行小字",
 		"tattoo_freeuse": "右大腿上刻着「free-use」一行小字",
 		"tattoo_slave": "胸口正中刻着「slave」一行小字",

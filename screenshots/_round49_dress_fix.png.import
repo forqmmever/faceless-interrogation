@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://gf2jox0dbm0y"
-path="res://.godot/imported/panties_loincloth.png-e31abb19d80ab29cb13df445c81abb58.ctex"
+uid="uid://dr4y7e6d6e3mm"
+path="res://.godot/imported/_round49_dress_fix.png-d6ac9115c60acd3720e040816ab83564.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/dol_au/clothes/panties_loincloth.png"
-dest_files=["res://.godot/imported/panties_loincloth.png-e31abb19d80ab29cb13df445c81abb58.ctex"]
+source_file="res://screenshots/_round49_dress_fix.png"
+dest_files=["res://.godot/imported/_round49_dress_fix.png-d6ac9115c60acd3720e040816ab83564.ctex"]
 
 [params]
 

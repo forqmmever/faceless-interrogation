@@ -111,15 +111,19 @@ func _test_slots() -> void:
 	# ★ 第三十五轮：纹身槽补了 heart / paw 两件（都落左大腿）
 	# ★ 第三十六轮：再补四件刻字（bitch / free-use / slave / cum-rag），共 10 件
 	# ★ 第四十七轮：爪印扩到胸口与脸颊两处，共 12 件
+	# ★ 第五十一轮：脸颊那件按用户口径整件删除 → 11 件
 	var tattoo_ids := []
 	for it in OutfitData.ITEMS:
 		if str(it["slot"]) == "tattoo":
 			tattoo_ids.append(str(it["id"]))
-	_check("纹身槽现有 12 件", tattoo_ids.size() == 12)
+	_check("纹身槽现有 11 件", tattoo_ids.size() == 11)
 	_check("含大腿心形纹身", tattoo_ids.has("tattoo_heart"))
 	_check("含大腿爪印", tattoo_ids.has("tattoo_paw"))
-	_check("★ 第四十七轮：胸口 / 脸颊两枚爪印都在",
-		tattoo_ids.has("tattoo_paw_chest") and tattoo_ids.has("tattoo_paw_face"))
+	# ★ 第五十一轮：这一条原来是「胸口 / 脸颊两枚爪印都在」。
+	#   脸颊那件删掉之后，改成「胸口在 + 脸颊确实走了」——
+	#   留着后半句是为了**防它被误加回来**：整件删除是本轮的明确口径。
+	_check("★ 爪印只剩胸口那枚（脸颊的已按口径删除）",
+		tattoo_ids.has("tattoo_paw_chest") and not tattoo_ids.has("tattoo_paw_face"))
 	_check("★ 四件刻字纹身都在（bitch / free-use / slave / cum-rag）",
 		tattoo_ids.has("tattoo_bitch") and tattoo_ids.has("tattoo_freeuse")
 		and tattoo_ids.has("tattoo_slave") and tattoo_ids.has("tattoo_cumrag"))
@@ -468,13 +472,17 @@ func _group_slot_count(groups: Array) -> int:
 func _test_disabled_slots() -> void:
 	print("\n-- 暂时下架的槽位 DISABLED_SLOTS --")
 	var off: Array = OutfitData.DISABLED_SLOTS
-	_check("当前下架列表是外袍 + 耳饰 + 手套 + 头饰 + 穿环",
-		off.size() == 5 and off.has("robe") and off.has("earrings")
-		and off.has("gloves") and off.has("headgear") and off.has("piercing"))
+	# ★ 第五十一轮：配饰（用户口径「去掉配饰一栏」）与妙妙工具
+	#   （「妙妙工具暂时去掉」）一并下架 → 5 → 7 项。
+	_check("当前下架列表是外袍 + 耳饰 + 手套 + 头饰 + 穿环 + 配饰 + 妙妙工具",
+		off.size() == 7 and off.has("robe") and off.has("earrings")
+		and off.has("gloves") and off.has("headgear") and off.has("piercing")
+		and off.has("accessory") and off.has("tool"))
 	_check("下架的槽位仍在 SLOT_ORDER 里（数据没删）",
 		OutfitData.SLOT_ORDER.has("robe") and OutfitData.SLOT_ORDER.has("earrings")
 		and OutfitData.SLOT_ORDER.has("gloves") and OutfitData.SLOT_ORDER.has("headgear")
-		and OutfitData.SLOT_ORDER.has("piercing"))
+		and OutfitData.SLOT_ORDER.has("piercing")
+		and OutfitData.SLOT_ORDER.has("accessory") and OutfitData.SLOT_ORDER.has("tool"))
 	_check("active_slots() = SLOT_ORDER - DISABLED_SLOTS",
 		OutfitData.active_slots().size() == OutfitData.SLOT_ORDER.size() - off.size())
 	_check("active_slots() 不含下架的槽位",
@@ -482,21 +490,27 @@ func _test_disabled_slots() -> void:
 		and not OutfitData.active_slots().has("earrings")
 		and not OutfitData.active_slots().has("gloves")
 		and not OutfitData.active_slots().has("headgear")
-		and not OutfitData.active_slots().has("piercing"))
+		and not OutfitData.active_slots().has("piercing")
+		and not OutfitData.active_slots().has("accessory")
+		and not OutfitData.active_slots().has("tool"))
 	_check("slot_enabled() 语义正确",
 		OutfitData.slot_enabled("top") and not OutfitData.slot_enabled("robe")
 		and not OutfitData.slot_enabled("earrings")
 		and not OutfitData.slot_enabled("gloves")
 		and not OutfitData.slot_enabled("headgear")
-		and not OutfitData.slot_enabled("piercing"))
+		and not OutfitData.slot_enabled("piercing")
+		and not OutfitData.slot_enabled("accessory")
+		and not OutfitData.slot_enabled("tool"))
 	_check("下架槽位对外「一件都没有」",
 		OutfitData.get_items_for_slot("robe").is_empty()
 		and OutfitData.get_items_for_slot("earrings").is_empty()
 		and OutfitData.get_items_for_slot("gloves").is_empty()
 		and OutfitData.get_items_for_slot("headgear").is_empty()
-		and OutfitData.get_items_for_slot("piercing").is_empty())
+		and OutfitData.get_items_for_slot("piercing").is_empty()
+		and OutfitData.get_items_for_slot("accessory").is_empty()
+		and OutfitData.get_items_for_slot("tool").is_empty())
 	_check("下架槽位不进强制装备池", _forced_pool_excludes_disabled())
-	_check("下架的物品仍然完整定义着（4 外袍 + 4 耳饰 + 4 手套 + 4 头饰 + 4 穿环）", _disabled_items_intact())
+	_check("下架的物品仍然完整定义着（28 件：4×5 栏 + 配饰 6 + 妙妙工具 2）", _disabled_items_intact())
 	_check("下架的物品仍有目击描述（恢复后立刻可用）", _disabled_items_have_desc())
 	_check("每局原貌不含下架的槽位", _true_appearance_excludes_disabled())
 	_check("每局相册不含下架的槽位", _photos_exclude_disabled())
@@ -516,7 +530,12 @@ func _disabled_items_intact() -> bool:
 	# ★ 第二十七轮：手套与头饰也下架了 → 8 → 16
 	#   （robe 4 + earrings 4 + gloves 4 + headgear 4）
 	# ★ 第三十七轮：穿环也下架了 → 16 → 20（再加 piercing 4）
-	return n == 20
+	# ★ 第五十一轮：配饰与妙妙工具也下架了 → 20 → 28
+	#   （accessory 6 + tool 2）
+	#   ★ 配饰那 6 件 = 空件 + 束腰皮带 + 4 件项圈 —— 银质心形吊坠**不算在内**，
+	#     它按用户口径挪到颈饰去了，现在是**可见**物品（这正是本条断言的意义：
+	#     它替我们抓住「挪栏之后还剩几件真正下架」这件事）。
+	return n == 28
 
 func _disabled_items_have_desc() -> bool:
 	# 只有「可能是 A 的原貌」的那些才需要目击描述（robe_none / robe_travel）；
@@ -559,24 +578,49 @@ func _photos_exclude_disabled() -> bool:
 #      · 界面能看到它（active_slots 含它）
 #      · 不进原貌 / 情报 / 相册 / 强制池 / 一键达标
 #      · 不进「与原貌一致 / 已改掉 / 相似度」这些统计 → 也就不影响反差值口径
+#
+#  ★ 第五十一轮：用户口径「妙妙工具暂时去掉」→ `tool` 同时进了 DISABLED_SLOTS。
+#    于是上面「看得到、点得到」那一行**当前不成立**（下架优先），
+#    但 `MANUAL_SLOTS` 里那条**刻意保留** —— 两件事合起来的效果是：
+#      · 现在：玩家看不到这一栏（下架），也就装不上尼古喵尾，
+#        「不涨怀疑值」那套机制在代码里照旧存在、但**实际不可达**；
+#      · 恢复：把 "tool" 从 DISABLED_SLOTS 里删掉即可，MANUAL_SLOTS 不用动。
+#    本段的断言按这个新口径改写（「声明保留」+「当前看不到」两条都要守）。
 # ------------------------------------------------------------
 func _test_manual_slot_tool() -> void:
 	print("\n-- 妙妙工具（只能手动装备的一栏）--")
+	# ★ 第五十一轮：用户口径「妙妙工具暂时去掉」→ `tool` 已进 DISABLED_SLOTS。
+	#   本段的口径随之改成：**声明仍然保留**（恢复只需从 DISABLED_SLOTS 里删一个
+	#   字符串，不用同时记着往 MANUAL_SLOTS 里加回来），而「看得到、点得到」
+	#   这一条按现状断言为「看不到」。下面第一条断言就守着「声明别被顺手删掉」。
 	_check("MANUAL_SLOTS 目前只有 tool 一栏",
 		OutfitData.MANUAL_SLOTS.size() == 1 and OutfitData.MANUAL_SLOTS.has("tool"))
 	_check("is_manual_slot() 语义正确",
 		OutfitData.is_manual_slot("tool") and not OutfitData.is_manual_slot("top"))
-	_check("妙妙工具在界面可见槽位里（active_slots）",
-		OutfitData.active_slots().has("tool"))
-	_check("auto_slots() = active_slots() 去掉 MANUAL_SLOTS",
-		OutfitData.auto_slots().size() == OutfitData.active_slots().size() - 1
+	_check("★ 妙妙工具暂时下架（不在界面可见槽位里）",
+		not OutfitData.slot_enabled("tool")
+		and not OutfitData.active_slots().has("tool"))
+	# ★ 对照式要**先求交集**：`auto_slots()` 的实现是「先按 active_slots 过滤、
+	#   再滤掉 MANUAL_SLOTS」，所以当一张槽位**同时**出现在下架表与手动表里时
+	#   （`tool` 现在就是），「两边相减」的写法会多减 1
+	#   （同一处修正也做在 tools/editor_smoke.js 里）。
+	var manual_in_active := 0
+	for s in OutfitData.MANUAL_SLOTS:
+		if OutfitData.active_slots().has(str(s)):
+			manual_in_active += 1
+	_check("auto_slots() = active_slots() 去掉「其中标了手动的」",
+		OutfitData.auto_slots().size() == OutfitData.active_slots().size() - manual_in_active
 		and not OutfitData.auto_slots().has("tool"))
 	_check("槽位中文名是「妙妙工具」",
 		str(OutfitData.SLOT_NAMES.get("tool", "")) == "妙妙工具")
 
+	# ★ 第五十一轮：这里原来走 `get_items_for_slot("tool")` —— 下架之后它按约定
+	#   返回空数组（与 robe 那几条一样），所以改成**直接扫 ITEMS** 数：
+	#   这一条要守的恰恰是「下架 ≠ 删数据」，扫 ITEMS 才是它的本意。
 	var tool_ids := []
-	for it in OutfitData.get_items_for_slot("tool"):
-		tool_ids.append(str(it["id"]))
+	for it in OutfitData.ITEMS:
+		if str(it["slot"]) == "tool":
+			tool_ids.append(str(it["id"]))
 	_check("妙妙工具有 2 件（空件 + 尼古喵尾）", tool_ids.size() == 2)
 	_check("空件 tool_none 是「（不携带）」且标了 bare",
 		OutfitData.is_bare(OutfitData.get_item("tool_none")))
@@ -597,7 +641,13 @@ func _manual_default_is_bare() -> bool:
 	ProfileData.reset_all()
 	RunData.start_new_run(1)
 	var m := WardrobeModel.new(OutfitData, RunData.true_appearance(), OutfitData.LEVELS)
-	return OutfitData.is_bare(OutfitData.get_item(str(m.equipped.get("tool", ""))))
+	var id := str(m.equipped.get("tool", ""))
+	# ★ 第五十一轮：槽位下架后 `equipped` 里**根本没有 tool 这个键**
+	#   （默认装备是按 active_slots 铺的）—— 「没有这一栏」与「这一栏是空件」
+	#   在「系统不主动送」这件事上等价，所以两种都算通过。
+	if id == "":
+		return true
+	return OutfitData.is_bare(OutfitData.get_item(id))
 
 func _manual_excluded_from_forced() -> bool:
 	for acc in [0, 6, 12, 24, 40]:
@@ -648,15 +698,20 @@ func _manual_excluded_from_matching() -> bool:
 		float(hit) / float(OutfitData.auto_slots().size()))
 
 func _manual_excluded_from_auto() -> bool:
-	# 先**手动**装上尼古喵尾，再点一键达标 —— 它必须原样留在身上
+	# ★ 第五十一轮改写：`tool` 下架之后，`WardrobeModel.equip()` 会在
+	#   **模型层**直接拒绝它（第二十七轮补的那道下架闸），所以原来那套
+	#   「先手动装上尼古喵尾、再点一键达标看它还在不在」的做法已经走不通了。
+	#   改成验同一件事的两半，反而更严：
+	#     ① 下架之后**装不上去**（下架闸没漏）；
+	#     ② 一键达标也不会凭空把它装上去。
 	ProfileData.reset_all()
 	RunData.start_new_run(5)
 	var m := WardrobeModel.new(OutfitData, RunData.true_appearance(), OutfitData.LEVELS)
 	m.reset_for_level(RunData.acceptance_at(0), 0, RunData.true_appearance(), [])
-	if not m.equip(OutfitData.get_item("tool_tail")):
-		return false
+	if m.equip(OutfitData.get_item("tool_tail")):
+		return false                       # 下架了却还能装 → 闸漏了
 	m.auto_complete_outfit()
-	return str(m.item_at("tool").get("id", "")) == "tool_tail"
+	return str(m.item_at("tool").get("id", "")) == ""
 
 # 某一栏里最高的暴露值（第三十九轮：核对「平坦贞操笼的暴露度取最高」）
 func _max_exposure_of(slot: String) -> int:
@@ -1948,11 +2003,11 @@ func _test_level_curve() -> void:
 	_check("四关的反差要求都是**手写**的（不是自增出来的）",
 		not OutfitData.contrast_req_is_auto(0) and not OutfitData.contrast_req_is_auto(1)
 		and not OutfitData.contrast_req_is_auto(2) and not OutfitData.contrast_req_is_auto(3))
-	_check("四关要求 = 125 / 140 / 155 / 165（第四十九轮按实测下限重标）",
+	_check("四关要求 = 125 / 140 / 155 / 160（第五十一轮：配饰下架后第 4 轮 165→160）",
 		int(OutfitData.level_at(0)["contrast_req"]) == 125
 		and int(OutfitData.level_at(1)["contrast_req"]) == 140
 		and int(OutfitData.level_at(2)["contrast_req"]) == 155
-		and int(OutfitData.level_at(3)["contrast_req"]) == 165)
+		and int(OutfitData.level_at(3)["contrast_req"]) == 160)
 
 	# ---- 自增机制本身：临时清空第 3、4 关的要求，重跑一次解析 ----
 	var saved_rq: Array = []
@@ -2203,12 +2258,27 @@ func _doll_layers_visible() -> bool:
 #
 # 阈值怎么定的（实测，取景框 68×203、小人鞋底 y=189）：
 #   上衣 27 件底边 76~112（最长的是长袖衬衫 112）；下装典型区段 y83..124。
-#   成装修好后底边 106~188，最低的是皮质紧身裙（106，它本来就是短裙）。
-#   所以「底边 ≥ 104」既能放过最紧的成装，又能抓住只叠 upper 的那批
-#   （它们的底边是 74~87，全在 104 以下）。
 #   顶边 72：修好后 48~69（最高是和服的领口 69），留 3 px 余量。
+#
+#   ★ 第五十一轮把底边阈值从 104 下调到 **95** —— 这一条是**重新实测后标的**，
+#     不是为了让测试通过而放宽：
+#
+#     新成装 `dress_seethrough`（透明连体泳衣，由两件内衣合并而来）底边只有 101。
+#     它是**连体泳衣**，本来就到裆部为止（y87..102 那一段），不是「少烘了一层」。
+#     于是把「只叠 upper」与「两层都叠」的真实分布重新量了一遍
+#     （只取 col0，与 crop_clip 一致）：
+#
+#       只叠 upper 的底边：74 / 89 / 85 / 88 / 83   → **74..89**
+#       两层都叠的底边：  112 / 122 / 106 / 101 / 121 → **101..122**
+#
+#     两段之间只有 **89 → 101** 这 12 px 的空档，中点 95。取 95 之后：
+#       · 每一个「只叠 upper」的样本（最高 89）都仍被抓出 —— 断言没有失去作用；
+#       · 最短的合法成装（101，那件泳衣）留 6 px 余量。
+#     ★ 留这段推导的目的：下次再加一件「本来就很短」的成装时，
+#       先量出它的底边落在哪一段，再决定是调阈值还是承认那件本来就该短 ——
+#       别直接把阈值往下拽。
 const DRESS_TOP_MAX := 72
-const DRESS_BOTTOM_MIN := 104
+const DRESS_BOTTOM_MIN := 95
 
 func _dress_covers_both_halves() -> bool:
 	var bad: Array = []

@@ -1453,7 +1453,8 @@ const DEFAULT_ITEM_DESC := {
 	"tattoo_paw": "大腿外侧印着一枚小小的兽爪",
 	# ★ 第四十七轮：爪印扩到胸口与脸颊（小腿做不了，见 OutfitData / dol_map 的说明）
 	"tattoo_paw_chest": "胸口正中印着一枚小小的兽爪",
-	"tattoo_paw_face": "脸颊上印着一枚小小的兽爪",
+	# ★ 第五十一轮：`tattoo_paw_face`（脸颊爪印）按用户口径整件删除 ——
+	#   它的目击描述也一并撤掉（与撤销眉钉 / 黄铜胸针 / 金脚链同一档处理）。
 	# ★ 第三十六轮新增的四件刻字纹身（各占一处，见 OutfitData 的 tattoo 段）
 	"tattoo_bitch": "左大腿内侧刻着「bitch」一行小字",
 	"tattoo_freeuse": "右大腿上刻着「free-use」一行小字",

@@ -128,7 +128,7 @@
     {
      "file": "clothes/acc_locket.png",
      "name": "acc_locket",
-     "z": 105.0
+     "z": 103.0
     }
    ]
   },
@@ -407,16 +407,6 @@
     }
    ]
   },
-  "bra_seethrough": {
-   "icon": "icons/bra_seethrough.png",
-   "layers": [
-    {
-     "file": "clothes/bra_seethrough.png",
-     "name": "bra_seethrough",
-     "z": 70.0
-    }
-   ]
-  },
   "bra_tape": {
    "icon": "icons/bra_tape.png",
    "layers": [
@@ -488,6 +478,16 @@
     {
      "file": "clothes/dress_nurse.png",
      "name": "dress_nurse",
+     "z": 96.0
+    }
+   ]
+  },
+  "dress_seethrough": {
+   "icon": "icons/dress_seethrough.png",
+   "layers": [
+    {
+     "file": "clothes/dress_seethrough.png",
+     "name": "dress_seethrough",
      "z": 96.0
     }
    ]
@@ -1004,16 +1004,6 @@
     }
    ]
   },
-  "panties_loincloth": {
-   "icon": "icons/panties_loincloth.png",
-   "layers": [
-    {
-     "file": "clothes/panties_loincloth.png",
-     "name": "panties_loincloth",
-     "z": 67.0
-    }
-   ]
-  },
   "panties_micro": {
    "icon": "icons/panties_micro.png",
    "layers": [
@@ -1035,16 +1025,6 @@
     {
      "file": "clothes/panties_plain.png",
      "name": "panties_plain",
-     "z": 67.0
-    }
-   ]
-  },
-  "panties_seethrough": {
-   "icon": "icons/panties_seethrough.png",
-   "layers": [
-    {
-     "file": "clothes/panties_seethrough.png",
-     "name": "panties_seethrough",
      "z": 67.0
     }
    ]
@@ -1405,16 +1385,6 @@
     {
      "file": "clothes/tattoo_paw_chest.png",
      "name": "tattoo_paw_chest",
-     "z": 36.0
-    }
-   ]
-  },
-  "tattoo_paw_face": {
-   "icon": "icons/tattoo_paw_face.png",
-   "layers": [
-    {
-     "file": "clothes/tattoo_paw_face.png",
-     "name": "tattoo_paw_face",
      "z": 36.0
     }
    ]

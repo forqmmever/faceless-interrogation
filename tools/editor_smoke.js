@@ -517,7 +517,7 @@ try {
 
     // ---- catalog：编辑器靠它做下拉，缺了就没法挑衣服 ----
     const C = S.catalog || {};
-    ok((C.items || []).length === 168, "catalog 里有 168 件衣物，实际 " + ((C.items || []).length));
+    ok((C.items || []).length === 165, "catalog 里有 165 件衣物，实际 " + ((C.items || []).length));
     ok(Array.isArray(C.tags) && C.tags.length >= 4, "catalog 里有标签池：" + (C.tags || []).join(" / "));
     ok(C.items.every(x => x.id && x.name && x.slot), "catalog 每件都有 id / name / slot");
     ok(P.itemById("panties_lace") !== null, "itemById 能查到黑色蕾丝内裤");
@@ -544,6 +544,8 @@ try {
     // ★ 第二十九轮：反差要求「留空 = 自增」
     // ★ 第四十九轮：出厂曲线改成**四关都手写**（125/140/155/165）——
     //   增量 15/15/10，**不是等差**，base+step 表达不了。
+    // ★ 第五十一轮：配饰下架后天花板掉 10~15 点，第 4 轮 165 → **160**
+    //   （前三档不动）。所以现在是 125/140/155/160。
     ok(S.levels[1].contrast_req === 140, "第 2 关的反差要求是手写的 140（实际 "
       + JSON.stringify(S.levels[1].contrast_req) + "）");
     const autoSeq = (function(){
@@ -560,7 +562,7 @@ try {
     // ★ 第四十九轮：反差改成**全槽位求和** + 原貌池放开之后重标过曲线
     //   （可达上限从 ~90 涨到 ~260）。四关都是手写的，所以 autoSeq
     //   就等于这四个手写值 —— 它顺带验了「解析器读的是手写值」。
-    ok(autoSeq.join("/") === "125/140/155/165", "四关手写值被正确解析：" + autoSeq.join("/"));
+    ok(autoSeq.join("/") === "125/140/155/160", "四关手写值被正确解析：" + autoSeq.join("/"));
     // 留空仍然走自增（机制没删，只是出厂数据不再用到）
     const seqAuto = (function(){
       const base = Number((S.rules||{}).contrast_req_base) || 20;
@@ -667,7 +669,7 @@ try {
     S.qte_plan = [{ qte: "interference", delay: 2 }];
     const t2 = P.toJSON();
     ok(JSON.parse(t2).qte_plan[0].qte === "interference", "qte_plan 能往返");
-    ok(JSON.parse(t2).catalog.items.length === 168, "catalog 能往返");
+    ok(JSON.parse(t2).catalog.items.length === 165, "catalog 能往返");
     P.loadStory(JSON.parse(JSON.stringify(pristine)), "t.json", false);
   }
 
@@ -685,8 +687,16 @@ try {
     ok(Object.keys(cat.base_values || {}).length === cat.items.length,
       "base_values 覆盖全部 " + cat.items.length + " 件");
     ok(!!cat.true_pool, "catalog 里有 true_pool（原貌候选池）");
-    ok(P.autoSlots().length === (cat.active_slots || []).length - (cat.manual_slots || []).length,
-      "autoSlots() = 可见槽位去掉只能手动的（" + P.autoSlots().length + " 个）");
+    // ★ 第五十一轮修正：这里原来是 `active_slots.length - manual_slots.length`，
+    //   在「一张槽位同时出现在下架表与手动表里」时会算错 —— 现在 `tool` 就是这种
+    //   情况（用户口径「妙妙工具暂时去掉」）。`autoSlots()` 的实现是
+    //   「先按 active_slots 过滤，再滤掉 manual 与 disabled」，所以正确的对照式
+    //   是**先求交集**：只有既在可见槽位、又标了手动的那些才会真的被减掉。
+    const actSlots = cat.active_slots || [];
+    const manualInAct = (cat.manual_slots || []).filter(s => actSlots.includes(s));
+    ok(P.autoSlots().length === actSlots.length - manualInAct.length,
+      "autoSlots() = 可见槽位去掉「其中标了手动的」（" + P.autoSlots().length
+      + " = " + actSlots.length + " - " + manualInAct.length + "）");
 
     // ---- 当前值 / 内置值 / 覆写 三者关系 ----
     const probeId = "top_plain";

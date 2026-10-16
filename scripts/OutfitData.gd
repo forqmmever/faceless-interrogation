@@ -99,7 +99,18 @@ const SLOT_NAMES := {
 #   定义、贴图、目击描述一件没删，把 "piercing" 从这张表里删掉即可原样恢复。
 #   ★ 注意：穿环的贴图本来就是**借头部小件**顶替的（DoL 没有这个槽位），
 #     所以下架它不会连带影响任何别的槽位的贴图。
-const DISABLED_SLOTS := ["robe", "earrings", "gloves", "headgear", "piercing"]
+# ★ 第五十一轮：配饰（accessory）与妙妙工具（tool）按用户口径一并下架。
+#   · 「去掉配饰一栏」—— 该栏原有的 5 件（束腰皮带 + 4 件项圈）**一件没删**，
+#     走的就是这一套槽位级下架；栏里的 `acc_locket`（银质心形吊坠）**没随栏消失**，
+#     它按用户另一句口径挪到「颈饰」去了（见上面 neckwear 那一节）。
+#   · 「妙妙工具暂时去掉」—— 注意是**暂时**，所以更加要用下架而不是删除：
+#     两件物品（空件 + 尼古喵尾）的定义、贴图、目击描述全部保留，
+#     把 "tool" 从这张表里删掉即可原样恢复。
+#     ★ 连带效果：尼古喵尾那套「带着就不涨怀疑值」的机制**在代码里照旧存在**
+#       （`Interrogation._add_suspicion` 读 `GameData.carried_tool()`），
+#       但槽位下架后玩家装不上它，于是 `carried_tools` 恒为空 —— 机制实际不可达。
+#       这正是「暂时去掉」该有的样子：恢复只需删一个字符串，不用碰任何逻辑。
+const DISABLED_SLOTS := ["robe", "earrings", "gloves", "headgear", "piercing", "accessory", "tool"]
 
 # 玩家能看到的槽位（SLOT_ORDER 去掉下架的）。
 # ★ 界面 / 原貌 / 情报 / 统计一律用它；SLOT_ORDER 只在需要完整数据表时用。
@@ -129,6 +140,12 @@ static func slot_enabled(slot: String) -> bool:
 #
 # ★ 为什么单开一张表而不是塞进 DISABLED_SLOTS：
 #   下架会让整个槽位从换装界面消失，而用户要的恰恰是「界面上能看见、能点」。
+#
+# ★ 第五十一轮：「妙妙工具暂时去掉」把这个槽位放进了 DISABLED_SLOTS。
+#   两边同时写着 `tool` 并不矛盾 —— `auto_slots()` 是「active_slots() 去掉 MANUAL_SLOTS」，
+#   tool 在 active_slots() 那一步就已被滤掉，MANUAL_SLOTS 里这条成了空转。
+#   **保留它**是为了「恢复只需删 DISABLED_SLOTS 里那一个字符串」，
+#   不用同时想起这里还有一条要加回去。
 const MANUAL_SLOTS := ["tool"]
 
 static func is_manual_slot(slot: String) -> bool:
@@ -510,10 +527,13 @@ const ITEMS_BASE := [
 	# ★ 第四十七轮：把「爪印」从大腿扩到**胸口**与**脸颊**。
 	#   用户还点了「小腿」，但那条**做不了** —— AU 的 bodywriting 里没有小腿这个位置，
 	#   而且实测小腿那一段两条腿各只有 8~11 px 宽（鞋子从 y≈161 起就盖住了），
-	#   塞不下一枚看得清的爪印。所以这一轮只补两件。见 dol_map.AU_OVERRIDE 的实测记录。
+	#   塞不下一枚看得清的爪印。于是那一轮补了胸口与脸颊两件。
 	#   gate 照惯例：胸口看上衣与成装（同 tattoo_slave）；脸颊没有衣服盖得住，不给 gate。
+	#
+	# ★ 第五十一轮：用户口径「脸颊爪印去掉」—— 脸颊那件**整件删除**
+	#   （`tattoo_paw_face`：本条定义 + `dol_map` 的两条映射 + 烘焙产物一起清掉）。
+	#   爪印这一系还剩两件：大腿 `tattoo_paw` / 胸口 `tattoo_paw_chest`。
 	{"id": "tattoo_paw_chest", "name": "胸口爪印", "slot": "tattoo", "exposure": 2, "acceptance_req": 8, "contrast": 5, "covers": [], "tags": [], "gate": ["top", "dress"]},
-	{"id": "tattoo_paw_face", "name": "脸颊爪印", "slot": "tattoo", "exposure": 2, "acceptance_req": 7, "contrast": 6, "covers": [], "tags": []},
 	# ★ 第三十六轮新增 4 件「刻字」纹身 —— 取自 AU `bodywriting/text/` 下的四组字，
 	#   按用户口径**分散到四个位置**（左大腿 / 右大腿 / 胸口 / 下腹），
 	#   免得两件刻字叠在同一处、贴图互相盖住。
@@ -538,6 +558,16 @@ const ITEMS_BASE := [
 	{"id": "neck_lace", "name": "蕾丝颈圈", "slot": "neckwear", "exposure": 1, "acceptance_req": 4, "contrast": 4, "covers": [], "tags": []},
 	{"id": "neck_chain", "name": "金色锁链项圈", "slot": "neckwear", "exposure": 2, "acceptance_req": 7, "contrast": 6, "covers": [], "tags": []},
 	{"id": "neck_freeuse", "name": "刻字颈圈", "slot": "neckwear", "exposure": 2, "acceptance_req": 7, "contrast": 6, "covers": [], "tags": []},
+	# ★ 第五十一轮：用户口径「爱心吊坠移到颈饰」—— 从**配饰栏**挪过来。
+	#   它本来就挂在锁骨上（AU 源 `clothes/neck/lovelocket`），归颈饰才对。
+	#   ★ 挪栏的连带效果（都是好的）：
+	#     · 与其它项圈同槽互斥 —— 不会再出现「戴吊坠 + 戴项圈」叠在同一个位置；
+	#     · 图层 z 由 `dol_map.SLOT_Z` 按槽位取（配饰 105 → 颈饰 103），
+	#       两档都在 top(95) 之上，所以照旧压在衣服外面、不会被高领盖住；
+	#     · 它**没有** `covers` / `tags`，对颈侧烙印没有任何遮挡作用，数值口径不变。
+	#   ★ 烘焙脚本是**正则解析本文件**取槽位的（见 dol_prepare.item_slots），
+	#     所以这里改完，z 会自动跟着走，不用另改 dol_map。
+	{"id": "acc_locket", "name": "银质心形吊坠", "slot": "neckwear", "exposure": 0, "acceptance_req": 2, "contrast": 2, "covers": [], "tags": []},
 
 	# ================= 上衣 =================
 	# ★ 「（不穿上衣）」—— 用户口径里的「直接外穿」：这一层没有东西，
@@ -627,12 +657,20 @@ const ITEMS_BASE := [
 
 	# ================= ★★ 第三十七轮：上内衣从 5 件补到 9 件 =================
 	# 原来 4 / 5 两档各只有一件，6 档以上是空的（`bra_none` 一个人顶在 6 档）。
-	# 补的 4 件把 4 / 8 / 9 三档填起来 —— 其中两件 9 档是刻意「比不穿更过分」的：
-	# 胶带与透明泳衣，暴露值 9 > `bra_none` 的 6，但反差也更高（刻意感更强）。
+	# 补的 4 件把 4 / 8 / 9 三档填起来 —— 其中 9 档那件是刻意「比不穿更过分」的：
+	# 暴露值 9 > `bra_none` 的 6，但反差也更高（刻意感更强）。
 	# 它们照旧受 UNDER_GATE 门控：上面盖着严实上衣时一律不算数。
+	#
+	# ★★ 第五十一轮：用户口径「透明泳衣原本是整装吗 是的话移到整装」——
+	#   查证结果：**是**。AU 图包里 `seethroughswimsuit` 在 `under-upper/` 与
+	#   `under-lower/` 下**各有一份**，是「一整件连体泳衣被拆成上下两半存」，
+	#   与 `dress_*` 那些成装的两层结构完全同构（实测烘焙后上半 y51..89、
+	#   下半 y88..102，在 y88-89 精密衔接）。
+	#   所以 `bra_seethrough`（透明泳衣上衣）与 `panties_seethrough`（透明连体泳裤）
+	#   **两件一起撤掉**，合并成一件成装 `dress_seethrough`（见「成装」一节）——
+	#   这正是用户那句「透明连体泳裤去掉」的由来：它不是被删，是被并进整装了。
 	{"id": "bra_bikini", "name": "系带比基尼上衣", "slot": "bra", "exposure": 4, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
 	{"id": "bra_latex", "name": "乳胶连体上衣", "slot": "bra", "exposure": 8, "acceptance_req": 9, "contrast": 7, "covers": [], "tags": []},
-	{"id": "bra_seethrough", "name": "透明泳衣上衣", "slot": "bra", "exposure": 9, "acceptance_req": 10, "contrast": 7, "covers": [], "tags": []},
 	{"id": "bra_tape", "name": "胶带束胸", "slot": "bra", "exposure": 9, "acceptance_req": 10, "contrast": 8, "covers": [], "tags": []},
 
 	# ================= 手套 =================
@@ -660,8 +698,14 @@ const ITEMS_BASE := [
 	# ★★ 第四十六轮：按用户口径「金脚链和金色手铐删去」撤掉后两件
 	#   （`acc_anklet` / `acc_shackle`）—— 整条从表里撤掉，与当初撤眉钉、
 	#   撤黄铜胸针是同一档处理：`dol_map.py` 的映射、烘焙产物一起清掉。
-	#   于是这一栏只剩「（不戴）/ 银质心形吊坠 / 束腰皮带」三件。
-	{"id": "acc_locket", "name": "银质心形吊坠", "slot": "accessory", "exposure": 0, "acceptance_req": 2, "contrast": 2, "covers": [], "tags": []},
+	# ★★ 第五十一轮：用户口径「爱心吊坠移到颈饰 · 去掉配饰一栏」——
+	#   · `acc_locket` **挪栏**（不删）：已并入上面的「颈饰」一节，slot 改成 neckwear；
+	#   · `accessory` 槽位整体下架（见 `DISABLED_SLOTS`）。
+	#
+	#   ★ 那一栏剩下的 5 件（束腰皮带 + 4 件项圈）**一件没删** ——
+	#     与本项目其它「去掉一栏」的处理完全一致：走槽位级下架，
+	#     物品定义 / 贴图 / 目击描述全部保留，把 "accessory" 从 DISABLED_SLOTS 里
+	#     删掉即可原样恢复。用户口径明确要的就是这个（「全部随栏下架，数据保留」）。
 	{"id": "acc_belt", "name": "束腰皮带", "slot": "accessory", "exposure": 1, "acceptance_req": 4, "contrast": 3, "covers": [], "tags": []},
 	# ★ 第四十八轮：按用户口径从「配饰候选」里挑的六件（腿环 2 + 颈圈 4）。
 	#   全部实测为 A 档（AU 新几何 + 纯灰度），贴图直接用、没有搬运。
@@ -783,8 +827,30 @@ const ITEMS_BASE := [
 	{"id": "dress_leather", "name": "皮质紧身裙", "slot": "dress", "exposure": 7, "acceptance_req": 8, "contrast": 7, "covers": [], "tags": []},
 	{"id": "dress_swan", "name": "高开衩天鹅绒长裙", "slot": "dress", "exposure": 8, "acceptance_req": 9, "contrast": 7, "covers": [], "tags": [], "see": "cutout"},
 	# ★ 9 档：一件「穿了等于没穿」的透明纱睡袍。`see: sheer` 让 bra / panties
-	#   两栏都能被它透出来 —— 这是全表唯一一件**同时**给上下两处内衣开门的衣服。
+	#   两栏都能被它透出来。
 	{"id": "dress_transparent", "name": "透明纱睡袍", "slot": "dress", "exposure": 9, "acceptance_req": 15, "contrast": 7, "covers": [], "tags": [], "see": "sheer"},
+
+	# ================= ★★ 第五十一轮：透明连体泳衣（由两件内衣合并而成）=================
+	# 用户口径：「透明泳衣原本是整装吗 是的话移到整装」「透明连体泳裤去掉」。
+	#
+	#   查证（不是猜的）：AU 图包里 `seethroughswimsuit` 在 `under-upper/` 与
+	#   `under-lower/` 下**各有一份** —— 这是「一整件连体泳衣被拆成上下两半存」，
+	#   与 `dress_kimono` / `dress_nurse` 那些成装的两层结构**完全同构**。
+	#   实测烘焙到 68×203 取景框后：上半 y51..89、下半 y88..102，
+	#   在 **y88-89 精密衔接**（与成装那批 74→74 / 82→82 是同一种接缝）。
+	#   → 结论：**原本就是整装**，于是两件合并成这一件。
+	#
+	#   合并后的取舍：
+	#     · 数值沿用原来那两件的口径 —— 暴露 9（两件都是 9）、门槛 15
+	#       （`panties_seethrough` 原本是 15，取两件里更严的那个）；
+	#     · `see: "sheer"` —— 它本来就是透明的，`see` 字段的语义就是
+	#       「外衣能透出内衣」。给了它，玩家既可以只穿这一件（内衣栏留空），
+	#       也可以在底下继续穿内衣并**照样计入** —— 后者保住了原来
+	#       「bra 9 + panties 9」那条数值路径，不会因为这次合并把天花板压下来。
+	#       （不给 `see` 的话，成装会把内衣盖住，那两件的暴露值等于白丢。）
+	#     · `dress_transparent` 的商品说明里原来写着「全表唯一一件同时给上下两处
+	#       内衣开门的衣服」—— 加了这件之后那句要改成「唯二」。
+	{"id": "dress_seethrough", "name": "透明连体泳衣", "slot": "dress", "exposure": 9, "acceptance_req": 15, "contrast": 7, "covers": [], "tags": [], "see": "sheer"},
 
 	# ================= 吊袜带（第三十七轮已并入「袜类」，见下）=================
 	# 原来这里是独立的一栏（garter_none / garter_lace / garter_black）。
@@ -815,22 +881,26 @@ const ITEMS_BASE := [
 	# ================= ★★ 第三十七轮：下内衣从 5 件补到 11 件 =================
 	# 原来 0 / 5 / 6 / 7 / 8 各一件，4 档与 9 档是空的 —— 而 9 档（几乎不遮）恰恰是
 	# 全表最缺的一档（整个表原来一件都没有）。补的 6 件把 4 档和 9 档填起来。
-	# ★ 五件 9 档里只有 `panties_tieside` / `panties_seethrough` 需要接受度 11
-	#   （= 第 4 关的门槛），其余三件 10 就穿得上 —— 留了一条早一点的出路。
+	# ★ 9 档那几件里门槛 15 的（= 原来第 4 关的门槛，第 50 轮起起始接受度是 14，
+	#   所以它仍是这一栏最贵的一档）与门槛 10 的并存 —— 留了一条早一点的出路。
+	#
+	# ★★ 第五十一轮：用户口径「遮羞布去掉」「透明连体泳裤去掉」——
+	#   撤掉 `panties_loincloth`（遮羞布）与 `panties_seethrough`（透明连体泳裤）。
+	#   两件都是**整件删除**（定义 + dol_map 映射 + 烘焙产物）。
+	#   ★ 后者不是「删了不要」，是**并进整装**了：它和 `bra_seethrough` 本来就是
+	#     AU 那件 `seethroughswimsuit` 的上下两半，现在合成 `dress_seethrough`。
+	#   ★ 于是这一栏的 9 档从 5 件变 3 件（细绳丁字裤 / 系带开衩比基尼 / 平坦贞操笼）。
 	{"id": "panties_bikini", "name": "系带比基尼内裤", "slot": "panties", "exposure": 4, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
 	{"id": "panties_shibari", "name": "绳缚式内裤", "slot": "panties", "exposure": 8, "acceptance_req": 9, "contrast": 8, "covers": [], "tags": []},
 	{"id": "panties_gstring", "name": "细绳丁字裤", "slot": "panties", "exposure": 9, "acceptance_req": 10, "contrast": 8, "covers": [], "tags": []},
-	{"id": "panties_loincloth", "name": "遮羞布", "slot": "panties", "exposure": 9, "acceptance_req": 10, "contrast": 7, "covers": [], "tags": []},
 	{"id": "panties_tieside", "name": "系带开衩比基尼内裤", "slot": "panties", "exposure": 9, "acceptance_req": 15, "contrast": 8, "covers": [], "tags": []},
-	{"id": "panties_seethrough", "name": "透明连体泳裤", "slot": "panties", "exposure": 9, "acceptance_req": 15, "contrast": 8, "covers": [], "tags": []},
 
 	# ---- ★★ 第三十九轮：从 AU 的 `clothes/genitals/` 引入一件 ----
 	# 用户口径：「引入平坦贞操笼放在下内衣，暴露度取最高」。
 	# 贴图取 AU 自己的 `genitals/flatchastitycage/full.png` —— 金属笼，正面几乎全开，
 	# 所以它的暴露值就该是这一栏最高的那一档。
-	# ★ 「取最高」的实现依据：`panties` 现有 12 件里最高是 **9**
-	#   （细绳丁字裤 / 遮羞布 / 系带开衩比基尼 / 透明连体泳裤 / 连体泳裤 五件都是 9，
-	#     空件 `panties_none` 是 8）—— 这一件也取 9，与它们并列最高。
+	# ★ 「取最高」的实现依据：`panties` 现有 9 档的几件里（细绳丁字裤 / 系带开衩比基尼 /
+	#   平坦贞操笼，第 51 轮删掉遮羞布与透明连体泳裤后剩这三件；空件是 8）—— 这一件也取 9。
 	{"id": "panties_flatcage", "name": "平坦贞操笼", "slot": "panties", "exposure": 9, "acceptance_req": 10, "contrast": 8, "covers": [], "tags": []},
 
 	# ================= 袜类（第三十七轮起含「吊袜带」）=================
@@ -1332,7 +1402,12 @@ const DEFAULT_LEVELS := [
 	{"name": "第一轮", "acceptance_gain": 5, "contrast_req": 125, "derived_profile": "一个不起眼的路人"},
 	{"name": "第二轮", "acceptance_gain": 5, "contrast_req": 140, "derived_profile": "有点来头的商贩"},
 	{"name": "第三轮", "acceptance_gain": 6, "contrast_req": 155, "derived_profile": "被人打过招呼的熟面孔"},
-	{"name": "第四轮", "acceptance_gain": 0, "contrast_req": 165, "derived_profile": "即将被放行的清白之人"},
+	# ★ 第五十一轮：165 → **160**。
+	#   配饰整栏下架之后，全槽位求和少了一栏（14 → 12），可达上限实测掉了 10~15 点：
+	#   150 种子真实求解器量出的「最差可达」从 205/170/180/175 变成 **205/155/165/165**，
+	#   第 4 轮的余量因此从 +10 塌到 **+0**（最不利的那个原貌只剩唯一解）。
+	#   只降第 4 轮这一档、把余量补回 +5；前三档不动（它们的余量还有 +80/+15/+10）。
+	{"name": "第四轮", "acceptance_gain": 0, "contrast_req": 160, "derived_profile": "即将被放行的清白之人"},
 ]
 
 # 出厂兜底的强制规则表（下标 = 第几轮）。

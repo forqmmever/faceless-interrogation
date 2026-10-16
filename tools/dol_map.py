@@ -291,9 +291,9 @@ ITEMS = {
     "tattoo_cumrag":  [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
                         "scale": 3.0, "align": ("bbox_center", 58.0, 70.0)}],
     # ★ 第四十七轮补的两件「爪印」扩展（胸口 / 脸颊），参数同样见下方 AU_OVERRIDE。
+    # ★ 第五十一轮：脸颊那件（`tattoo_paw_face`）按用户口径整件删除 —— 两条映射
+    #   （这里的占位条 + AU_OVERRIDE 里真正生效的那条）一起撤掉。
     "tattoo_paw_chest": [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
-                          "scale": 2.6, "align": ("bbox_center", 51.0, 62.0)}],
-    "tattoo_paw_face":  [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
                           "scale": 2.6, "align": ("bbox_center", 51.0, 62.0)}],
 
     # ---- 颈饰 ----
@@ -568,6 +568,21 @@ ITEMS = {
                           {"src": ("clothes", "lower", "swandress"),        "tint": WINE}],
     "dress_transparent": [{"src": ("clothes", "upper", "transparentnurse"), "tint": SKIN_SILK},
                           {"src": ("clothes", "lower", "transparentnurse"), "tint": SKIN_SILK}],
+    # ★★ 第五十一轮：透明连体泳衣 —— 由原 `bra_seethrough` + `panties_seethrough`
+    #   两件合并成一件成装（用户口径「透明泳衣原本是整装吗 是的话移到整装」）。
+    #   两层同源 `seethroughswimsuit`，分别在 `under-upper/` 与 `under-lower/` 下 ——
+    #   这与 `dress_kimono` / `dress_nurse` 那批**完全同构**。
+    #   ★ 上层必须**显式点名 `1.png`**：`under-upper/seethroughswimsuit/full.png`
+    #     是一张**全透明的占位图**（图包里这类空文件不少，见 dol_prepare.has_content），
+    #     目录里另有 `2~5.png` 几档变体 —— 不点名就会挑到别的帧。
+    #     （原 `bra_seethrough` 那条映射只写到目录，靠 resolve 跳过空图后落到 `1.png`，
+    #      烘出来的产物 y51..89 与 `1.png` 一致，这里把同一结果写死下来。）
+    #   ★ 上层在前、下层在后 —— 下层（下半截 y88..102）后画，盖住上层的收边，
+    #     与成装那批「裙子压住上衣下摆」的叠序一致。
+    "dress_seethrough":  [{"src": ("clothes", "under-upper", "seethroughswimsuit", "1.png"),
+                           "tint": SKIN_SILK},
+                          {"src": ("clothes", "under-lower", "seethroughswimsuit"),
+                           "tint": SKIN_SILK}],
 
     # ---- 上衣（8 件）----
     "top_tank":        [{"src": ("clothes", "upper", "tanktop"),        "tint": KNIT_ASH}],
@@ -591,16 +606,17 @@ ITEMS = {
     # ---- 上内衣（4 件）----
     "bra_bikini":     [{"src": ("clothes", "under-upper", "classicbikini"),      "tint": WINE}],
     "bra_latex":      [{"src": ("clothes", "under-upper", "latexleotard"),       "tint": BLACK}],
-    "bra_seethrough": [{"src": ("clothes", "under-upper", "seethroughswimsuit"), "tint": SKIN_SILK}],
     "bra_tape":       [{"src": ("clothes", "under-upper", "tape"),               "tint": IVORY}],
+    # ★ 第五十一轮：原 `bra_seethrough`（透明泳衣上衣）撤掉 —— 与 `panties_seethrough`
+    #   合并成成装 `dress_seethrough`（见上面「成装」那一节）。
 
-    # ---- 下内衣（6 件）----
+    # ---- 下内衣 ----
     "panties_bikini":     [{"src": ("clothes", "under-lower", "classicbikini"),      "tint": WINE}],
     "panties_shibari":    [{"src": ("clothes", "under-lower", "shibari"),            "tint": DARKBROWN}],
     "panties_gstring":    [{"src": ("clothes", "under-lower", "gstring"),            "tint": BLACK}],
-    "panties_loincloth":  [{"src": ("clothes", "under-lower", "loincloth"),          "tint": LINEN}],
     "panties_tieside":    [{"src": ("clothes", "under-lower", "tiesidebikini"),      "tint": SKIN_SILK}],
-    "panties_seethrough": [{"src": ("clothes", "under-lower", "seethroughswimsuit"), "tint": SKIN_SILK}],
+    # ★ 第五十一轮：原 `panties_loincloth`（遮羞布）与 `panties_seethrough`
+    #   （透明连体泳裤）两条映射撤掉 —— 前者整件删除，后者并入 `dress_seethrough`。
     # ★ 第三十九轮：从 AU 的 `clothes/genitals/` 引入（用户口径「引入平坦贞操笼放在下内衣」）。
     #   源图就是为「下体」画的，落点天然与 `under-lower/*` 同一高度
     #   （左列 bbox 91,89-118,101 —— gstring 是 88,84-121,106），所以**不需要 align 搬移**，
@@ -695,18 +711,16 @@ AU_OVERRIDE = {
     #   落点算法同上一件：align = (视口中心 + (43, 15)) / 1.5。
     #     chest 视口中心 (42, 66) → 20×20（与大腿那枚同尺寸，认得出是同一个图案）
     #     face  视口中心 (38, 43) →  8×8 （和面颊那枚星纹 7×8 同档）
-    #   ★ 脸颊这件的落点是**扫过一遍挑出来的**：第一版放在 (36, 40) 正压在眼睛上
-    #     （实测 31 个墨点有 9 个落在 sclera/iris/lashes/eyelids/brow 上，29%）。
-    #     把 N=5/6/7/8 四档 × 全部视口位置跑了一遍、按「落皮肤比例高 + 压眼少」
-    #     取帕累托前沿，最后落到 (38, 43)：**落皮肤 100%、压眼 0**
-    #     —— 而且刚好在**另一侧脸颊**（既有星纹在 x45-52 的右颊，这枚在 x35-40 的左颊），
-    #     两件面颊纹身可以同时戴着不打架。
-    #   实测落点：chest bbox 32,56-52,76（100% 落在躯干上）；
-    #             face  bbox 35,40-40,45（100% 落在头部轮廓内、零压眼）。
+    #   ★ 第五十一轮：脸颊那件按用户口径**整件删除**（原落点 (38, 43)，
+    #     实烘 bbox 35,40-40,45）。下面这段推导记录**保留** —— 它是方法，
+    #     将来往别的部位补纹身（额头 / 肩膀 / 下腹）可以照着做：
+    #     第一版脸颊爪印放在 (36, 40) 正压在眼睛上（实测 31 个墨点有 9 个落在
+    #     sclera/iris/lashes/eyelids/brow 上，29%）。把 N=5/6/7/8 四档 × 全部视口位置
+    #     跑一遍、按「落皮肤比例高 + 压眼少」取**帕累托前沿**，最后才落到 (38, 43)：
+    #     落皮肤 100%、压眼 0，而且与既有星纹分在两侧脸颊（星纹 x45-52 右颊）。
+    #   现存那一件的实测落点：chest bbox 32,56-52,76（100% 落在躯干上）。
     "tattoo_paw_chest": {"src": ("bodywriting", "paw print", "breasts-0"), "tint": INK,
                          "scale": 2.6667, "align": ("bbox_center", 56.67, 54.00)},
-    "tattoo_paw_face":  {"src": ("bodywriting", "paw print", "right-cheek"), "tint": INK,
-                         "scale": 1.0667, "align": ("bbox_center", 53.67, 38.33)},
     # ★ 第三十六轮补的四件刻字，取 AU 的 `bodywriting/text/<词>/<位置>`。
     #   这一组和上面几件**不一样**：AU 的 text 贴图是**按部位画好的整字**
     #   （不是小图案），所以位置和尺寸都沿用图包自己的落点 ——

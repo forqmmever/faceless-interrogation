@@ -8,7 +8,11 @@
 
 1. `CHANGELOG.md` 追加一节 → **git 提交一次**，提交信息 = 那节第一行。填「测试」那行**必须是真跑过的数字**。同一轮第二块工作写「第 N 轮（续）」。
 2. `README.md` 写「为什么这么改 / 机制 / 数值表 / 踩坑」；旧章节被新改动作废的句子**加 ★ 作废说明**，不改历史。
-3. `memory/` 写明细 —— 分文件、进版本库（`.workbuddy-ai/tmp/` **不进**）。
+3. `memory/` 写明细 —— 分文件，进版本库（`.workbuddy-ai/tmp/` **不进**）。
+   ★ **memory 有两份目录，写完必须同步**：项目 `D:\workbuddy\2026-10-11-09-19-59\.workbuddy-ai\memory\`
+   （在版本库里）与旧工作区 `C:\Users\qiongmuming\WorkBuddy AI\2026-10-11-09-19-59\.workbuddy-ai\memory\`
+   （**系统注入读的是这份**）。两边要逐字节一致 —— 第 49 轮（续）收尾时发现第 12~39 轮的
+   28 个明细只在 C:、第 40 轮以后只在 D:，差点丢一半。
 
 ### 五套验证（只在动了 `scripts/` `data/` `tests/` `tools/*_editor.html` 时跑）
 

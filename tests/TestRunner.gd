@@ -172,6 +172,52 @@ func _test_boot() -> void:
 		main.level_select_rows[1]["btn"].text.contains(
 			str(OutfitData.LEVELS[1].get("name", ""))))
 	_check("选关时还没开局（准备室仍藏着）", wardrobe.visible == false)
+
+	# ★★ 第五十三轮：选关面板新增「本局背景」一组按钮 ——
+	#   默认「随机」，其余按 `ScenarioData.enabled_backgrounds()` **动态生成**
+	#   （编辑器里新增一套背景并勾上「启用」，这里就自动多一颗，不用改代码）。
+	print("\n-- 选关面板 · 本局背景（第五十三轮）--")
+	_check("背景按钮组建出来了（冒烟/截图都靠它）", main.level_select_bg_btns.size() >= 2)
+	_check("按钮数 = 已启用背景数 + 1（那一颗是「随机」）",
+		main.level_select_bg_btns.size() == ScenarioData.enabled_backgrounds().size() + 1)
+	_check("第 1 颗是「随机」（默认选中的就是它）",
+		str(main.level_select_bg_btns[0]["id"]) == ""
+		and main._pending_bg_id == "")
+	_check("其余每颗对应一套已启用背景",
+		main.level_select_bg_btns[1]["id"] == str((ScenarioData.enabled_backgrounds()[0] as Dictionary).get("id", "")))
+	_check("草稿背景不出现在按钮组里（列了也点不出东西）",
+		main.level_select_bg_btns.size() == ScenarioData.bg_count() + 1)
+
+	# 挑一套背景 → 面板要记下来；再点「随机」要能记回空串
+	#   ★ 显式标类型：`enabled_backgrounds()` 是 Array，元素是 Variant，
+	#     用 `:=` 让编译器推断会因为「三元的两支类型不定」直接报 Parse Error。
+	var enabled: Array = ScenarioData.enabled_backgrounds()
+	var picked: Dictionary = enabled[1] if enabled.size() > 1 else enabled[0]
+	var pick_id := str(picked.get("id", ""))
+	main._on_bg_choice(pick_id)
+	_check("点了某套背景 → 面板记下了它", main._pending_bg_id == pick_id)
+	main._on_bg_choice("")
+	_check("再点「随机」→ 记回空串（回到随机）", main._pending_bg_id == "")
+
+	# 指定背景开局 —— 顺带验「随机流不被指定背景打乱」这条不变式
+	var seed_probe := 20261111
+	RunData.start_new_run(seed_probe)
+	var bg_random := RunData.background_id
+	var app_random := RunData.true_appearance().duplicate()
+	RunData.start_new_run(seed_probe, 0, pick_id)
+	_check("指定背景开局 → 背景就是指定的那套（实际 %s / 期望 %s）" % [
+			RunData.background_id, pick_id], RunData.background_id == pick_id)
+	var app_picked := RunData.true_appearance().duplicate()
+	# ★ 关键不变式：`start_new_run` 里**无论指不指定都先消耗一次 randi()** ——
+	#   所以原貌 / 情报 / 性情这些后续随机**完全不受影响**，同一个种子两次一致。
+	#   （这条要是不成立，玩家「指定背景」就会连带换掉人物，可复现性也一起没了。）
+	_check("★ 指定背景不改变后续随机流（原貌与随机开局逐项相同）",
+		_dict_eq(app_random, app_picked))
+	# 指定一个不存在的 id → 退回随机，不能崩
+	RunData.start_new_run(seed_probe, 0, "__no_such_bg__")
+	_check("指定不存在的背景 id → 退回随机（不崩）",
+		RunData.background_id == bg_random)
+	main._on_bg_choice("")
 	# 点锁定的那一轮不该有反应
 	main._on_level_selected(1)
 	_check("点锁定轮次无效（面板还在，也没开局）",

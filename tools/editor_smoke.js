@@ -79,7 +79,9 @@ mainJs += `
   catItems, catTags, itemById, itemLabel, pickItemOpts, pickTagOpts,
   previewQuestion, previewCompanion, previewSms, previewFact, previewTrait,
   // ★ 第二十九轮：题库页（逐题编辑）暴露出来供冒烟检查
-  questionFields, optionFields, TONE_OPTS, QUESTION_QTE_OPTS, renderQuestions, totalQuestions,
+  // ★ 第五十三轮：renderQuestions 已删除（题库页并进每套背景），不再导出
+  questionFields, optionFields, TONE_OPTS, QUESTION_QTE_OPTS, totalQuestions,
+  bgEnabled, enabledBgs, blankBackground,
   SLOTS, POOL_IDS, TRUE_POOL, GENDERS, PLAYER_GENDER,
   // ★ 第四十轮：服装数值页 / 原貌页
   renderItemsEditor, renderTrueAppEditor, renderPresetList,
@@ -285,7 +287,20 @@ try {
   // ★ 第四十二轮：这个「已迁移」的占位节被删掉了（它只剩一个只读字段，没有编辑价值）。
   //   这条断言改成**反向**的 —— 防止以后有人又把它加回来。
   const movedSec = P.bgSections(P.story.backgrounds[0]).find(s => s.key === "questions_moved");
-  ok(!movedSec, "废弃的「盘问题目 → 已并入题库」占位节已经删掉（题目统一在「🗣 题库」页编辑）");
+  ok(!movedSec, "废弃的「盘问题目 → 已并入题库」占位节已经删掉（题目现在在每套背景的「⑦ 题目」一节里）");
+  // ★ 第五十三轮：题目确实搬进了背景页 —— 这一条守住「搬进去且没被搬回去」
+  const qSec = P.bgSections(P.story.backgrounds[0]).find(s => s.key === "questions");
+  ok(!!qSec && Array.isArray(qSec.fields) && qSec.fields.length > 0,
+    "每套背景的 bgSections 里有「⑦ 题目」一节（含逐题字段）");
+  const qLv = (qSec.fields || []).find(f => f.k === "level");
+  ok(!!qLv, "背景页的题目节里能指定「属于哪一轮」");
+  ok(P.enabledBgs().length === P.story.backgrounds.length,
+    "出厂四套背景都算「已启用」（没写 enabled 字段 = 启用）");
+  const blank = P.blankBackground();
+  ok(blank.enabled === false && Array.isArray(blank.questions) && blank.questions.length === 0,
+    "空白新建的骨架是草稿（enabled:false）且内容为空");
+  ok(!!blank.id && !P.story.backgrounds.some(b => b.id === blank.id),
+    "空白骨架的 id 避开了已有背景：" + blank.id);
 
   console.log("\n-- 7h. 开场介绍 intro（第十三轮新增）--");
   const noIntro = P.story.backgrounds.filter(bg => !bg.intro);
@@ -294,9 +309,10 @@ try {
     "每套背景的 intro 都写得够长（够撑起一个浮窗）");
   const metaSec3 = P.bgSections(P.story.backgrounds[0]).find(s => s.key === "meta");
   ok(!!metaSec3 && metaSec3.fields.some(f => f.k === "intro"), "基础信息里能改 intro");
-  console.log("\n-- 7g. 题库页：逐题编辑的字段结构 --");
+  console.log("\n-- 7g. 题目：逐题编辑的字段结构（★ 第五十三轮起在每套背景页里）--");
   // ★ 第二十九轮：题目不再按四类分区编辑，改成一份统一清单（每道题自带选项）。
-  //   所以这里改查「题库页的字段定义」而不是旧的「盘问题目」一节。
+  // ★ 第五十三轮：那份清单从「全局题库页」搬到了每套背景的「⑦ 题目」节 ——
+  //   字段定义（`questionFields()`）没变，所以这里照旧查它。
   const qFields = P.questionFields();
   const optField = qFields.find(f => f.k === "options");
   ok(!!optField && Array.isArray(optField.fields), "题目里能逐个编辑「选项」（嵌套的清单）");
@@ -315,7 +331,7 @@ try {
   ok(qteField && qteField.sub === "qte" && qteOpts.length === 5,
     "每道题都能指定 QTE 类型（五种）");
   ok(!!qFields.find(f => f.k === "delay" && f.sub === "qte"), "每道题都能指定 QTE 出现时间");
-  ok(typeof P.totalQuestions === "function" && P.totalQuestions() > 0, "题库角标能算出总题数");
+  ok(typeof P.totalQuestions === "function" && P.totalQuestions() > 0, "能算出全部背景的总题数");
 
   console.log("\n-- 7d. 渲染不会污染数据（缺 companion 的背景不许被塞空对象）--");  {
     const keep = JSON.parse(JSON.stringify(P.story));   // 留一份干净的，测完还回去
@@ -429,7 +445,8 @@ try {
     ok(typeof R.contrast_per_exposure === "number", "反差换算系数在（" + R.contrast_per_exposure + "）");
     ok(typeof R.contrast_req_base === "number" && typeof R.contrast_req_step === "number",
       "反差值曲线的 base / step 都在（" + R.contrast_req_base + " / " + R.contrast_req_step + "）");
-    ok(P.uiLeafCount() === 79, "story.ui 共 79 条文案，实际 " + P.uiLeafCount());
+    // ★ 第五十三轮：选关面板新增两条（select_bg_title / select_bg_random）→ 79 → 81
+  ok(P.uiLeafCount() === 81, "story.ui 共 81 条文案，实际 " + P.uiLeafCount());
     const rs = P.rulesSections(), us = P.uiSections(), es = P.endingsSections();
     // ★ 第三十三轮：删 3 项（exposure_qte_threshold / interference_min / interference_per_exposure）
     //   加 2 项（exposure_qte_min / exposure_qte_full）→ 31 − 3 + 2 = 30

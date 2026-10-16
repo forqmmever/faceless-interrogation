@@ -394,10 +394,15 @@ func _run() -> void:
 
 	# ---------- 选关面板 ----------
 	# 第二十一轮：点「开始游戏」不再直接开局，而是先出这一层。
-	# 四行轮次都在、名字都在；锁着的那三行只是按钮灰掉、右侧写「尚未开放」。
-	_plog("--- 0a: 选关面板 —— 点「开始游戏」后先出这一层 ---")
-	_plog("     四关入口都在，目前只开放第一轮；其余三关锁定但没删除")
+	# 轮次都在、名字都在；锁着的那几行只是按钮灰掉、右侧写「尚未开放」。
+	# ★ 第五十三轮：这一层上面多了「本局背景」一组按钮（默认「随机」）。
+	_plog("--- 0a: 选关面板 —— 点「开始游戏」后先出这一层（本局背景 + 轮次入口）---")
+	_plog("     两轮入口都在，目前只开放第一轮；第二轮锁定但没删除")
+	_plog("     ★ 本局背景：默认「随机」；其余按钮按已启用背景**动态生成** ——")
+	_plog("       在编辑器里新增一套背景并勾上「启用」，这里就自动多一颗")
 	_plog("     开放表：OutfitData.OPEN_LEVELS = %s" % str(OutfitData.OPEN_LEVELS))
+	_plog("     背景按钮：%s（已启用 %d 套 / 共 %d 套）" % [
+		str(ScenarioData.background_ids()), ScenarioData.bg_count(), ScenarioData.all_bg_count()])
 	main._on_title_start()
 	await _wait(16)
 	await _shot("00a_level_select")

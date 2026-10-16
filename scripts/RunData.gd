@@ -63,12 +63,16 @@ func _ready() -> void:
 # ============================================================
 #  开一局
 #
-#  start_level：从第几轮开始（0 起）。选关面板点「第 N 关」时传进来。
+#  start_level：从第几轮开始（0 起）。选关面板点「第 N 轮」时传进来。
 #  目前只开放第一轮（OutfitData.OPEN_LEVELS），所以正常开局都是 0；
 #  但从这一轮开始意味着**前面几轮的接受度加成不补** ——
-#  开局接受度仍然只有「起始值 + 跨局累积」，这也是后三关暂时锁着的原因之一。
+#  开局接受度仍然只有「起始值 + 跨局累积」，这也是后面轮次暂时锁着的原因之一。
+#
+#  ★ 第五十三轮新增 bg_id：选关面板挑了背景就传进来；**空字符串 = 每局随机抽**
+#    （出厂行为，也是默认值）。只有「已启用」的背景 id 会被采纳，
+#    传了草稿 / 不存在的 id 一律当作「没指定」退回随机。
 # ============================================================
-func start_new_run(seed_in: int = -1, start_level: int = 0) -> void:
+func start_new_run(seed_in: int = -1, start_level: int = 0, bg_id: String = "") -> void:
 	run_index += 1
 	# ★ 第四十轮：新的一局 → 基础原貌要重算（旧的属于上一局，不能留）
 	base_true_app = {}
@@ -82,8 +86,18 @@ func start_new_run(seed_in: int = -1, start_level: int = 0) -> void:
 
 	_rng.seed = seed_value
 
+	# ★ 第五十三轮：背景从「纯随机」改成「默认随机、可在选关面板指定」。
+	#   用户口径：「编辑器可以新增背景，不止现有的四个，点击开始游戏的界面同步更新」。
+	#
+	#   ★★ 无论指不指定，**都先消耗一次 `_rng.randi()`**（结果被覆盖掉）——
+	#     否则「指定背景」会改变后续的随机流（原貌 / 强制装备 / 性情都从同一个 _rng 出），
+	#     同一个种子在下一次抽背景时就会变出另一套人物。抽一次再丢弃 = 随机流恒定。
 	var ids: Array = ScenarioData.background_ids()
-	background_id = str(ids[_rng.randi() % ids.size()])
+	var rolled := str(ids[_rng.randi() % ids.size()])
+	if bg_id != "" and ids.has(bg_id):
+		background_id = bg_id
+	else:
+		background_id = rolled
 	_bg = ScenarioData.get_background(background_id)
 
 	# ★ 第四十一轮：把「本局背景的那份流程配置」灌进数据层。

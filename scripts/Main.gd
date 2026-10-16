@@ -50,10 +50,14 @@ var title_continue_btn: Button
 var title_quit_btn: Button
 
 # ---- 选关面板（第二十一轮）----
-# 「开始游戏」之后先出这一层：4 个入口，只有开放的那几轮点得动。
+# 「开始游戏」之后先出这一层：本局背景 + 各轮入口，只有开放的那几轮点得动。
 var level_select: Control
 var level_select_rows: Array = []      # [{btn, note, li}]
 var level_select_back_btn: Button
+# ★ 第五十三轮：本局背景选择 —— [{btn, id}]，id 为空串的那一颗是「随机」
+var level_select_bg_btns: Array = []
+# 选中的背景 id（空串 = 随机抽）。只在「这一层面板上」有效，开局时传给 RunData。
+var _pending_bg_id: String = ""
 
 var _pending_action: String = ""   # "next_level" | "retry_level" | "new_run"
 
@@ -196,6 +200,41 @@ func _build_level_select() -> void:
 
 	vb.add_child(HSeparator.new())
 
+	# ★★ 第五十三轮：本局背景 —— 默认随机抽，也可以自己挑一套。
+	#   用户口径：「编辑器可以新增背景，不止现有的四个，点击开始游戏的界面同步更新」。
+	#   ★ 按钮组是**动态生成**的（从 ScenarioData.enabled_backgrounds() 读），
+	#     所以编辑器里新增一套背景、勾上「启用」，这里就自动多一个按钮，不用改代码。
+	#   ★ 草稿背景不列出来（它们不参与抽取，列了点了也没用）。
+	var bg_lab := Label.new()
+	bg_lab.text = _ut("title.select_bg_title", "本局背景（默认每局随机抽一套）")
+	bg_lab.add_theme_font_size_override("font_size", 13)
+	bg_lab.add_theme_color_override("font_color", Color(0.72, 0.76, 0.84))
+	vb.add_child(bg_lab)
+
+	var bg_flow := HFlowContainer.new()
+	bg_flow.add_theme_constant_override("h_separation", 8)
+	bg_flow.add_theme_constant_override("v_separation", 8)
+	vb.add_child(bg_flow)
+
+	level_select_bg_btns = []
+	var bg_choices: Array = [{"id": "", "name": _ut("title.select_bg_random", "随机")}]
+	for b in ScenarioData.enabled_backgrounds():
+		bg_choices.append({"id": str((b as Dictionary).get("id", "")),
+			"name": str((b as Dictionary).get("name", ""))})
+	for ch in bg_choices:
+		var bid := str((ch as Dictionary).get("id", ""))
+		var bbtn := Button.new()
+		bbtn.text = str((ch as Dictionary).get("name", ""))
+		bbtn.focus_mode = Control.FOCUS_NONE
+		bbtn.custom_minimum_size = Vector2(0, 34)
+		bbtn.add_theme_font_size_override("font_size", 13)
+		bbtn.pressed.connect(_on_bg_choice.bind(bid))
+		bg_flow.add_child(bbtn)
+		level_select_bg_btns.append({"btn": bbtn, "id": bid})
+	_sync_bg_choice_style()
+
+	vb.add_child(HSeparator.new())
+
 	# 轮次入口 —— 名字从 OutfitData.levels() 取（数值曲线那张表，跨背景通用）
 	level_select_rows = []
 	for li in OutfitData.level_count():
@@ -260,6 +299,27 @@ func _build_level_select() -> void:
 
 	level_select.hide()
 
+# 点了某套背景（或「随机」）
+func _on_bg_choice(bid: String) -> void:
+	_pending_bg_id = bid
+	_sync_bg_choice_style()
+
+# 背景按钮的选中态：选中的那颗涂成主色，其余是暗色
+func _sync_bg_choice_style() -> void:
+	for e in level_select_bg_btns:
+		var btn: Button = e["btn"]
+		var on: bool = str(e["id"]) == _pending_bg_id
+		var col := Color(0.24, 0.52, 0.38) if on else Color(0.18, 0.20, 0.25)
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = col
+		sb.set_corner_radius_all(8)
+		sb.set_border_width_all(1)
+		sb.border_color = col.lightened(0.30)
+		for st in ["normal", "hover", "pressed", "focus", "hover_pressed"]:
+			btn.add_theme_stylebox_override(st, sb)
+		btn.add_theme_color_override("font_color",
+			Color(0.96, 0.98, 1.0) if on else Color(0.74, 0.78, 0.86))
+
 func _show_level_select() -> void:
 	_hide_overlay()
 	_hide_intro()
@@ -280,18 +340,19 @@ func _on_level_select_back() -> void:
 	_hide_level_select()
 	_show_title()
 
-# 点了某一关 → 按那一关开局
+# 点了某一轮 → 按那一轮开局（背景用面板上选的那套；没选就是随机）
 func _on_level_selected(li: int) -> void:
 	if not OutfitData.level_unlocked(li):
 		return
 	_hide_level_select()
-	_start_new_run(-1, li)
+	_start_new_run(-1, li, _pending_bg_id)
 
 # ---------------- 流程 ----------------
 # seed_in >= 0 时用固定种子开新局（截图与测试需要可复现的随机结果）
 # start_level：从第几轮开始（选关面板传进来；0 = 第一轮）
-func _start_new_run(seed_in: int = -1, start_level: int = 0) -> void:
-	RunData.start_new_run(seed_in, start_level)
+# bg_id：本局指定的背景（选关面板传进来；空 = 每局随机抽）★ 第五十三轮
+func _start_new_run(seed_in: int = -1, start_level: int = 0, bg_id: String = "") -> void:
+	RunData.start_new_run(seed_in, start_level, bg_id)
 	_hide_title()
 	_hide_level_select()
 	_hide_overlay()

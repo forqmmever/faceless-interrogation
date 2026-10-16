@@ -1499,14 +1499,20 @@ func _test_scenario_data() -> void:
 	# 真正的把关在下面那一堆「字段齐全 / id 唯一 / 引用可解析」的断言上，
 	# 它们跑的就是当前这份数据 —— 所以 story.json 改坏了，这里会直接红。
 	print("   数据来源：", "data/story.json" if ScenarioData.story_from_file else "内置 DEFAULT_* 常量（未找到 story.json）")
-	_check("背景库读到 ≥ 4 套", ScenarioData.BACKGROUNDS.size() >= 4)
+	# ★ 第五十三轮：背景可以标成「草稿」（enabled:false）—— 草稿不参与抽取、
+	#   也不做下面这一圈内容校验。所以这里与下面都只看**已启用**的那些。
+	#   （id 唯一性仍查全部，见 `_bg_ids_unique()` —— 重名是真问题，草稿也躲不过。）
+	_check("已启用的背景 ≥ 4 套（草稿不计）", ScenarioData.enabled_backgrounds().size() >= 4)
+	_check("至少有一套已启用（否则开局没背景可抽）", ScenarioData.bg_count() >= 1)
+	_check("全部背景（含草稿）不少于已启用的",
+		ScenarioData.all_bg_count() >= ScenarioData.bg_count())
 	_check("性情表读到 ≥ 5 种", ScenarioData.INTERROGATOR_TRAITS.size() >= 5)
 	_check("衣物目击描述非空", ScenarioData.ITEM_DESC.size() > 0)
 	_check("至少 4 套背景", ScenarioData.bg_count() >= 4)
 	_check("背景 id 唯一", _bg_ids_unique())
 	_check("每套背景字段齐全", _bg_fields_ok())
 
-	for bg in ScenarioData.BACKGROUNDS:
+	for bg in ScenarioData.enabled_backgrounds():
 		var nm := str(bg["name"])
 		# ★ 第五十二轮：轮次名改成通用「第一轮 / 第二轮」，每套背景的 `levels` 覆写整段删掉 ——
 		#   所以这里不再要求「本套背景自己配了 N 条名字」，而是要求它**不超过**轮数
@@ -3001,7 +3007,7 @@ func _test_sms_levels() -> void:
 	var bad_level := 0
 	var bad_reveal := 0
 	var bad_canon := 0
-	for bg in ScenarioData.BACKGROUNDS:
+	for bg in ScenarioData.enabled_backgrounds():
 		var sms: Array = ScenarioData.sms_of(bg)
 		var fs: Array = ScenarioData.facts_of(bg)
 		if sms.size() != OutfitData.MAX_LEVELS or fs.size() != OutfitData.MAX_LEVELS:
@@ -3025,7 +3031,7 @@ func _test_sms_levels() -> void:
 	# 过滤：轮次越深，看到的短信越多
 	var grow_ok := true
 	var one_per_level := true
-	for bg in ScenarioData.BACKGROUNDS:
+	for bg in ScenarioData.enabled_backgrounds():
 		var prev := 0
 		for li in OutfitData.MAX_LEVELS:
 			var n: int = ScenarioData.sms_for_level(bg, li).size()
@@ -3051,7 +3057,13 @@ func _test_sms_levels() -> void:
 			RunData.advance_level()
 	_check("RunData.sms_threads 随轮次增长", mono)
 	_check("第 1 轮只解锁 1 条", int(seen[0]) == 1)
-	_check("第 4 轮解锁全部 4 条", int(seen[3]) == OutfitData.MAX_LEVELS)
+	# ★★ 第五十三轮修一个**假绿**：这一行原来是 `seen[3]`，而第 52 轮把一局压成
+	#   2 轮之后 `seen` 只有 MAX_LEVELS(2) 个元素 —— 访问 `seen[3]` 越界，
+	#   Godot 报 SCRIPT ERROR 并**跳过这一行**（`_check` 根本没执行），
+	#   于是这条断言从第 52 轮起就一直「没跑过」而测试照旧全绿。
+	#   改成按 MAX_LEVELS 取末项，并把标题里的「第 4 轮 / 4 条」也改成动态的。
+	_check("末轮解锁全部 %d 条" % OutfitData.MAX_LEVELS,
+		int(seen[OutfitData.MAX_LEVELS - 1]) == OutfitData.MAX_LEVELS)
 	_check("sms_total 是全部条数", RunData.sms_total() == OutfitData.MAX_LEVELS)
 	ProfileData.reset_all()
 
@@ -3642,7 +3654,7 @@ func _bg_ids_unique() -> bool:
 	return true
 
 func _bg_fields_ok() -> bool:
-	for b in ScenarioData.BACKGROUNDS:
+	for b in ScenarioData.enabled_backgrounds():
 		# intro 是第十三轮新增的「开场介绍」—— 开场浮窗直接展示它
 		for k in ["id", "name", "venue", "intro", "interrogator", "cover_role", "true_role", "true_name"]:
 			if str(b.get(k, "")).length() < 2:
@@ -3781,7 +3793,7 @@ func _test_companion_sms() -> void:
 	var bad_fields := 0
 	var bad_reveals := 0
 	var dup_id := 0
-	for bg in ScenarioData.BACKGROUNDS:
+	for bg in ScenarioData.enabled_backgrounds():
 		var cs: Array = ScenarioData.companion_sms_of(bg)
 		if cs.size() != OutfitData.MAX_LEVELS:
 			bad_count += 1
@@ -3808,14 +3820,14 @@ func _test_companion_sms() -> void:
 
 	# 逐关解锁
 	var one_per_level := true
-	for bg in ScenarioData.BACKGROUNDS:
+	for bg in ScenarioData.enabled_backgrounds():
 		for li in OutfitData.MAX_LEVELS:
 			if ScenarioData.companion_sms_for_level(bg, li).size() != li + 1:
 				one_per_level = false
 	_check("第 li 关能看到 li+1 条（一关解锁一条）", one_per_level)
 
 	# 按 id 取
-	var first_bg: Dictionary = ScenarioData.BACKGROUNDS[0]
+	var first_bg: Dictionary = ScenarioData.enabled_backgrounds()[0]
 	var first_id := str((ScenarioData.companion_sms_of(first_bg)[0] as Dictionary).get("id", ""))
 	_check("get_companion_sms 能按 id 取到",
 		str(ScenarioData.get_companion_sms(first_bg, first_id).get("id", "")) == first_id)
@@ -3824,7 +3836,7 @@ func _test_companion_sms() -> void:
 
 	# 与「与朋友」那组不共用 id
 	var shared := 0
-	for bg in ScenarioData.BACKGROUNDS:
+	for bg in ScenarioData.enabled_backgrounds():
 		var a := {}
 		for s in ScenarioData.sms_of(bg):
 			a[str(s.get("id", ""))] = true
@@ -3847,7 +3859,9 @@ func _test_companion_sms() -> void:
 			RunData.advance_level()
 	_check("RunData.companion_sms_threads 随轮次增长", mono)
 	_check("第 1 轮只解锁 1 条", int(seen_n[0]) == 1)
-	_check("第 4 轮解锁全部 4 条", int(seen_n[3]) == OutfitData.MAX_LEVELS)
+	# ★ 同上一处（`seen_n[3]` 越界 → 断言从未执行）—— 第五十三轮一起修掉
+	_check("末轮解锁全部 %d 条" % OutfitData.MAX_LEVELS,
+		int(seen_n[OutfitData.MAX_LEVELS - 1]) == OutfitData.MAX_LEVELS)
 	_check("companion_sms_total 是全部条数",
 		RunData.companion_sms_total() == OutfitData.MAX_LEVELS)
 	_check("DossierData 门面与 RunData 一致",
@@ -3981,7 +3995,7 @@ func _test_blind_questions() -> void:
 	var bad_count := 0
 	var bad_fields := 0
 	var bad_id := 0
-	for bg in ScenarioData.BACKGROUNDS:
+	for bg in ScenarioData.enabled_backgrounds():
 		var arr: Array = _blind_of(bg)
 		if arr.size() < OutfitData.MAX_LEVELS:
 			bad_count += 1
@@ -4008,7 +4022,7 @@ func _test_blind_questions() -> void:
 	# 选项数量可变：有的盲区题不写「硬答」→ 就只有「撒谎 / 回避」两个选项
 	var no_made_up := 0
 	var with_made_up := 0
-	for bg in ScenarioData.BACKGROUNDS:
+	for bg in ScenarioData.enabled_backgrounds():
 		for q in _blind_of(bg):
 			var has_mu := false
 			for o in ((q as Dictionary).get("options", []) as Array):
@@ -4025,7 +4039,7 @@ func _test_blind_questions() -> void:
 	_check("出厂数据里已没有 2 选项的盲区题（那条随 level 3 一起删了）",
 		no_made_up == 0)
 	_check("每套背景剩的盲区题都带「硬答」（3 选项）",
-		with_made_up == ScenarioData.BACKGROUNDS.size() * OutfitData.MAX_LEVELS)
+		with_made_up == ScenarioData.enabled_backgrounds().size() * OutfitData.MAX_LEVELS)
 
 	# 一局 4 关抽到的必须是 4 条不同的题（每轮第 i 条固定给第 i 关）
 	ProfileData.reset_all()
@@ -4048,7 +4062,7 @@ func _test_blind_questions() -> void:
 	ProfileData.reset_all()
 
 	# 选项的语义：只能是「硬编 / 撒谎 / 回避」三种 —— 盲区题没有「正确答案」
-	var first_bg: Dictionary = ScenarioData.BACKGROUNDS[0]
+	var first_bg: Dictionary = ScenarioData.enabled_backgrounds()[0]
 	var blind0: Array = _blind_of(first_bg)
 	var q_first := {}
 	for q in blind0:

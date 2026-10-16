@@ -1520,18 +1520,53 @@ const DEFAULT_ITEM_DESC := {
 
 # ---------- 查询接口 ----------
 func get_background(id: String) -> Dictionary:
+	# ★ 第五十三轮：这里**不过滤草稿** —— 存档里可能记着一套后来被停用的背景
+	#   （玩家禁用之后又去「继续游戏」），那时仍然要能取到它、把这一局走完。
+	#   过滤只发生在「抽新的一局」（background_ids）。
 	for b in BACKGROUNDS:
 		if b["id"] == id:
 			return b
 	return BACKGROUNDS[0]
 
-func background_ids() -> Array:
+# ---------------- 第五十三轮：草稿 / 启用 ----------------
+# 一套背景可以标 `enabled: false`（编辑器里叫「草稿」）——
+# 它**不参与抽取**（游戏不会抽到半成品）、也不进自动化测试的内容校验。
+#   ★ 缺省（没写这个键）= **启用** —— 出厂那四套不用补字段，向后兼容。
+#   ★ 为什么需要这个：新建一套背景时它是空的（没有档案卡 / 题目 / 事实 / 短信），
+#     而开局是**随机抽背景**的 —— 抽到空背景会直接崩
+#     （归类环节要 12 张卡、每轮要恰好 1 道盲区题、短信要按轮揭示事实）。
+func bg_enabled(bg: Dictionary) -> bool:
+	return bg.get("enabled", true) != false
+
+# 全部背景（含草稿）—— 编辑器 / 导出用
+func all_backgrounds() -> Array:
+	return BACKGROUNDS
+
+# 只有「已启用」的那些 —— 抽局、内容校验、界面列背景都用它
+func enabled_backgrounds() -> Array:
 	var out := []
 	for b in BACKGROUNDS:
-		out.append(b["id"])
+		if bg_enabled(b):
+			out.append(b)
 	return out
 
+func background_ids() -> Array:
+	var out := []
+	for b in enabled_backgrounds():
+		out.append(b["id"])
+	# 兜底：万一全部被标成草稿，至少还能开局（否则 `ids[0]` 会越界崩掉）
+	if out.is_empty():
+		for b in BACKGROUNDS:
+			out.append(b["id"])
+			break
+	return out
+
+# ★ 这个数 = **已启用**的背景套数（不是「一共几套」）——
+#   测试断言「至少 4 套」、界面报「可用背景 N 套」用的都是它。
 func bg_count() -> int:
+	return enabled_backgrounds().size()
+
+func all_bg_count() -> int:
 	return BACKGROUNDS.size()
 
 func desc_of(item_id: String) -> String:
@@ -2060,9 +2095,14 @@ const DEFAULT_UI := {
 		"continue_btn": "⏩  继续游戏",
 		"quit_btn": "✖  退出游戏",
 		# ---- 选关面板（第二十一轮）----
-		# 点「开始游戏」之后先出这一层。四行轮次都在，锁着的只是按钮。
+		# 点「开始游戏」之后先出这一层。轮次都在，锁着的只是按钮。
+		# ★ 第五十三轮：上面多了「本局背景」一组按钮 —— 默认「随机」，
+		#   其余几颗按 `ScenarioData.enabled_backgrounds()` **动态生成**，
+		#   所以这里只有标题与「随机」这两句是文案；背景名直接用背景自己的 name。
 		"select_title": "选择从哪一轮开始",
 		"select_sub": "一次一局，从选中的那一轮往后走。锁着的轮次还没做完 —— 没有删除。",
+		"select_bg_title": "本局背景（默认每局随机抽一套）",
+		"select_bg_random": "随机",
 		"select_open_note": "可以进入",
 		"select_locked_note": "尚未开放",
 		"select_back": "◀  返回",

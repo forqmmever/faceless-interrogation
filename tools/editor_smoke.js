@@ -542,7 +542,9 @@ try {
     ok(S.levels.length === before, "关卡数改回原样（" + before + " 关）");
 
     // ★ 第二十九轮：反差要求「留空 = 自增」
-    ok(S.levels[1].contrast_req == null, "第 2 关的反差要求留空 = 自动（实际 "
+    // ★ 第四十九轮：出厂曲线改成**四关都手写**（125/140/155/165）——
+    //   增量 15/15/10，**不是等差**，base+step 表达不了。
+    ok(S.levels[1].contrast_req === 140, "第 2 关的反差要求是手写的 140（实际 "
       + JSON.stringify(S.levels[1].contrast_req) + "）");
     const autoSeq = (function(){
       const base = Number((S.rules||{}).contrast_req_base) || 20;
@@ -555,8 +557,23 @@ try {
       });
       return out;
     })();
-    // ★ 第三十一轮：反差换成新算法后重标过曲线（只算上衣+下装，可达范围变小）
-    ok(autoSeq.join("/") === "24/27/30/33", "留空的关按 base+step 自增：" + autoSeq.join("/"));
+    // ★ 第四十九轮：反差改成**全槽位求和** + 原貌池放开之后重标过曲线
+    //   （可达上限从 ~90 涨到 ~260）。四关都是手写的，所以 autoSeq
+    //   就等于这四个手写值 —— 它顺带验了「解析器读的是手写值」。
+    ok(autoSeq.join("/") === "125/140/155/165", "四关手写值被正确解析：" + autoSeq.join("/"));
+    // 留空仍然走自增（机制没删，只是出厂数据不再用到）
+    const seqAuto = (function(){
+      const base = Number((S.rules||{}).contrast_req_base) || 20;
+      const step = Number((S.rules||{}).contrast_req_step) || 10;
+      let prev = base; const out = [];
+      [125, null, 155, 165].forEach((g, i) => {
+        prev = (g > 0) ? g : (i > 0 ? prev + step : base);
+        out.push(prev);
+      });
+      return out;
+    })();
+    ok(seqAuto[1] === 125 + Number((S.rules||{}).contrast_req_step),
+      "留空的关仍按上一关 + step 自增（" + seqAuto[1] + "）");
     // 在中间手写一个值 → 它成为后面自增的新起点
     S.levels[1].contrast_req = 45;
     P.validateNow();
@@ -721,9 +738,15 @@ try {
     P.validateNow();
     ok(!P.issues.some(i => i.m.includes("item_overrides")), "清空后校验干干净净");
 
-    // ---- 原貌页：默认状态 = 完全不覆写 ----
-    ok(P.presetSummary() === "默认", "默认状态是「默认」（两处都空）");
+    // ---- 原貌页：出厂状态 = 逐轮覆写了 4 轮 ----
+    // ★ 第四十九轮起 story.json 自带一套「原貌逐轮递进」（下装始终保守、
+    //   上装/袜子逐轮放开）。这条断言就是防它被谁清掉 —— 清掉之后
+    //   随机原貌的暴露值几乎全为 0，反差会退化成「暴露值 × 系数」。
+    ok(P.presetSummary() === "逐轮 4 轮",
+      "出厂原貌 = 逐轮覆写 4 轮（实际 " + P.presetSummary() + "）");
+    // 两处都清空 → 摘要回到「默认」
     S.true_presets = { pool: [], by_level: [] };
+    ok(P.presetSummary() === "默认", "两处都空时摘要 = 「默认」");
     P.validateNow();
     ok(!P.issues.some(i => i.lv === "e" && i.m.includes("true_presets")),
       "空预设不报错");
@@ -853,9 +876,10 @@ try {
     ok(P.presetScope === "bg:" + (bg0.id || 0), "原貌编辑器的 scope 切到了这套背景：" + P.presetScope);
     ok(P.presetSummaryOf(bg0.true_presets).includes("池 1 套"),
       "按背景的摘要正确：" + P.presetSummaryOf(bg0.true_presets));
-    // 全局那份不该被背景的编辑串味
-    ok(P.presetSummaryOf(S.true_presets) === "默认",
-      "全局原貌仍是「默认」（没被背景那份串味）");
+    // 全局那份不该被背景的编辑串味（出厂那份 = 逐轮 4 轮）
+    ok(P.presetSummaryOf(S.true_presets) === "逐轮 4 轮",
+      "全局原貌没被背景那份串味（仍是出厂的逐轮 4 轮，实际 "
+      + P.presetSummaryOf(S.true_presets) + "）");
     P.presetMode = "pool";
 
     // ---- 题库：出场序号字段在 ----

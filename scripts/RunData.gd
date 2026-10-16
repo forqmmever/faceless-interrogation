@@ -138,10 +138,11 @@ func resume_run(seed_in: int, run_index_in: int, li: int, cleared: int) -> void:
 	run_index = maxi(1, run_index_in)
 	level_index = clampi(li, 0, level_count() - 1)
 	cleared_levels = maxi(0, cleared)
-	_roll_forced_items(level_index)
 	# ★ 第四十轮：上面 start_new_run 是按第 1 轮算的原貌，而存档可能停在第 N 轮。
 	#   若那一轮配了「按关覆写」，这里要补一次（重算 + 原貌真的变了才重建情报）。
+	#   ★ 第四十九轮：这一步要**先于** `_roll_forced_items`（强制池按原貌过滤）。
 	_maybe_apply_level_preset()
+	_roll_forced_items(level_index)
 	# ★ 第四十三轮：照片是「开局 3 张 + 每轮 2 张」——
 	#   而 start_new_run 只生成了开局那 3 张，存档停在第 N 轮时要把缺的补上。
 	#   （照片不存盘：它完全由种子 + 轮次决定，重算即可复现。）
@@ -231,9 +232,13 @@ func _roll_forced_items(li: int) -> void:
 				break
 		if clash:
 			continue
+		# ★ 第四十九轮：不强制「与原貌完全相同」的那一件 —— 穿上它 = 这一格反差 0，
+		#   等于白占一个槽位。实测能把第 3 轮的可达上限从 235 压到 125（本轮直接死局）。
+		#   同第 27 轮 `forced_locked_out_slots()` 的口径：锁死一格 = 死局就排除。
+		if str(true_app.get(slot, "")) == str(it.get("id", "")):
+			continue
 		used_slots.append(slot)
 		forced_items.append(str(it.get("id", "")))
-
 # 把「写死的规则」落成强制装备。
 #   all 组：每一件都进 forced_items，槽位锁死；
 #   any 组：**默认替你穿上第一件穿得起的**，但槽位不锁死 ——
@@ -355,9 +360,17 @@ func _roll_base_appearance() -> Dictionary:
 	return out
 
 # 把一份「原貌预设」铺成完整的原貌。
-#   ★ 预设里**只写了几件也算数** —— 没写到的槽位继续按老逻辑从 TRUE_POOL 抽，
+#   ★ 预设里**只写了几件也算数** —— 没写到的槽位继续按老逻辑补全，
 #     所以「只想钉死上衣和下装」这种用法是允许的。
 #   ★ 写成空件（「（不穿）」）是**有效**的指定，会覆盖掉池子里的随机结果。
+#
+#   ★★ 第四十九轮修的 bug：没写到的槽位以前是**每调用一次就现摇一次**，
+#     而「按轮覆写」每切一轮就会调用一次 —— 于是配了 `by_level` 之后，
+#     A 的发型 / 眼镜 / 妆容 / 纹身 / 配饰**每一轮都会换一遍**（情报台会说
+#     「他留着长发」下一轮又「他留着短发」）。现在改成**沿用整局那一套**
+#     （`base_true_app`），只有被覆写的槽位才换。
+#     算基础原貌时（`_roll_base_appearance` 走随机池那条路）`base_true_app`
+#     还是空的，所以那时仍然现摇 —— 老行为不变。
 func _apply_preset(preset_in: Dictionary) -> Dictionary:
 	var slots: Dictionary = preset_in.get("slots", {})
 	var out := {}
@@ -365,6 +378,9 @@ func _apply_preset(preset_in: Dictionary) -> Dictionary:
 		var s := str(slot)
 		if slots.has(s):
 			out[s] = str(slots[s])
+			continue
+		if base_true_app.has(s):
+			out[s] = str(base_true_app[s])       # 整局那一套，不重摇
 			continue
 		var cand: Array = OutfitData.TRUE_POOL.get(s, [])
 		if cand.is_empty():
@@ -750,8 +766,11 @@ func advance_level() -> void:
 	ProfileData.add_gain(gain)
 	cleared_levels += 1
 	level_index += 1
-	_roll_forced_items(level_index)      # 新的一轮，重新抽强制装备
+	# ★ 第四十九轮：先换原貌、再抽强制装备 —— 强制池要按**这一轮的**原貌
+	#   过滤掉「与原貌相同」的那一件（否则抽到它 = 本轮死局）。
+	#   两者各用独立随机流（`_level_rng` / `_forced_rng`），换序不影响可复现性。
 	_maybe_apply_level_preset()          # ★ 第四十轮：这一轮配了原貌覆写就换人
+	_roll_forced_items(level_index)      # 新的一轮，重新抽强制装备
 	# ★ 第四十三轮（用户口径「每轮增加两个」）：新一轮**追加** 2 张照片。
 	#   ★ 放在 _maybe_apply_level_preset() **之后** —— 新照片要拍的是**这一轮**的样子。
 	#   ★ 累加而不是重抽：旧照片保留（已经擦亮的不白擦）。

@@ -2707,9 +2707,11 @@ func _test_dol_style() -> void:
 		_check("未解锁卡片的边框是灰的", false)
 
 	# ---- 量表：绝对量程 + 阈值刻线 ----
-	_check("量程是绝对量程（暴露 55 / 反差 100；未改部位已撤掉）",
-		wardrobe.SCALE_MAX["expose"] == 55.0
-		and wardrobe.SCALE_MAX["contrast"] == 100.0
+	# ★ 第四十九轮重标：起始接受度 10 → 14（第 4 轮上限 54 → 70），反差改成全槽位求和
+	#   （可达上限从 ~99 涨到 ~235）—— 旧的 55 / 100 都装不下了。
+	_check("量程是绝对量程（暴露 71 / 反差 270；未改部位已撤掉）",
+		wardrobe.SCALE_MAX["expose"] == 71.0
+		and wardrobe.SCALE_MAX["contrast"] == 270.0
 		and not wardrobe.SCALE_MAX.has("matching"))
 	for key in ["expose", "contrast"]:
 		var blk: Dictionary = wardrobe.stat_blocks[key]
@@ -3208,7 +3210,31 @@ func _test_multi_level_flow() -> void:
 			main._on_overlay_pressed()
 			_check("进入第 %d 轮" % (n + 1), RunData.level_number() == n + 1)
 			_check("背景跨关不变", RunData.background_id == bg_id)
-			_check("原貌跨关不变", _dict_eq(RunData.true_appearance(), true_app))
+			# ★ 第四十九轮：出厂 story.json 带了「原貌逐轮递进」（`true_presets.by_level`），
+			#   所以「跨轮完全不变」只在**没有配按轮覆写**时才成立。配了覆写时改判两条：
+			#     ① 本轮被覆写的槽位 == 覆写值；
+			#     ② 没被覆写的槽位仍等于开局那一套（`_apply_preset` 不再每轮重摇）。
+			var lv_presets: Array = ScenarioData.true_preset_by_level()
+			var lv_override: Dictionary = {}
+			if RunData.level_index < lv_presets.size() \
+					and not (lv_presets[RunData.level_index] as Dictionary).is_empty():
+				lv_override = (lv_presets[RunData.level_index] as Dictionary).get("slots", {})
+			var now_app: Dictionary = RunData.true_appearance()
+			if lv_override.is_empty():
+				_check("原貌跨关不变（本轮没有配按轮覆写）", _dict_eq(now_app, true_app))
+			else:
+				var miss := []
+				for s in lv_override.keys():
+					if str(now_app.get(str(s), "")) != str(lv_override[s]):
+						miss.append(str(s))
+				_check("原貌按本轮覆写生效（%d 个槽位）" % lv_override.size(), miss.is_empty())
+				var drift := []
+				for s in now_app.keys():
+					if lv_override.has(str(s)):
+						continue
+					if str(now_app[s]) != str(true_app.get(str(s), "")):
+						drift.append(str(s))
+				_check("没被覆写的槽位仍沿用开局那套（不逐轮重摇）", drift.is_empty())
 			_check("局号跨关不变", RunData.run_index == run_id)
 			_check("接受度提升", RunData.acceptance > acc_before)
 			_check("暴露值上限随之放宽",

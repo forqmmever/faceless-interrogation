@@ -1467,6 +1467,10 @@ const DEFAULT_ITEM_DESC := {
 	"top_highneck": "是高领长袖，领口扣到最上面那颗",
 	"top_plain": "是件素色棉布衫，短袖，洗得发白",
 	"top_longsleeve": "是长袖的丝绸衬衣，袖口磨起了毛",
+	# ★ 第四十九轮：这一件新入原貌池（放开原貌暴露分布，见 OutfitData.TRUE_POOL）。
+	#   描述必须写 —— 它是「目击者眼里的 A」，池内件缺了就会在情报台退化成
+	#   「看不真切」，而 `WardrobeTest._pool_has_desc()` 也堵着这个缺口。
+	"top_sheer": "罩衫薄得透光，底下的轮廓隐约能看见",
 	# ---- bra ----
 	"bra_plain": "是素色无痕的，账单上写着两件",
 	# ---- gloves ----
@@ -1489,17 +1493,25 @@ const DEFAULT_ITEM_DESC := {
 	# ---- bottom ----
 	"bottom_longskirt": "裙摆几乎扫地，看不见鞋面",
 	"bottom_trousers": "是条直筒长裤，裤脚沾着泥",
+	# ★ 第四十九轮新入原貌池
+	"bottom_cut": "裙侧开了道高衩，走动时一晃一晃",
 	# ---- dress（第二十六轮新增的整件式槽位）----
 	"dress_none": "从没见穿过裙子，一贯是上衣配长裤",
 	"dress_sundress": "夏天会穿一条素色吊带连衣裙，肩上有两道晒痕",
 	# ---- panties ----
 	"panties_plain": "是素色棉质的，账单背面写着三条",
+	# ★ 第四十九轮新入原貌池
+	"panties_thong": "只有细细一条，几乎勒进肉里",
 	# ---- stockings ----
 	# ★ 第三十七轮：吊袜带整栏并入袜类，`garter_none` 一并撤掉。
 	"stockings_none": "从不穿袜，脚踝上留着一道旧疤",
 	"stockings_opaque": "常年裹着不透明的深色连裤袜",
+	# ★ 第四十九轮新入原貌池
+	"stockings_sheer": "丝袜薄得像一层雾，脚背上的青筋都看得见",
 	# ---- shoes ----
 	"shoes_boots": "是双及踝皮靴，穿了三年没换过",
+	# ★ 第四十九轮新入原貌池
+	"shoes_heels": "鞋跟又细又高，走在石板路上咯噔咯噔",
 	# ---- robe ----
 	"robe_none": "从不披外袍，下雨也只是淋着",
 	"robe_travel": "总裹着一件厚重的旅行斗篷",
@@ -1979,8 +1991,8 @@ const DEFAULT_RULES := {
 	# --- 盘问流程 ---
 	"questions_per_level": 8,          # 一关问几道
 	# ★ 第二十九轮：反差值要求曲线 —— 留空的轮次 = 上一轮 + step（见 OutfitData._resolve_contrast_req）
-	"contrast_req_base": 24,           # 第 1 关的反差要求基线
-	"contrast_req_step": 3,           # 之后每轮自增多少
+	"contrast_req_base": 125,           # 第 1 关的反差要求基线
+	"contrast_req_step": 15,           # 之后每轮自增多少
 	"contrast_per_exposure": 5,        # 反差值：每一档暴露度差算多少分（第三十一轮新算法）
 	"pass_suspicion": 60.0,            # 怀疑度低于它才算过
 	"contradiction_limit": 2,          # 累计几次「前后矛盾」当场识破

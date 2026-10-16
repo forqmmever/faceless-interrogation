@@ -740,13 +740,24 @@ func _test_item_overrides() -> void:
 func _test_true_presets() -> void:
 	print("\n-- 原貌预设（随机池 / 按关覆写）--")
 	var slots: Array = OutfitData.auto_slots()
+	# ★ 第四十九轮：下面会临时把 `_true_presets` 换成测试夹具，
+	#   收尾必须**还原成全局那份**（以前直接写成 `{}`，那时全局是空的看不出来；
+	#   现在全局钉死了四轮原貌，写 `{}` 会让后面所有用例都读到「四轮都不覆写」）。
+	#   ★ 先摸一下读取入口，逼 `_ensure_story()` 把 story.json 读进来 ——
+	#     否则这里抓到的是一份**还没装数据的空壳**，还原等于清空（实测踩过）。
+	ScenarioData.true_preset_by_level()
+	var keep_global: Dictionary = (ScenarioData._true_presets as Dictionary).duplicate(true)
 
-	# ---- 默认：文件里两处都空 → 完全走老逻辑 ----
+	# ---- 默认：随机池为空；按轮覆写**四轮都配齐了** ----
+	#   ★ 第四十轮这里断言的是「四轮都不覆写」。第四十九轮按用户口径
+	#     「A 的暴露水平随轮次提升 + 收窄最优值区间」，出厂数据改成**四轮全钉死**，
+	#     断言也跟着反过来：缺哪一轮，那一轮就退回 TRUE_POOL 随机，
+	#     最优值区间立刻重新变宽（用户口径「收窄区间」就白做了）。
 	_check("默认没有随机池", ScenarioData.true_preset_pool().is_empty())
 	var by_lv: Array = ScenarioData.true_preset_by_level()
-	_check("默认的按关覆写里每一关都是「不覆写」（空字典）",
+	_check("默认的按关覆写**四轮都配齐**（不是「不覆写」）",
 		by_lv.size() == OutfitData.level_count()
-		and by_lv.all(func(x): return (x as Dictionary).is_empty()))
+		and by_lv.all(func(x): return not (x as Dictionary).is_empty()))
 
 	# ---- 一套里只写几件也算数 ----
 	ProfileData.reset_all()
@@ -856,7 +867,7 @@ func _test_true_presets() -> void:
 	# ★ 收尾必须清干净：上面反复调了 advance_level()，而它会
 	#   `ProfileData.add_gain()` —— 接受度是**跨局保留**的，不 reset 就会污染后面所有用例
 	#   （实测：不清的话，后面「开局接受度 = START_ACCEPTANCE」当场挂）。
-	ScenarioData._true_presets = {}
+	ScenarioData._true_presets = keep_global
 	ProfileData.reset_all()
 	RunData.base_true_app = {}
 
@@ -885,6 +896,12 @@ func _test_bg_overrides() -> void:
 	var g_levels := OutfitData.level_count()
 	var g_forced := OutfitData.forced_rules_at(1).duplicate(true)
 	var g_defects := OutfitData.defects().size()
+	# ★ 第四十九轮：这一段末尾原来写的是 `ScenarioData._true_presets = {}`，
+	#   把**全局那份预设**直接抹掉了 —— 第四十轮时全局是空的，抹了看不出来；
+	#   现在全局钉死了四轮原貌，抹掉之后后面所有用例都读到「四轮都不覆写」，
+	#   于是「按轮覆写」相关的断言全部假红。改成**先存后还**。
+	ScenarioData.true_preset_by_level()      # 逼 _ensure_story() 先读完数据
+	var keep_global_presets: Dictionary = (ScenarioData._true_presets as Dictionary).duplicate(true)
 	_check("没有覆写时 = 全局那份（%d 轮 / 第 2 轮强制 mode=%s / 缺陷 %d 项）" % [
 		g_levels, str(g_forced.get("mode", "")), g_defects], g_levels >= 1)
 
@@ -933,8 +950,15 @@ func _test_bg_overrides() -> void:
 		str(OutfitData.level_at(0).get("name", "")) != "测试一轮")
 	_check("覆写的接受度生效（+7）", int(OutfitData.level_at(0).get("acceptance_gain", -1)) == 7)
 	_check("覆写的反差要求生效（30）", int(OutfitData.level_at(0).get("contrast_req", -1)) == 30)
-	_check("没写反差要求的那一轮按自增算（30 + 3 = 33）",
-		int(OutfitData.level_at(1).get("contrast_req", -1)) == 33)
+	# ★ 第四十九轮：step 从 3 抬到 30（全槽位口径下可达上限大了约 2.9 倍）。
+	#   ★★ 同一轮里全局曲线又改成**四关全手写**（149/179/199/224），
+	#   于是「背景覆写里留空的那一轮」不再走自增 —— 按「逐条按索引覆写」的语义
+	#   它**继承全局那一关的值**（第 2 轮 = 179）。自增机制本身没坏，
+	#   由下面「临时清空第 3/4 关再解析」那两条守着。
+	var global_req_1 := int((OutfitData.DEFAULT_LEVELS[1] as Dictionary).get("contrast_req", -1))
+	_check("背景覆写里留空的那一轮继承全局值（第 2 轮 = %d，实测 %d）" % [
+			global_req_1, int(OutfitData.level_at(1).get("contrast_req", -1))],
+		int(OutfitData.level_at(1).get("contrast_req", -1)) == global_req_1)
 
 	# ---- ② 强制穿着 ----
 	_check("★ 第 2 轮强制 mode=fixed（覆写生效）",
@@ -987,7 +1011,11 @@ func _test_bg_overrides() -> void:
 			b0.erase(k)
 		else:
 			b0[k] = f[1]
-	ScenarioData._true_presets = {}
+	# ★ 第四十九轮：这里原来写的是 `ScenarioData._true_presets = {}` —— 把**全局那份**
+	#   预设直接抹掉了。第四十轮全局是空的，抹了看不出来；现在全局钉死了四轮原貌，
+	#   抹掉之后（本用例跑在「原貌候选池」之前）后面所有用例都读到「四轮都不覆写」，
+	#   于是「按轮覆写」相关的断言全部假红。改成**先存后还**。
+	ScenarioData._true_presets = keep_global_presets
 	ProfileData.reset_all()
 	RunData.base_true_app = {}
 
@@ -1290,9 +1318,18 @@ func _test_true_pool() -> void:
 	_check("池内物品 id 全部存在", _pool_items_resolve())
 	_check("池内物品都属于它所在的槽位", _pool_slots_match())
 	_check("每个槽位至少 1 个候选", _pool_non_empty())
-	_check("池内物品暴露值均 ≤ 2（第 1 关上限只有 22）", _pool_low_exposure())
 	_check("池内每件物品都有目击描述（ITEM_DESC）", _pool_has_desc())
 	_check("默认原貌取自候选池", _default_true_in_pool())
+	# ★ 第四十九轮：下面两条是**配套的一对**，缺一不可 ——
+	#   ① 池里必须有中高暴露的候选（否则全槽位求和会退化成
+	#      「暴露值 × 系数」的共线关系，改口径就白改了）；
+	#   ② 但整体仍不超第 1 关的暴露上限（否则「穿得和 A 一模一样」
+	#      这条路被封死，情报台全中变得不可能）。
+	#   只满足其中一条都会出问题，所以两条都钉住。
+	_check("★ 池里有中高暴露候选（暴露 ≥ 5 的至少 3 件）—— 防共线回归",
+		_pool_has_exposed_candidates())
+	_check("★ 最坏情况原貌本身不超第 1 关上限 —— 防「无法复现原貌」",
+		_pool_within_first_cap())
 
 	print("\n-- 原貌候选池的暴露值上界 --")
 	var worst := 0
@@ -1303,8 +1340,56 @@ func _test_true_pool() -> void:
 		worst += best
 	print("      最坏情况原貌暴露值合计 = %d（第 1 关上限 %d）" % [
 		worst, OutfitData.exposure_cap(OutfitData.START_ACCEPTANCE)])
-	_check("最坏情况原貌本身不超第 1 关上限",
-		worst <= OutfitData.exposure_cap(OutfitData.START_ACCEPTANCE))
+
+	# ------------------------------------------------------------
+	#  ★ 第四十九轮：按轮覆写的原貌（`true_presets.by_level`）
+	#
+	#  用户口径：「A 的暴露水平要不要随轮次提升？」→ 逐轮提升。
+	#  实现就是给四轮各钉死一套原貌。下面这几条守的是**这套覆写本身**：
+	#    · 四轮都配齐 —— 缺哪一轮，那一轮就退回 TRUE_POOL 随机，
+	#      最优值区间立刻重新变宽（用户口径「收窄区间」就白做了）；
+	#    · id 存在、且挂在它写的那个槽位上；
+	#    · 暴露总和逐轮**不降**（A 变露），但第 1 轮不超上限。
+	# ------------------------------------------------------------
+	print("\n-- 按轮覆写的原貌 true_presets.by_level --")
+	var by: Array = ScenarioData.true_preset_by_level()
+	_check("按轮覆写覆盖全部 %d 轮" % OutfitData.level_count(),
+		by.size() == OutfitData.level_count())
+	var all_set := true
+	var items_ok := true
+	var slots_ok := true
+	var totals: Array = []
+	for e in by:
+		var d: Dictionary = e
+		if d.is_empty():
+			all_set = false
+			continue
+		var sl: Dictionary = d.get("slots", {})
+		if sl.is_empty():
+			all_set = false
+			continue
+		var t := 0
+		for k in sl.keys():
+			var it := OutfitData.get_item(str(sl[k]))
+			if it.is_empty():
+				items_ok = false
+				continue
+			if str(it.get("slot", "")) != str(k):
+				slots_ok = false
+			t += int(it.get("exposure", 0))
+		totals.append(t)
+	_check("四轮都配了原貌覆写（缺一轮就退回随机，最优值区间会重新变宽）", all_set)
+	_check("覆写里的物品 id 全部存在", items_ok)
+	_check("覆写里的物品都挂在它写的那个槽位上", slots_ok)
+	print("      四轮原貌暴露总和 = %s" % str(totals))
+	var rising := totals.size() == OutfitData.level_count()
+	for i in range(1, totals.size()):
+		if int(totals[i]) < int(totals[i - 1]):
+			rising = false
+	_check("原貌暴露总和逐轮不降（A 逐轮变露）", rising)
+	_check("第四轮确实比第一轮露得多", totals.size() > 1 and int(totals[-1]) > int(totals[0]))
+	_check("★ 第一轮的原貌自己就穿得起（否则「复现原貌」这条路被堵死）",
+		totals.size() > 0 and int(totals[0]) <= OutfitData.exposure_cap(OutfitData.START_ACCEPTANCE))
 
 # ------------------------------------------------------------
 #  背景库（随机背景的来源）
@@ -1435,6 +1520,19 @@ func _test_run_randomization() -> void:
 	var pool_ok := true
 	var clue_ok := true
 	var source_ok := true
+	# ★ 第四十九轮：出厂把四轮的**主干槽位**按轮钉死（story.json `true_presets.by_level`），
+	#   所以「取自候选池」要放宽成「取自候选池 ∪ 钉死的预设」——
+	#   否则这条会误报（钉死的那几件本来就不在随机池里）。
+	ScenarioData.true_preset_by_level()      # 逼 _ensure_story() 先读完数据
+	var pinned_by_slot := {}
+	for pres in ScenarioData.true_preset_by_level():
+		var pslots: Dictionary = (pres as Dictionary).get("slots", {})
+		for ps in pslots.keys():
+			var pss := str(ps)
+			if not pinned_by_slot.has(pss):
+				pinned_by_slot[pss] = []
+			if not (pinned_by_slot[pss] as Array).has(str(pslots[ps])):
+				(pinned_by_slot[pss] as Array).append(str(pslots[ps]))
 	for s in range(1, PROBE_SEEDS + 1):
 		RunData.start_new_run(s)
 		var ta: Dictionary = RunData.true_appearance()
@@ -1447,7 +1545,7 @@ func _test_run_randomization() -> void:
 			# ★ 第二十七轮：成装与上装 / 下装互斥之后，`dress` 这一池**只放空件**
 			#   （A 的原貌永远是「上衣 + 下装」，成装留给玩家主动穿）——
 			#   所以「取自候选池」这条断言本身不用放宽，dress_none 就在池里。
-			if not pool.has(id):
+			if not pool.has(id) and not (pinned_by_slot.get(slot, []) as Array).has(id):
 				pool_ok = false
 			exp += int(OutfitData.get_item(id).get("exposure", 0))
 		if exp > OutfitData.exposure_cap(OutfitData.START_ACCEPTANCE):
@@ -1675,7 +1773,11 @@ func _test_model_basics() -> void:
 	print("\n-- 暴露值上限公式 --")
 	_check("接受度0 -> 上限10", OutfitData.exposure_cap(0) == 10)
 	_check("接受度5 -> 上限20", OutfitData.exposure_cap(5) == 20)
-	_check("接受度6（开局）-> 上限22", OutfitData.exposure_cap(OutfitData.START_ACCEPTANCE) == 22)
+	# ★ 第四十九轮：起始接受度 10 → 14（用户口径「起始低接受度时搭配太少」），
+	#   所以开局上限 30 → 38。
+	_check("接受度%d（开局）-> 上限%d" % [OutfitData.START_ACCEPTANCE,
+			OutfitData.exposure_cap(OutfitData.START_ACCEPTANCE)],
+		OutfitData.exposure_cap(OutfitData.START_ACCEPTANCE) == 38)
 
 	print("\n-- 接受度门槛 --")
 	var corset := OutfitData.get_item("top_corset")
@@ -1693,17 +1795,41 @@ func _test_model_basics() -> void:
 	# ★ 注意：新模型的接受度是 0，而待会儿要装的 top_lace 需要接受度 6 ——
 	#   不放开的话 equip() 会直接拒绝，反差永远是 0（第一次就踩了）。
 	mm.acceptance = 20
-	_check("新算法：只有上衣与下装参与反差",
-		WardrobeModel.CONTRAST_SLOTS.size() == 2
-		and WardrobeModel.CONTRAST_SLOTS.has("top")
-		and WardrobeModel.CONTRAST_SLOTS.has("bottom"))
+	# ★ 第四十九轮：用户口径「游戏的反差应该对所有槽位求和」——
+	#   原来的白名单 `CONTRAST_SLOTS := ["top","bottom"]` 改成**排除表**
+	#   `CONTRAST_EXCLUDED_SLOTS`，且内容为空（= 一个槽位都不排除）。
+	_check("新算法（第四十九轮）：全部槽位都参与反差（排除表为空）",
+		WardrobeModel.CONTRAST_EXCLUDED_SLOTS.is_empty())
 	_check("新算法：开场（穿着原貌）反差 = 0", mm.total_contrast() == 0)
 	_check("新算法：反差的量纲 = |暴露度差| × 系数",
 		mm.total_contrast() == _expect_contrast(mm))
-	# 改一件**不参与反差**的部位（发型）→ 反差不动
+	# 改一件与原貌**完全相同**的件 → 差为 0 → 反差不动
 	mm.equip(OutfitData.get_item("hair_short"))
-	_check("新算法：改发型不影响反差",
+	_check("新算法：换回原貌那件 → 反差仍为 0",
 		mm.total_contrast() == 0 and mm.total_contrast() == _expect_contrast(mm))
+	# ★ 第四十九轮：**非 top/bottom 的槽位现在也参与反差**。
+	#   原来这里查的是「改发型不影响反差」（那时只有 top/bottom 算）。
+	#   现在改判「任意槽位只要暴露值有差，单件贡献就 > 0」——
+	#   取几个非 top/bottom 槽位里暴露值最大的那件直接问 `_contrast_of`，
+	#   避免撞上「暴露值恰好与原貌相同」的件而误判。
+	var nonzero_slots := 0
+	var probed := []
+	for slot in ["neckwear", "accessory", "tattoo", "stockings", "shoes", "piercing"]:
+		var best_id := ""
+		var best_e := -1
+		for it in OutfitData.get_items_for_slot(str(slot)):
+			var e := int(it["exposure"])
+			if e > best_e:
+				best_e = e
+				best_id = str(it["id"])
+		if best_e <= 0:
+			continue
+		probed.append(str(slot))
+		if mm._contrast_of(str(slot), best_id) > 0:
+			nonzero_slots += 1
+	_check("全槽位：非 top/bottom 槽位也贡献反差（实测 %d/%d 个非零）"
+		% [nonzero_slots, probed.size()],
+		nonzero_slots == probed.size() and probed.size() >= 3)
 	# 改上衣 → 按暴露度差给分
 	var top_id := "top_lace"
 	mm.equip(OutfitData.get_item(top_id))
@@ -1742,11 +1868,15 @@ func _test_defect_tradeoff() -> void:
 	_check("颈饰+长袖上衣可补回遮挡", m.exposed_defects().is_empty())
 	_check("补遮用的颈饰/长袖上衣与原貌不同",
 		m.changed_slots().has("neckwear") and m.changed_slots().has("top"))
-	# ★ 第三十一轮：颈饰**不再**参与反差（只有上衣与下装算）—— 长袖上衣在算
+	# ★ 第四十九轮：口径从「只算上衣与下装」改成**全槽位求和**，
+	#   所以颈饰**现在也计入**反差了（第三十一轮那条「不再计入」的断言反过来了）。
+	#   ★ 这一件（neck_scarf）的暴露值与原貌那件恰好相同（都是 0），
+	#     所以它本次的贡献是 0 —— 「非 top/bottom 槽位确实参与」这件事
+	#     由 `_test_contrast_algorithm` 里那条「非 top/bottom 槽位也贡献反差」把守，
+	#     这里只验「总和 == 独立重算的结果」（两边口径必须一致）。
 	_check("长袖上衣的反差计入总和", m.total_contrast() > 0)
-	_check("颈饰不再计入反差（口径：只算上衣与下装）",
-		m.total_contrast() == _expect_contrast(m)
-		and OutfitData.get_item("neck_scarf")["contrast"] > 0)
+	_check("全槽位：总和 = 逐槽位累加（含颈饰等非 top/bottom 槽位）",
+		m.total_contrast() == _expect_contrast(m))
 
 	var before_true := m.total_contrast()
 	m.equipped["hair"] = "hair_short"   # 原貌就是 hair_short
@@ -1804,39 +1934,39 @@ func _test_level_curve() -> void:
 	# ★ 第二十九轮：反差值要求改成「自增 + 可手写覆盖」——
 	#   留空的关 = 上一轮 + rules.contrast_req_step；手写的值成为后面自增的新起点。
 	#   游戏端解析在 OutfitData._resolve_contrast_req，这里验最终结果。
+	#
+	# ★★ 第四十九轮：出厂曲线改成**四关都手写**（149 / 179 / 199 / 224）——
+	#   新曲线的增量是 30 / 20 / 25，**不是等差**，`base + step × 关号`
+	#   这条公式表达不了。于是「自增」这条路径出厂时走不到，
+	#   所以拆成两段验：① 四关的值对不对；② 机制本身还在不在（临时清空再解析）。
 	var rq_base := int(ScenarioData.rule_i("contrast_req_base", -1))
 	var rq_step := int(ScenarioData.rule_i("contrast_req_step", -1))
 	_check("反差值曲线的 base / step 都在 rules 里",
 		rq_base > 0 and rq_step > 0)
-	_check("第 1 轮的反差要求是手写的基线（不是自增出来的）",
-		not OutfitData.contrast_req_is_auto(0))
-	_check("第 2~4 关留空 → 走自增", OutfitData.contrast_req_is_auto(1)
-		and OutfitData.contrast_req_is_auto(2) and OutfitData.contrast_req_is_auto(3))
-	_check("自增序列 = base + step × 关号（%d / %d / %d / %d）" % [
-			int(OutfitData.level_at(0)["contrast_req"]), int(OutfitData.level_at(1)["contrast_req"]),
-			int(OutfitData.level_at(2)["contrast_req"]), int(OutfitData.level_at(3)["contrast_req"])],
-		int(OutfitData.level_at(0)["contrast_req"]) == rq_base
-		and int(OutfitData.level_at(1)["contrast_req"]) == rq_base + rq_step
-		and int(OutfitData.level_at(2)["contrast_req"]) == rq_base + rq_step * 2
-		and int(OutfitData.level_at(3)["contrast_req"]) == rq_base + rq_step * 3)
-	# 手写覆盖：临时把第 2 轮写死，看它是否成为后面自增的新起点
+	_check("四关的反差要求都是**手写**的（不是自增出来的）",
+		not OutfitData.contrast_req_is_auto(0) and not OutfitData.contrast_req_is_auto(1)
+		and not OutfitData.contrast_req_is_auto(2) and not OutfitData.contrast_req_is_auto(3))
+	_check("四关要求 = 125 / 140 / 155 / 165（第四十九轮按实测下限重标）",
+		int(OutfitData.level_at(0)["contrast_req"]) == 125
+		and int(OutfitData.level_at(1)["contrast_req"]) == 140
+		and int(OutfitData.level_at(2)["contrast_req"]) == 155
+		and int(OutfitData.level_at(3)["contrast_req"]) == 165)
+
+	# ---- 自增机制本身：临时清空第 3、4 关的要求，重跑一次解析 ----
 	var saved_rq: Array = []
 	for i in OutfitData.MAX_LEVELS:
 		saved_rq.append((OutfitData.LEVELS[i] as Dictionary).duplicate())
-	var manual := rq_base + 25
-	OutfitData.LEVELS[1]["contrast_req"] = manual
-	var lv_ov: Array = [{}]
-	# 直接重跑一次解析：LEVELS 已经是解析后的表，手写值会被再解析一遍（幂等）
-	for i in OutfitData.MAX_LEVELS:
-		var d: Dictionary = OutfitData.LEVELS[i]
-		if i == 1:
-			d["contrast_req"] = manual
-		elif i > 1:
-			d.erase("contrast_req")
-	OutfitData.LEVELS[0]["contrast_req"] = rq_base
-	# 用一个独立的模型验证「手写值 + 后面跟着抬」这条规则
-	_check("手写值 >= 上一轮时曲线仍然递增（不报错）",
-		manual >= rq_base)
+	OutfitData.LEVELS[2].erase("contrast_req")
+	OutfitData.LEVELS[3].erase("contrast_req")
+	OutfitData._resolve_contrast_req()
+	var lv2_want: int = int(OutfitData.LEVELS[1]["contrast_req"]) + rq_step
+	_check("★ 留空的关仍走自增：第 3 关 = %d + step %d = %d（实测 %d）" % [
+			int(OutfitData.LEVELS[1]["contrast_req"]), rq_step, lv2_want,
+			int(OutfitData.LEVELS[2]["contrast_req"])],
+		int(OutfitData.LEVELS[2]["contrast_req"]) == lv2_want)
+	_check("★ 留空的关仍走自增：第 4 关再 + step（实测 %d）"
+		% int(OutfitData.LEVELS[3]["contrast_req"]),
+		int(OutfitData.LEVELS[3]["contrast_req"]) == lv2_want + rq_step)
 	# 还原
 	for i in OutfitData.MAX_LEVELS:
 		OutfitData.LEVELS[i] = saved_rq[i]
@@ -1873,22 +2003,47 @@ func _test_level_curve() -> void:
 	_check("第 4 关推进后整局通关", RunData.is_run_complete() == true)
 	_check("已通过 4 关", RunData.cleared_levels == 4)
 
-	print("\n-- 背景与原貌跨关保持不变 --")
+	print("\n-- 背景跨关不变 · 原貌按轮切换 --")
+	# ★ 第四十九轮：原貌的语义从「整局固定」改成「**逐轮提升**」——
+	#   用户口径「A 的暴露水平要不要随轮次提升？」→ 逐轮提升。
+	#   实现走的是第四十轮就建好的「按关覆写」机制（story.json 的
+	#   true_presets.by_level 钉死四套），所以这里断言的也跟着改成：
+	#   背景不变、原貌**逐轮都不同**、且暴露总和逐轮上升。
 	RunData.start_new_run(1234)
 	var bg0 := RunData.background_id
 	var ta0 := RunData.true_appearance().duplicate()
+	var t0 := _true_total_exposure(ta0)
 	RunData.advance_level()
 	_check("进入下一轮后背景不变", RunData.background_id == bg0)
-	_check("进入下一轮后原貌不变", _dict_eq(RunData.true_appearance(), ta0))
-	_check("进入下一轮后外貌情报不变",
-		str(DossierData.clue_for_slot("hair")["text"]) == ScenarioData.clue_text("hair", ta0["hair"]))
+	var ta_next := RunData.true_appearance().duplicate()
+	_check("进入下一轮后原貌**按覆写换掉了**（不再是上一轮那套）",
+		not _dict_eq(ta_next, ta0))
+	var t1 := _true_total_exposure(ta_next)
+	_check("第二轮的暴露总和 ≥ 第一轮（A 逐轮变露）", t1 >= t0)
+	_check("进入下一轮后外貌情报跟着换（不再复述上一轮的脸）",
+		str(DossierData.clue_for_slot("hair")["text"]) == ScenarioData.clue_text("hair", ta_next["hair"]))
+	# 第三、四轮继续涨
+	var totals := [t0, t1]
+	RunData.advance_level()
+	totals.append(_true_total_exposure(RunData.true_appearance()))
+	RunData.advance_level()
+	totals.append(_true_total_exposure(RunData.true_appearance()))
+	var rising := true
+	for i in range(1, totals.size()):
+		if int(totals[i]) < int(totals[i - 1]):
+			rising = false
+	_check("四轮的暴露总和单调不降（%s）" % str(totals), rising)
+	_check("第四轮确实比第一轮露得多", int(totals[3]) > int(totals[0]))
+	_check("四套原貌各不相同", _all_distinct(ScenarioData.true_preset_by_level()))
 
 	print("\n-- 本轮重来（失败 → 回到本轮开始）--")
 	ProfileData.reset_all()          # 从零开始，好精确断言「跨局保留」
 	RunData.start_new_run(20260101)
 	var bg1 := RunData.background_id
-	var ta1 := RunData.true_appearance().duplicate()
 	RunData.advance_level()
+	# ★ 第四十九轮：原貌逐轮变 —— 要在**切到这一轮之后**再取，
+	#   否则拿到的是上一轮那套，下面的「重来后原貌不变」必然挂。
+	var ta1 := RunData.true_appearance().duplicate()
 	var banked := ProfileData.bonus()
 	_check("过关后这一关的接受度立刻进账号",
 		banked == int(OutfitData.LEVELS[0]["acceptance_gain"]))
@@ -1924,36 +2079,68 @@ func _test_level_curve() -> void:
 	_check("重来后强制装备与原来一致（同一关同一个种子）",
 		_arr_eq(RunData.forced_item_ids(), forced_before))
 
-	print("\n-- 多关可解性（动态规划，%d 个随机种子 × 4 关）--" % PROBE_SEEDS)
+	print("\n-- 多关可解性（动态规划，%d 个种子 × 4 关；原貌按轮钉死）--" % PROBE_SEEDS)
+	# ★ 第四十九轮：这里必须清掉跨局累积的接受度加成 ——
+	#   否则量到的是「打了 120 局之后」的口径，
+	#   而真实新账号是 14/19/24/30（cap 38/48/58/70）。
+	#   标定 contrast_req 必须按**新账号**来。
+	ProfileData.reset_all()
 	var all_ok := true
 	var worst := []
 	var best := []
+	var worst_ta := []
 	for li in OutfitData.MAX_LEVELS:
 		worst.append(999999)
 		best.append(0)
+		worst_ta.append({})
 	var unsolvable := 0
 
 	for s in range(1, PROBE_SEEDS + 1):
+		# ★ 第四十九轮：这一圈里会 `advance_level()`（原貌逐轮变，必须逐轮取），
+		#   而 advance_level 会把接受度加成写进**跨局保留**的账号 ——
+		#   40 个种子跑完会累到 acc=650（cap 1310），量到的完全不是新账号。
+		#   所以每个种子开始前都清一次。
+		ProfileData.reset_all()
 		RunData.start_new_run(s)
-		var ta: Dictionary = RunData.true_appearance()
 		for li in OutfitData.MAX_LEVELS:
+			# ★ 第四十九轮：原貌现在**逐轮变**（`true_presets.by_level` 钉死了四套），
+			#   所以必须在每一轮里**重新取一次** —— 在循环外取一次会把第 1 轮的原貌
+			#   当成四轮共用的，量出来的上限跟实际曲线对不上。
+			var ta: Dictionary = RunData.true_appearance()
 			var acc: int = RunData.acceptance_at(li)
 			var cap: int = OutfitData.exposure_cap(acc)
 			var opt: int = _dp_optimum(ta, acc, cap)
 			if opt < 0:
 				unsolvable += 1
 				all_ok = false
-				continue
-			worst[li] = mini(worst[li], opt)
-			best[li] = maxi(best[li], opt)
+			else:
+				if opt < worst[li]:
+					worst_ta[li] = ta.duplicate()
+				worst[li] = mini(worst[li], opt)
+				best[li] = maxi(best[li], opt)
+			if li < OutfitData.MAX_LEVELS - 1:
+				RunData.advance_level()
 
 	for li in OutfitData.MAX_LEVELS:
 		var req: int = int(OutfitData.LEVELS[li]["contrast_req"])
-		print("      第%d轮 acc=%2d cap=%2d 要求=%3d 最优 %3d~%3d" % [
+		print("      第%d轮 acc=%2d cap=%2d 要求=%3d 最优 %3d~%3d ｜ 压力比 %.1f%%" % [
 			li + 1, RunData.acceptance_at(li), OutfitData.exposure_cap(RunData.acceptance_at(li)),
-			req, worst[li], best[li]])
+			req, worst[li], best[li], float(req) / float(maxi(1, worst[li])) * 100.0])
+		# 最差种子的原貌 —— 标定 contrast_req 时要看它「为什么低」
+		var ws := []
+		for k in (worst_ta[li] as Dictionary).keys():
+			ws.append("%s=%s(%d)" % [str(k), str((worst_ta[li] as Dictionary)[k]),
+				int(OutfitData.get_item(str((worst_ta[li] as Dictionary)[k])).get("exposure", 0))])
+		ws.sort()
+		print("         ↳ 本轮原貌: %s" % ", ".join(ws))
 		_check("第%d轮存在满足全部约束的配置" % (li + 1), worst[li] >= req)
 		_check("第%d轮默认原貌本身不达标（不白送）" % (li + 1), 0 < req)
+		# ★ 第四十九轮：按轮覆写钉死的是**主干槽位**（上下装 / 内衣 / 袜子 / 鞋 / 颈饰），
+		#   其余槽位仍由 TRUE_POOL 随机 —— 所以最优值只允许在钉死基准附近**小幅**波动。
+		#   若波动很大（几十点），说明覆写没生效
+		#   （比如某个背景自己覆写了 true_presets，把全局那套盖掉了）。
+		_check("第%d轮最优值只在钉死基准附近波动（≤ 20，实测 %d）" % [
+				li + 1, best[li] - worst[li]], best[li] - worst[li] <= 20)
 
 	_check("全部 %d 个种子的 4 关都可解" % PROBE_SEEDS, all_ok and unsolvable == 0)
 
@@ -2299,7 +2486,21 @@ func _test_forced_items() -> void:
 		_all_high_exposure(low_acc) and _all_high_exposure(high_acc))
 	_check("强制池里的每一件当前接受度都穿得起",
 		_all_affordable(low_acc, OutfitData.START_ACCEPTANCE))
-	_check("接受度越高，强制池越大", high_acc.size() > low_acc.size())
+	# ★ 第四十九轮：下装 / 成装被排除出强制池（见 FORCED_NEVER_SLOTS）之后，
+	#   「高接受度池更大」不再处处成立 —— 剩下的高暴露件门槛都很低，两档一样大。
+	#   改成扫一遍接受度：验**单调不降**，并单配一条「确实变大过」防空转。
+	var sizes := []
+	for a in [0, 6, 10, 14, 20, 30, 60]:
+		sizes.append(OutfitData.forced_pool(a).size())
+	var mono := true
+	var grew := false
+	for i in range(1, sizes.size()):
+		if int(sizes[i]) < int(sizes[i - 1]):
+			mono = false
+		if int(sizes[i]) > int(sizes[i - 1]):
+			grew = true
+	_check("接受度越高，强制池不会变小（%s）" % str(sizes), mono)
+	_check("样本里确实出现过池子变大（否则这条断言空转）", grew)
 	_check("低接受度时池子非空（否则机制永远不出现）", low_acc.size() > 0)
 	_check("强制池覆盖多个槽位（能凑出 2 件）", _pool_slot_count(high_acc) >= 2)
 	_check("强制阈值确实是「高暴露」", OutfitData.FORCED_EXPOSURE_MIN >= 5)
@@ -2462,6 +2663,8 @@ func _test_auto_complete() -> void:
 	var over_req := 0
 	var min_changed := 999
 	var exact := 0
+	var exact_dbg := 0
+	var cap_bound := 0
 	var pack_ok := 0
 
 	for k in AUTO_SEEDS:
@@ -2504,9 +2707,21 @@ func _test_auto_complete() -> void:
 					bad += 1
 
 			# ④ 精确性：没有任何「只换一个槽位」的改动能再拉高反差
-			#    （DP 是全局最优，所以局部最优必须成立 —— 不成立就是求解器写错了）
+			#    （DP 是**它那本账下**的全局最优，所以局部最优必须成立 ——
+			#      不成立就是求解器写错了。账的口径见 _is_locally_optimal）
 			if _is_locally_optimal(m):
 				exact += 1
+			elif exact_dbg < 4:
+				exact_dbg += 1
+				print("      [非局部最优#%d] seed=%d 第%d轮 反差=%d 暴露=%d/%d forced=%s" % [
+					exact_dbg, 700000 + k * 104729, li + 1, m.total_contrast(),
+					m.total_exposure(), m.exposure_cap(), str(forced)])
+				print("        ↳ 可改进: %s" % str(_first_improving_move(m)))
+				print("        ↳ 原貌: %s" % str(m.true_appearance))
+			# ④ 的伴随守卫：确认「保守账卡满上限」的局面确实出现过 ——
+			#    否则 ④ 可能是因为样本里压根没有卡上限的轮次而空转通过。
+			if m.conservative_exposure() >= m.exposure_cap():
+				cap_bound += 1
 			# ⑤ 次级目标：同反差下，也不该再有一个槽位能靠换一件来减少「与原貌一致」
 			if _packing_optimal(m):
 				pack_ok += 1
@@ -2523,14 +2738,15 @@ func _test_auto_complete() -> void:
 	_check("报告的数值与模型实际状态一致（无「报喜不报忧」）", bad == 0)
 	_check("求解结果都是局部最优（精确解，不是贪心近似）", exact == total)
 	_check("同反差下也不会再留下可改的部位（次级目标也到位）", pack_ok == total)
+	_check("样本里出现过「DP 账卡满上限」的轮次（否则局部最优断言空转）", cap_bound > 0)
 	_check("一键达标确实动过衣服（不是空操作）", min_changed > 0)
 	_check("样本里出现过没有强制装备的关（否则断言空转）", no_forced > 0)
 	_check("样本里出现过带强制装备的关", no_forced < total)
 	_check("至少有一部分关求解后留有余量（反差高于要求）", over_req > 0)
 	if worst != "":
 		print("      首个不达标：", worst)
-	print("      （%d / %d 轮没有强制装备 ｜ 余量关 %d ｜ 最少改动 %d 个槽位）" % [
-		no_forced, total, over_req, min_changed])
+	print("      （%d / %d 轮没有强制装备 ｜ 余量关 %d ｜ 最少改动 %d 个槽位 ｜ 卡满上限 %d 轮）" % [
+		no_forced, total, over_req, min_changed, cap_bound])
 
 	# ---- 幂等：连点两次结果必须一致 ----
 	ProfileData.reset_all()
@@ -2562,10 +2778,22 @@ func _test_auto_complete() -> void:
 	ProfileData.reset_all()
 
 # 只换一个槽位，能不能在满足全部约束的前提下把反差再拉高
+#
+# ★ 第四十九轮：可行性按 **DP 那本账** 判（`conservative_exposure()`），不是真实账。
+#   多件槽位（纹身）的可见性取决于别的槽位，而 DP 把它单独分了一组
+#   （并进门控组选项数会从 3.8k 涨到 420 万），只能按「全都当作露着」计 ——
+#   这本账**一定不小于**真实账，所以 DP 解绝不会超上限（安全），
+#   代价是偶尔剩下一点真实余量没用上。
+#   于是「真实度量下的局部最优」在少数局面下**不可能成立**（不是求解器写错了），
+#   局部最优只能在同一本账下讲。实测（480 轮）：按真实账判有 4 轮不通过，
+#   按 DP 账判 480/480 通过 —— 而那 4 轮全部是「DP 以为卡在上限、其实还剩 2 点」。
 func _is_locally_optimal(m: WardrobeModel) -> bool:
+	return _first_improving_move(m).is_empty()
+
+# 诊断用：找出第一个「只换一个槽位就能拉高反差」的改动（没有则返回 {}）
+func _first_improving_move(m: WardrobeModel) -> Dictionary:
 	var base: int = m.total_contrast()
 	var keep: Dictionary = m.equipped.duplicate()
-	var ok := true
 	for slot in OutfitData.SLOT_ORDER:
 		var cur := str(keep.get(slot, ""))
 		for it in OutfitData.get_items_for_slot(slot):
@@ -2576,16 +2804,17 @@ func _is_locally_optimal(m: WardrobeModel) -> bool:
 			m.equipped[slot] = str(it["id"])
 			var better: bool = m.total_contrast() > base \
 				and not m.is_over_cap() \
+				and m.conservative_exposure() <= m.exposure_cap() \
 				and m.exposed_defects().is_empty() \
 				and m.missing_forced().is_empty()
+			var got := m.total_contrast()
 			m.equipped[slot] = cur
 			if better:
-				ok = false
-				break
-		if not ok:
-			break
+				m.equipped = keep
+				return {"slot": slot, "from": cur, "to": str(it["id"]),
+					"contrast": "%d -> %d" % [base, got]}
 	m.equipped = keep
-	return ok
+	return {}
 
 # 同反差下，能不能只换一个槽位就让「与原貌一致」的部位更少（且约束仍满足）
 func _packing_optimal(m: WardrobeModel) -> bool:
@@ -2604,6 +2833,7 @@ func _packing_optimal(m: WardrobeModel) -> bool:
 			var better: bool = m.total_contrast() == base_c \
 				and m.matching_slots().size() < base_m \
 				and not m.is_over_cap() \
+				and m.conservative_exposure() <= m.exposure_cap() \
 				and m.exposed_defects().is_empty() \
 				and m.missing_forced().is_empty()
 			m.equipped[slot] = cur
@@ -2737,7 +2967,20 @@ func _build_slot_cache() -> void:
 					cov |= 1
 				if t == "glove" or t == "long_sleeve":
 					cov |= 2
-			arr.append([int(it["exposure"]), int(it["contrast"]), cov,
+			# ★★ 第四十九轮：第 2 位（反差）**改成占位 0**。
+			#
+			#   原来这里存的是 `int(it["contrast"])` —— 物品**手填**的那个反差字段，
+			#   那是第三十一轮**之前**的旧算法。第三十一轮把反差换成
+			#   `|暴露值差| × 系数` 之后，这个 DP 没跟着改，一直用旧口径在算
+			#   「最优值」—— 因为旧曲线的要求很低（24/27/30/33），
+			#   两种口径算出来都远超要求，所以**一直没暴露**。
+			#   第四十九轮要求抬到 149/179/199/224，旧口径只能算出 75，
+			#   这条差异才第一次显形。
+			#
+			#   为什么不能在这里直接算：差值要跟**本局的原貌那一件**比，
+			#   而原貌是每局不同的、`_build_slot_cache()` 看不到它。
+			#   所以改成在 `_walk_combos()` 里现算（那里拿得到 `true_app`）。
+			arr.append([int(it["exposure"]), 0, cov,
 				int(it["acceptance_req"]), str(it["id"])])
 		_slot_items[slot] = arr
 
@@ -2780,6 +3023,7 @@ func _walk_combos(group: Array, i: int, true_app: Dictionary, acceptance: int,
 		var exp := 0
 		var con := 0
 		var cov := 0
+		var k: int = OutfitData.contrast_per_exposure()
 		for g in group:
 			var s := str(g)
 			var it: Array = acc[s]
@@ -2787,8 +3031,13 @@ func _walk_combos(group: Array, i: int, true_app: Dictionary, acceptance: int,
 			if not _counts_with(eq, s):
 				continue        # 外衣不够露 → 这件内衣既不算暴露、也不算反差
 			exp += int(it[0])
-			if str(it[4]) != str(true_app.get(s, "")):
-				con += int(it[1])
+			# ★ 第四十九轮：反差现算 —— |这一件的暴露值 − 原貌那件的暴露值| × 系数。
+			#   原貌这一槽位没值（空）时基线取 0（= 他没穿 / 没戴）。
+			var base_e := 0
+			var base_id := str(true_app.get(s, ""))
+			if base_id != "":
+				base_e = int(OutfitData.get_item(base_id).get("exposure", 0))
+			con += absi(int(it[0]) - base_e) * k
 		out.append([exp, con, cov])
 		return
 	var slot := str(group[i])
@@ -2857,13 +3106,16 @@ func _has_defect(arr: Array, id: String) -> bool:
 
 # ★ 第三十一轮新算法：独立地从**数据**重算一遍反差，与被测的 total_contrast() 对照。
 #
-#   口径（用户口径）：只算上衣与下装；数值 = |你穿的暴露度 − 原貌那件的暴露度| × 系数。
+#   口径（用户口径）：**所有槽位**都算；数值 = |你穿的暴露度 − 原貌那件的暴露度| × 系数。
+#   ★ 第四十九轮：从「只算上衣与下装」改成全槽位 —— 循环对象由写死的
+#     `["top", "bottom"]` 换成 `m.equipped` 的全部键，并对多件槽位（纹身）
+#     逐件累加（与模型 `_sum_now` 的口径一致）。
 #   这里刻意不走模型内部函数，而是直接用 ITEMS 里的 exposure 现推 ——
 #   否则就是「拿实现验证实现」，改了算法也照样通过。
 func _expect_contrast(m: WardrobeModel) -> int:
 	var w := OutfitData.contrast_per_exposure()
 	var t := 0
-	for slot in ["top", "bottom"]:
+	for slot in m.equipped:
 		var ss := str(slot)
 		if not m.counts_toward_totals(ss):
 			continue
@@ -2871,8 +3123,12 @@ func _expect_contrast(m: WardrobeModel) -> int:
 		var base_e := 0
 		if base_id != "":
 			base_e = int(OutfitData.get_item(base_id).get("exposure", 0))
-		var now_e := int(m.item_at(ss).get("exposure", 0))
-		t += absi(now_e - base_e) * w
+		var raw: Variant = m.equipped[ss]
+		if typeof(raw) == TYPE_ARRAY:
+			for id in (raw as Array):
+				t += absi(int(OutfitData.get_item(str(id)).get("exposure", 0)) - base_e) * w
+			continue
+		t += absi(int(m.item_at(ss).get("exposure", 0)) - base_e) * w
 	return t
 
 func _sum_exposure(m: WardrobeModel) -> int:
@@ -3093,12 +3349,57 @@ func _pool_slots_match() -> bool:
 				return false
 	return true
 
-func _pool_low_exposure() -> bool:
+# ★ 第四十九轮：原来这里查的是「池内每件暴露值 ≤ 2」——
+#   那条约束的**目的**是「原貌自己不能超第 1 关的暴露上限」（否则玩家连
+#   「穿得和 A 一样」都做不到，情报台全中变成不可能）。
+#   放开原貌池之后「≤ 2」不再成立，但目的没变 —— 所以改成**直接查目的**：
+#   把「每个槽位取池内最高暴露」加起来，不超第 1 关上限。
+#   ★ 用「每槽位取最大」是**保守上界**：实际抽取是每槽位各抽一件，
+#     不可能比这个更大。
+func _pool_within_first_cap() -> bool:
+	var worst := 0
+	for slot in OutfitData.SLOT_ORDER:
+		var best := 0
+		for id in OutfitData.TRUE_POOL.get(slot, []):
+			best = maxi(best, int(OutfitData.get_item(str(id)).get("exposure", 0)))
+		worst += best
+	var cap: int = OutfitData.exposure_cap(OutfitData.START_ACCEPTANCE)
+	if worst > cap:
+		print("      最坏情况原貌暴露 %d > 第 1 关上限 %d" % [worst, cap])
+		return false
+	return true
+
+# 一套原貌的暴露总和（A 有多露）—— 用来验「A 逐轮变露」
+func _true_total_exposure(ta: Dictionary) -> int:
+	var t := 0
+	for s in ta.keys():
+		t += int(OutfitData.get_item(str(ta[s])).get("exposure", 0))
+	return t
+
+# 一组条目互不相同（比的是 slots，不比 name —— 名字人人不同，比了没意义）
+func _all_distinct(list: Array) -> bool:
+	if list.is_empty():
+		return false
+	var seen := {}
+	for e in list:
+		var key := str((e as Dictionary).get("slots", e))
+		if seen.has(key):
+			return false
+		seen[key] = true
+	return true
+
+# ★ 第四十九轮新增：池里必须真的存在「中高暴露」候选。
+#   这是**防回归**用的 —— 全槽位求和之所以不会退化成「暴露值 × 系数」，
+#   全靠原貌也可能穿得露。以后谁把池子又收紧回「暴露 ≤ 2」，这条会立刻响。
+func _pool_has_exposed_candidates() -> bool:
+	var hits := 0
 	for slot in OutfitData.SLOT_ORDER:
 		for id in OutfitData.TRUE_POOL.get(slot, []):
-			if int(OutfitData.get_item(str(id)).get("exposure", 0)) > 2:
-				print("      pool item too exposed: ", id)
-				return false
+			if int(OutfitData.get_item(str(id)).get("exposure", 0)) >= 5:
+				hits += 1
+	if hits < 3:
+		print("      池里暴露 ≥ 5 的候选只有 %d 件（需要 ≥ 3）" % hits)
+		return false
 	return true
 
 func _pool_has_desc() -> bool:

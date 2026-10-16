@@ -498,6 +498,33 @@ func exposure_cap() -> int:
 func is_over_cap() -> bool:
 	return total_exposure() > exposure_cap()
 
+# DP（一键达标）眼里的暴露总和 —— 与 `total_exposure()` 只在**多件槽位**上不同：
+#   多件槽位（纹身）的每一件都按「露在外面」计（见 `_multi_option_of`）。
+#
+#   为什么要留这本「偏大」的账：多件槽位的可见性取决于**别的槽位**
+#   （`tattoo_neck` ← 上衣 / 成装 / 颈饰，`tattoo_thigh` ← 下装 / 成装），
+#   而 DP 把多件槽位单独分了一组（并进门控组会让选项数从 3.8k 涨到 420 万），
+#   生成选项时拿不到最终的上衣 / 下装。于是只能按**最坏情况**计入 ——
+#   这本账 ≥ 真实账，DP 解在真实判定下**一定不超上限**（安全），
+#   代价是偶尔会剩下一点真实余量没用上（解在真实度量下不是严格最优）。
+#
+#   本函数给界面 / 测试一个引用点，用来判断「解在 DP 的账下是不是局部最优」。
+func conservative_exposure() -> int:
+	var t := total_exposure()
+	for s in equipped.keys():
+		var slot := str(s)
+		if not data.is_multi_slot(slot):
+			continue
+		for id in ids_at(slot):
+			var sid := str(id)
+			if _item_counts(equipped, slot, sid):
+				continue                      # 已经计进 total_exposure() 了
+			var it: Dictionary = data.get_item(sid)
+			if it.is_empty() or data.is_bare(it):
+				continue
+			t += int(it.get("exposure", 0))
+	return t
+
 # ============================================================
 #  内衣内裤 / 纹身的「曝光门控」（第二十二轮起，第三十六轮扩到纹身）
 #
@@ -729,6 +756,19 @@ func _item_contrib(slot: String, id: String, field: String) -> int:
 #
 #   ★ 系数在 rules.contrast_per_exposure 里（默认 5）：暴露度差最大 9（下装「不穿」9 档），
 #     两件加起来上限约 90，覆盖得住四关的 20/30/40/50。
+#
+# ★★ 第四十九轮：**改成全槽位求和**（用户口径「游戏的反差应该对所有槽位求和」）。
+#
+#   改之前只算 top / bottom。全槽位之后，反差的语义变成
+#   「你整个人偏离他记得的样子有多远」—— 眼镜、发型、颈饰、纹身、
+#   鞋袜都算进去，与「伪装」这个主题更贴。
+#
+#   ★ 实测的连带后果（写在 CHANGELOG 里，这里留个指针）：
+#     原貌池的暴露值几乎全是 0 时，`Σ|你 − 原貌|` 会退化成 `Σ你穿的`，
+#     也就是**暴露值 × 系数**（共线）。所以同一轮里必须同时做两件事：
+#       · 拉开原貌池（让原貌也可能穿得露，这样「你比他保守」也能得分）；
+#       · 重标 contrast_req（全槽位后可达上限从 ~90 涨到 ~260）。
+#     只改口径不改曲线 = 四关全部白送。
 func _contrib(slot: String, id: String, field: String) -> int:
 	if id == "":
 		return 0
@@ -736,12 +776,15 @@ func _contrib(slot: String, id: String, field: String) -> int:
 		return _contrast_of(slot, id)
 	return int(data.get_item(id).get(field, 0))
 
-# 参与反差的槽位（用户口径：只影响上衣与下装）
-const CONTRAST_SLOTS := ["top", "bottom"]
+# 不参与反差的槽位（空 = **全部槽位都参与**）。
+#   ★ 第四十九轮之前这里是 `CONTRAST_SLOTS := ["top", "bottom"]`（白名单）；
+#     现在改成**排除表**并把内容清空 —— 保留这个常量是为了让界面 / 测试
+#     有一个明确的「口径」引用点，而不是散落的 if。
+const CONTRAST_EXCLUDED_SLOTS := []
 
-# 某槽位这件衣服贡献多少反差。不参与反差的槽位一律 0。
+# 某槽位这件衣服贡献多少反差 = |你穿的暴露度 − 原貌那件| × 系数。
 func _contrast_of(slot: String, id: String) -> int:
-	if not CONTRAST_SLOTS.has(slot):
+	if CONTRAST_EXCLUDED_SLOTS.has(slot):
 		return 0
 	var base_id := str(true_appearance.get(slot, ""))
 	var base_exp := 0
@@ -1088,10 +1131,12 @@ func auto_complete_outfit() -> Dictionary:
 #    并成一个连通分量之后就又是精确的了。
 #
 #  ★ 第三十六轮：多件槽位（纹身）**不进**这张门控图 —— 它故意不在 UNDER_GATE 里，
-#    所以天然自成一个单元素组。理由：纹身只影响暴露值、不影响反差值
-#    （CONTRAST_SLOTS 只有 top / bottom），DP 的目标函数与它无关；
-#    把它并进 top / bra / dress / bottom / panties 那一大块，光选项数就会
-#    从两万五涨到上百万，直接跑不动。它的暴露值按**保守口径**计入
+#    所以天然自成一个单元素组。理由：把它并进 top / bra / dress / bottom /
+#    panties 那一大块，光选项数就会从两万五涨到上百万，直接跑不动。
+#    （第三十六轮当时还附了一条理由「纹身不影响反差值」——
+#     **第四十九轮反差改成全槽位求和之后这条不再成立**；但上面那条
+#     「选项数爆炸」单独就足以支撑这个设计，所以处理方式保持不变。）
+#    它的暴露值按**保守口径**计入
 #    （见 _multi_option_of），所以解依旧不会超上限。
 # ------------------------------------------------------------
 func _gate_root(parent: Dictionary, x: String) -> String:
@@ -1209,8 +1254,9 @@ func _group_options(group_slots: Array) -> Array:
 #      · 是不是 A 的原貌那一件（「已经不是原貌」那 1 分）
 #    这六项全同的两件，对 DP 而言完全等价 —— 只留一件就够，
 #    求出来的搭配数值一模一样。
-#    （反差值只跟 `exposure` 有关，已含在键里；槽位是同一个，所以
-#      「是不是 CONTRAST_SLOTS」这一项不必进键。）
+#    （反差值只跟 `exposure` 与原貌那件有关，两者都已在键里；槽位是同一个，
+#      所以「这个槽位参不参与反差」不必进键 —— 第四十九轮改成全槽位求和后
+#      这一条依旧成立。）
 #
 #  为什么还能再剪（② 帕累托支配）：
 #    ① 只吃掉「一模一样」的，剩下的仍然要参与笛卡尔积。实测 ① 之后
@@ -1375,8 +1421,13 @@ func _walk_options(group_slots: Array, lists: Array, i: int,
 #  选项 = 「从这一槽位里挑 0 ~ 上限件」的所有组合（含空组合）。
 #  每件的暴露值按**保守口径**计入（当作它露在外面）——
 #  真实判定只会更小（外衣盖住 → 0），所以 DP 解在真实判定下一定不超上限。
-#  反差值照旧走 _score_of：纹身不在 CONTRAST_SLOTS 里，所以恒为 0，
-#  DP 只会为了「已经不是原貌」那 1 分去挑纹身，绝不会白吃暴露值。
+#  反差值照旧走 _score_of。
+#  ★ 第四十九轮：反差改成全槽位求和之后，纹身**也计反差**了 ——
+#    于是 DP 挑纹身有两个理由（反差 + 「已经不是原貌」那 1 分），
+#    不再像以前那样「只会为了那 1 分去挑」。
+#    它的暴露值仍按保守口径计入，所以解依旧不会超上限。
+#  ★ 同轮修的 bug：「空组合」必须按空件计分（见下面 `items` 那一段）——
+#    否则 DP 认为「不穿」恒为 0 分，会叠一堆没用的纹身。
 # ------------------------------------------------------------
 func _multi_group_options(slot: String) -> Array:
 	var cands := []
@@ -1409,11 +1460,22 @@ func _multi_group_options(slot: String) -> Array:
 	var out := []
 	for sub in subsets:
 		var ids := []
+		var items: Array = sub
 		for it in (sub as Array):
 			ids.append(str((it as Dictionary)["id"]))
-		if ids.is_empty() and bare_id != "":
-			ids = [bare_id]                    # 「一件不穿」= 那一槽位的空件
-		out.append(_multi_option_of(slot, ids, sub))
+		if ids.is_empty():
+			# ★ 第四十九轮：「一件不穿」也必须按这一槽位的**空件**计分。
+			#   以前这里只把 id 补成空件、却没把它交给 `_multi_option_of` 计分，
+			#   于是 DP 眼里「不穿」恒等于 0 分 —— 而 `_contrast_of` 看的是
+			#   「这件与原貌那件的暴露度之差」：原貌身上有纹身时，「什么都不穿」
+			#   照样拉开 |0 − 原貌暴露| × 系数 的反差（实测 `tattoo_neck` 原貌
+			#   → 不穿 = 10 点）。DP 因此宁可叠一堆纹身，一键达标少拿 10~20 点反差。
+			if bare_id != "":
+				ids = [bare_id]
+				var bare_it: Dictionary = data.get_item(bare_id)
+				if not bare_it.is_empty():
+					items = [bare_it]
+		out.append(_multi_option_of(slot, ids, items))
 	return out
 
 func _multi_option_of(slot: String, ids: Array, items: Array) -> Dictionary:

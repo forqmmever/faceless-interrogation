@@ -3,8 +3,8 @@
 	"note": "本文件由 tools/DumpStory.gd 生成，可用 tools/story_editor.html 编辑：剧情（背景 / 题库 / 短信 / 文案 / 结局）、玩法数值、服装数值、原貌，以及每局（按背景）的轮数 / 强制穿着 / QTE 计划 / 身体缺陷覆写；手机界面与短信另见 tools/phone_editor.html。游戏启动时从这里读；文件缺失会回退到 ScenarioData.gd / OutfitData.gd 里的内置常量。",
 	"rules": {
 		"questions_per_level": 8,
-		"contrast_req_base": 24,
-		"contrast_req_step": 3,
+		"contrast_req_base": 125,
+		"contrast_req_step": 15,
 		"contrast_per_exposure": 5,
 		"pass_suspicion": 60,
 		"contradiction_limit": 2,
@@ -158,23 +158,26 @@
 		{
 			"name": "第一轮",
 			"acceptance_gain": 5,
-			"contrast_req": 24,
+			"contrast_req": 125,
 			"derived_profile": "一个不起眼的路人"
 		},
 		{
 			"name": "第二轮",
 			"acceptance_gain": 5,
-			"derived_profile": "有点来头的商贩"
+			"derived_profile": "有点来头的商贩",
+			"contrast_req": 140
 		},
 		{
 			"name": "第三轮",
 			"acceptance_gain": 6,
-			"derived_profile": "被人打过招呼的熟面孔"
+			"derived_profile": "被人打过招呼的熟面孔",
+			"contrast_req": 155
 		},
 		{
 			"name": "第四轮",
 			"acceptance_gain": 0,
-			"derived_profile": "即将被放行的清白之人"
+			"derived_profile": "即将被放行的清白之人",
+			"contrast_req": 165
 		}
 	],
 	"forced_rules": [
@@ -223,16 +226,46 @@
 		"pool": [],
 		"by_level": [
 			{
-
+				"name": "第一轮 · 只有脚上露一点",
+				"slots": {
+					"top": "top_highneck",
+					"bottom": "bottom_longskirt",
+					"panties": "panties_plain",
+					"stockings": "stockings_none",
+					"shoes": "shoes_open_sandal"
+				}
 			},
 			{
-
+				"name": "第二轮 · 腿上只剩一层透肉薄袜",
+				"slots": {
+					"top": "top_highneck",
+					"bottom": "bottom_longskirt",
+					"panties": "panties_plain",
+					"stockings": "stockings_sheerskin",
+					"shoes": "shoes_open_sandal"
+				}
 			},
 			{
-
+				"name": "第三轮 · 上衣换成网纱透视",
+				"slots": {
+					"top": "top_mesh",
+					"bottom": "bottom_longskirt",
+					"panties": "panties_plain",
+					"stockings": "stockings_sheerskin",
+					"shoes": "shoes_open_sandal"
+				}
 			},
 			{
-
+				"name": "第四轮 · 纱下透出内衣，颈上挂了链",
+				"slots": {
+					"top": "top_mesh",
+					"bottom": "bottom_longskirt",
+					"panties": "panties_plain",
+					"stockings": "stockings_sheerskin",
+					"shoes": "shoes_open_sandal",
+					"bra": "bra_tape",
+					"neckwear": "neck_spiked"
+				}
 			}
 		]
 	},
@@ -788,7 +821,7 @@
 				"slot_name": "上衣",
 				"exposure": 9,
 				"contrast": 8,
-				"acceptance_req": 11,
+				"acceptance_req": 15,
 				"tags": [],
 				"disabled": false
 			},
@@ -1333,7 +1366,7 @@
 				"slot_name": "下装",
 				"exposure": 9,
 				"contrast": 8,
-				"acceptance_req": 11,
+				"acceptance_req": 15,
 				"tags": [],
 				"disabled": false
 			},
@@ -1674,7 +1707,7 @@
 				"slot_name": "成装",
 				"exposure": 9,
 				"contrast": 7,
-				"acceptance_req": 11,
+				"acceptance_req": 15,
 				"tags": [],
 				"disabled": false
 			},
@@ -1795,7 +1828,7 @@
 				"slot_name": "下内衣",
 				"exposure": 9,
 				"contrast": 8,
-				"acceptance_req": 11,
+				"acceptance_req": 15,
 				"tags": [],
 				"disabled": false
 			},
@@ -1806,7 +1839,7 @@
 				"slot_name": "下内衣",
 				"exposure": 9,
 				"contrast": 8,
-				"acceptance_req": 11,
+				"acceptance_req": 15,
 				"tags": [],
 				"disabled": false
 			},
@@ -2383,7 +2416,7 @@
 			},
 			"top_none": {
 				"exposure": 9,
-				"acceptance_req": 11
+				"acceptance_req": 15
 			},
 			"top_highneck": {
 				"exposure": 0,
@@ -2575,7 +2608,7 @@
 			},
 			"bottom_none": {
 				"exposure": 9,
-				"acceptance_req": 11
+				"acceptance_req": 15
 			},
 			"bottom_longskirt": {
 				"exposure": 0,
@@ -2699,7 +2732,7 @@
 			},
 			"dress_transparent": {
 				"exposure": 9,
-				"acceptance_req": 11
+				"acceptance_req": 15
 			},
 			"panties_plain": {
 				"exposure": 0,
@@ -2743,11 +2776,11 @@
 			},
 			"panties_tieside": {
 				"exposure": 9,
-				"acceptance_req": 11
+				"acceptance_req": 15
 			},
 			"panties_seethrough": {
 				"exposure": 9,
-				"acceptance_req": 11
+				"acceptance_req": 15
 			},
 			"panties_flatcage": {
 				"exposure": 9,
@@ -2896,7 +2929,8 @@
 			"top": [
 				"top_highneck",
 				"top_plain",
-				"top_longsleeve"
+				"top_longsleeve",
+				"top_sheer"
 			],
 			"bra": [
 				"bra_plain"
@@ -2910,20 +2944,24 @@
 			],
 			"bottom": [
 				"bottom_longskirt",
-				"bottom_trousers"
+				"bottom_trousers",
+				"bottom_cut"
 			],
 			"dress": [
 				"dress_none"
 			],
 			"panties": [
-				"panties_plain"
+				"panties_plain",
+				"panties_thong"
 			],
 			"stockings": [
 				"stockings_none",
-				"stockings_opaque"
+				"stockings_opaque",
+				"stockings_sheer"
 			],
 			"shoes": [
-				"shoes_boots"
+				"shoes_boots",
+				"shoes_heels"
 			],
 			"robe": [
 				"robe_none",
@@ -7254,6 +7292,7 @@
 		"top_highneck": "是高领长袖，领口扣到最上面那颗",
 		"top_plain": "是件素色棉布衫，短袖，洗得发白",
 		"top_longsleeve": "是长袖的丝绸衬衣，袖口磨起了毛",
+		"top_sheer": "罩衫薄得透光，底下的轮廓隐约能看见",
 		"bra_plain": "是素色无痕的，账单上写着两件",
 		"gloves_none": "从不戴手套，抓缰绳都是赤着手",
 		"gloves_leather": "总戴着一副磨旧了的皮手套",
@@ -7266,12 +7305,16 @@
 		"acc_choker_whitney_leash": "脖子上扣着刻字的项圈，还连着一条牵引绳",
 		"bottom_longskirt": "裙摆几乎扫地，看不见鞋面",
 		"bottom_trousers": "是条直筒长裤，裤脚沾着泥",
+		"bottom_cut": "裙侧开了道高衩，走动时一晃一晃",
 		"dress_none": "从没见穿过裙子，一贯是上衣配长裤",
 		"dress_sundress": "夏天会穿一条素色吊带连衣裙，肩上有两道晒痕",
 		"panties_plain": "是素色棉质的，账单背面写着三条",
+		"panties_thong": "只有细细一条，几乎勒进肉里",
 		"stockings_none": "从不穿袜，脚踝上留着一道旧疤",
 		"stockings_opaque": "常年裹着不透明的深色连裤袜",
+		"stockings_sheer": "丝袜薄得像一层雾，脚背上的青筋都看得见",
 		"shoes_boots": "是双及踝皮靴，穿了三年没换过",
+		"shoes_heels": "鞋跟又细又高，走在石板路上咯噔咯噔",
 		"robe_none": "从不披外袍，下雨也只是淋着",
 		"robe_travel": "总裹着一件厚重的旅行斗篷"
 	},

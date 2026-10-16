@@ -543,7 +543,7 @@ const ITEMS_BASE := [
 	# ★ 「（不穿上衣）」—— 用户口径里的「直接外穿」：这一层没有东西，
 	#   里面的内衣就是最外层，于是它的暴露值 / 反差值照算（见 UNDER_GATE）。
 	#   暴露值给到 9：上半身真的露着，这是全表最贵的一件。
-	{"id": "top_none", "name": "（不穿上衣）", "slot": "top", "exposure": 9, "acceptance_req": 11, "contrast": 8, "covers": [], "tags": [], "bare": true},
+	{"id": "top_none", "name": "（不穿上衣）", "slot": "top", "exposure": 9, "acceptance_req": 15, "contrast": 8, "covers": [], "tags": [], "bare": true},
 	{"id": "top_highneck", "name": "高领长袖衬衫", "slot": "top", "exposure": 0, "acceptance_req": 0, "contrast": 1, "covers": ["neck_brand", "hand_tattoo"], "tags": ["high_collar", "long_sleeve"]},
 	{"id": "top_plain", "name": "素色棉质衬衫", "slot": "top", "exposure": 1, "acceptance_req": 0, "contrast": 2, "covers": [], "tags": []},
 	{"id": "top_longsleeve", "name": "长袖丝绸衬衣", "slot": "top", "exposure": 2, "acceptance_req": 2, "contrast": 3, "covers": ["hand_tattoo"], "tags": ["long_sleeve"]},
@@ -693,7 +693,7 @@ const ITEMS_BASE := [
 	#   就不算数值），也不再与成装互斥 —— 也就是回到第三十一轮之前的状态。
 	{"id": "panties_janties", "name": "牛仔丁字裤", "slot": "bottom", "exposure": 5, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
 	# ★ 同上：「（不穿下装）」= 下装这一层空着，里面的内裤直接外穿。
-	{"id": "bottom_none", "name": "（不穿下装）", "slot": "bottom", "exposure": 9, "acceptance_req": 11, "contrast": 8, "covers": [], "tags": [], "bare": true},
+	{"id": "bottom_none", "name": "（不穿下装）", "slot": "bottom", "exposure": 9, "acceptance_req": 15, "contrast": 8, "covers": [], "tags": [], "bare": true},
 	{"id": "bottom_longskirt", "name": "及地长裙", "slot": "bottom", "exposure": 0, "acceptance_req": 0, "contrast": 1, "covers": [], "tags": []},
 	{"id": "bottom_trousers", "name": "直筒长裤", "slot": "bottom", "exposure": 1, "acceptance_req": 0, "contrast": 2, "covers": [], "tags": []},
 	{"id": "bottom_knee", "name": "及膝百褶裙", "slot": "bottom", "exposure": 3, "acceptance_req": 3, "contrast": 3, "covers": [], "tags": []},
@@ -784,7 +784,7 @@ const ITEMS_BASE := [
 	{"id": "dress_swan", "name": "高开衩天鹅绒长裙", "slot": "dress", "exposure": 8, "acceptance_req": 9, "contrast": 7, "covers": [], "tags": [], "see": "cutout"},
 	# ★ 9 档：一件「穿了等于没穿」的透明纱睡袍。`see: sheer` 让 bra / panties
 	#   两栏都能被它透出来 —— 这是全表唯一一件**同时**给上下两处内衣开门的衣服。
-	{"id": "dress_transparent", "name": "透明纱睡袍", "slot": "dress", "exposure": 9, "acceptance_req": 11, "contrast": 7, "covers": [], "tags": [], "see": "sheer"},
+	{"id": "dress_transparent", "name": "透明纱睡袍", "slot": "dress", "exposure": 9, "acceptance_req": 15, "contrast": 7, "covers": [], "tags": [], "see": "sheer"},
 
 	# ================= 吊袜带（第三十七轮已并入「袜类」，见下）=================
 	# 原来这里是独立的一栏（garter_none / garter_lace / garter_black）。
@@ -821,8 +821,8 @@ const ITEMS_BASE := [
 	{"id": "panties_shibari", "name": "绳缚式内裤", "slot": "panties", "exposure": 8, "acceptance_req": 9, "contrast": 8, "covers": [], "tags": []},
 	{"id": "panties_gstring", "name": "细绳丁字裤", "slot": "panties", "exposure": 9, "acceptance_req": 10, "contrast": 8, "covers": [], "tags": []},
 	{"id": "panties_loincloth", "name": "遮羞布", "slot": "panties", "exposure": 9, "acceptance_req": 10, "contrast": 7, "covers": [], "tags": []},
-	{"id": "panties_tieside", "name": "系带开衩比基尼内裤", "slot": "panties", "exposure": 9, "acceptance_req": 11, "contrast": 8, "covers": [], "tags": []},
-	{"id": "panties_seethrough", "name": "透明连体泳裤", "slot": "panties", "exposure": 9, "acceptance_req": 11, "contrast": 8, "covers": [], "tags": []},
+	{"id": "panties_tieside", "name": "系带开衩比基尼内裤", "slot": "panties", "exposure": 9, "acceptance_req": 15, "contrast": 8, "covers": [], "tags": []},
+	{"id": "panties_seethrough", "name": "透明连体泳裤", "slot": "panties", "exposure": 9, "acceptance_req": 15, "contrast": 8, "covers": [], "tags": []},
 
 	# ---- ★★ 第三十九轮：从 AU 的 `clothes/genitals/` 引入一件 ----
 	# 用户口径：「引入平坦贞操笼放在下内衣，暴露度取最高」。
@@ -1020,47 +1020,60 @@ static func reset_items_to_base() -> void:
 # 提供（见 ScenarioData.BACKGROUNDS[].levels，由 RunData.levels() 合并）。
 #
 # 曲线是怎么定的：
-#   START_ACCEPTANCE = 6  →  各关开局接受度 6 / 11 / 16 / 22
-#   暴露值上限 = 10 + 接受度 × 2  →  22 / 32 / 42 / 54
-#   contrast_req 取「该关最优解」的约八成，既要求玩家真的会搭配，又留有余地。
-#   注意第 1 关不能定得太高：接受度只有 6，高反差物件大半还锁着。
+#   START_ACCEPTANCE = 10  →  各关开局接受度 10 / 15 / 20 / 26
+#   暴露值上限 = 10 + 接受度 × 2  →  30 / 40 / 50 / 62
+#   contrast_req 取「最差种子的最优解」再留 6 点余量 —— 因为原貌是随机抽的，
+#   不同种子能拿到的上限差得很开，标定必须按**最差**那个来，否则会有人抽到
+#   无法达标的组合。实测（10 种子 × 4 轮，全槽位反差口径）：
+#     最差种子最优 155 / 185 / 205 / 230  →  标成 149 / 179 / 199 / 224。
 #
+# ★★ 第四十九轮整条曲线重标过一次（这是本项目第二次「换算法 + 重标」）：
+#   · 反差从「只算上衣与下装」改成**全槽位求和**（用户口径）——
+#     可达上限从 ~90 涨到 ~260，旧的 24/27/30/33 会变成四关全部白送；
+#   · 原貌池同时放开 5 件中高暴露候选 —— 否则全槽位求和会退化成
+#     「暴露值 × 系数」（共线），新曲线就没有意义了；
+#   · START_ACCEPTANCE 6 → 10 —— 旧值下 7~9 档的 32 件里第 1 关只有 1 件能穿，
+#     可选项太少；10 之后 7 档解锁，第 1 关的取舍才成立。
+#   三件事必须一起改：只改口径不改曲线 = 白送，只抬曲线不放池 = 共线。
+#
+#   ★ 旧的注释里有一句「注意第 1 关不能定得太高：接受度只有 6」——
+#     那个约束现在换了形式：第 1 关的 149 仍然是最紧的一档（实测最差种子 155，
+#     余量只有 6），因为 cap 30 限制了「靠穿得露拿分」这条路。
+#
+# ---------- 以下是**旧口径**（只算上衣与下装）的历史记录，仅供追溯 ----------
 # ★ 外袍下架（DISABLED_SLOTS）之后重标过一次：robe_lace 原本能贡献 5 点反差，
 #   去掉后「每轮能拿到的最大反差」整体掉了 5 点左右，第 4 关尤其紧
 #   （120 个种子实测：各关最大反差下限 61 / 73 / 83 / 83）。
-#   第 4 关的 78 于是压到 73 —— 恢复外袍时记得把这一档调回去。
-#
 # ★★ 第二十七轮又重标了一次（62/72 → 50/52），原因是一连串删减把反差上限压下来了：
 #     · 删掉眉钉（反差 4）、洛丽塔短裙（5）、单片金链眼镜（4）、黑色墨镜（6）；
 #     · 眼镜三副统一成反差 3（原为 1 / 4 / 6）—— 最高的那档没了；
 #     · 手套槽位下架（4 件分别 2 / 4 / 5 反差）；
-#     · `bottom_cut` / `bottom_school_navy` / `bottom_slit` 降级成普通下装 ——
-#       它们不再开门控，`panties` 的数值不再跟着它们一起计入。
-#   120 个种子实测（用 DP 精确求解的最大反差，下限 / 上限）：
-#     第 1 关 45~48 ｜ 第 2 关 54~65 ｜ 第 3 关 54~73 ｜ 第 4 关 54~73
-#   ★ 第 3、4 关的下限**都卡在 54**，那不是巧合 —— 它就是第 4 关的**暴露值上限**
-#     （`10 + 接受度 22 × 2 = 54`）。想再拉高反差就得穿更暴露的衣服，而暴露值封顶了。
-#   所以这两档只能贴着 54 标：取 50 / 52，各留 4 / 2 点余量。
-#
-#   ★ 想把这根曲线抬回去，只有两条路（都不是改数字）：
-#     ① 恢复外袍 / 手套槽位（它们本来就带着高反差件）；
-#     ② 补「高反差、低暴露」的新物件 —— 现在最划算的那几件都不够便宜。
+#     · `bottom_cut` / `bottom_school_navy` / `bottom_slit` 降级成普通下装。
+#   120 个种子实测（DP 精确解，下限 / 上限）：45~48 / 54~65 / 54~73 / 54~73。
+#   ★ 第 3、4 关的下限**都卡在 54** —— 那就是旧第 4 关的暴露上限
+#     （`10 + 22 × 2 = 54`）。旧口径下想再拉高反差就得穿更暴露的衣服，而暴露值封顶了。
+#   ★ 当时写的结论是「想把这根曲线抬回去，只有两条路：① 恢复外袍 / 手套槽位；
+#     ② 补高反差低暴露的新物件」—— **第四十九轮走的是第三条路**：
+#     改口径（全槽位）+ 放开原貌池，于是上面这套数字与结论一并作废。
 #
 # ★ 第二十五轮又重标过一次（73 → 72）：新增的 6 件高暴露衣物让「强制装备池」
 #   变大，抽取用的随机流随之重排 —— 120 个种子 480 关里出现 1 关差 1 点
 #   （seed=447514 第 4 关，强制 panties_lace + bottom_pleat，反差 72 < 73）。
-#   这两件本身反差不高，却锁死了 panties / bottom 两个槽位，降 1 点即全绿。
 #
 # ★ 第二十三轮：「一局几轮」不再写死 —— `LEVELS` 变成**运行时表**，
 #   从 `data/story.json` 的 "levels" 段读（编辑器里可增删轮次、改每轮的数值）。
 #   下面这份 DEFAULT_LEVELS 是出厂兜底；文件缺失 / 那一段为空时用它。
-const START_ACCEPTANCE := 6
+const START_ACCEPTANCE := 14
 
 # 反差值要求曲线的出厂参数（编辑器「⚙️ 数值规则」里可改）
 #   · base —— 第 1 关的要求（后面留空的关都从它往上加）
 #   · step —— 每轮自增多少
-const CONTRAST_REQ_BASE := 24
-const CONTRAST_REQ_STEP := 3
+# ★ 第四十九轮：全槽位口径之后可达上限大了约 2.9 倍，base/step 同步抬。
+#   step 取 30 是四档实际增量（30 / 20 / 25）的近似 —— 它只在
+#   「某一关的 contrast_req 被留空」时才参与，而 DEFAULT_LEVELS 与
+#   story.json 里四档都是**逐关手写**的，所以这条兜底不影响实际曲线。
+const CONTRAST_REQ_BASE := 125
+const CONTRAST_REQ_STEP := 15
 
 # 反差值换算系数（第三十一轮）：每一档「暴露度差」算多少反差分。
 #   见 WardrobeModel._contrast_of —— 反差 = |你穿的暴露度 − 原貌那件| × 它。
@@ -1288,6 +1301,15 @@ func open_level_count() -> int:
 const FORCED_EXPOSURE_MIN := 5
 const FORCED_MAX := 2
 
+# ★ 第四十九轮：**永不被强制装备占用**的槽位。
+#   理由与 `forced_locked_out_slots()` 同源 —— 锁死一格 = 本轮死局。
+#   「下装」与「成装」被锁死时会同时废掉两条最大的反差杠杆：
+#     · 「下装 → 不穿」这一格差 9 档（= 45 点反差）；
+#     · 下装不够露时「内裤」整格不计数（再少 9 档）。
+#   实测（40 种子 × 4 轮，真实求解器）：把 `bottom` 放进强制池时，
+#   第 2 轮带强制件的可达下限是 **130**（中位 215）；排除后下限抬到 205 上下。
+const FORCED_NEVER_SLOTS := ["bottom", "dress"]
+
 const PICK_ALL := "all"      # 这几件都要穿（列一件 = 固定一件）
 const PICK_ANY := "any"      # 这几件里任选一件
 
@@ -1307,10 +1329,10 @@ const FORCED_MODE_FIXED := "fixed"
 #   所以「自增」不是固定公式，而是一条**以手写值为锚点**的阶梯 ——
 #   你可以在任意一关插一个数，后面整段跟着抬起来。
 const DEFAULT_LEVELS := [
-	{"name": "第一轮", "acceptance_gain": 5, "contrast_req": 24, "derived_profile": "一个不起眼的路人"},
-	{"name": "第二轮", "acceptance_gain": 5, "derived_profile": "有点来头的商贩"},
-	{"name": "第三轮", "acceptance_gain": 6, "derived_profile": "被人打过招呼的熟面孔"},
-	{"name": "第四轮", "acceptance_gain": 0, "derived_profile": "即将被放行的清白之人"},
+	{"name": "第一轮", "acceptance_gain": 5, "contrast_req": 125, "derived_profile": "一个不起眼的路人"},
+	{"name": "第二轮", "acceptance_gain": 5, "contrast_req": 140, "derived_profile": "有点来头的商贩"},
+	{"name": "第三轮", "acceptance_gain": 6, "contrast_req": 155, "derived_profile": "被人打过招呼的熟面孔"},
+	{"name": "第四轮", "acceptance_gain": 0, "contrast_req": 165, "derived_profile": "即将被放行的清白之人"},
 ]
 
 # 出厂兜底的强制规则表（下标 = 第几轮）。
@@ -1388,15 +1410,35 @@ const TRUE_POOL := {
 	"piercing": ["piercing_none", "piercing_multi"],
 	"tattoo": ["tattoo_none", "tattoo_neck"],
 	"neckwear": ["neck_none", "neck_collar", "neck_scarf"],
-	"top": ["top_highneck", "top_plain", "top_longsleeve"],
+	# ★★ 第四十九轮：反差改成**全槽位求和**之后，这一池必须一起放开。
+	#
+	#   为什么：原貌池原来刻意只收「暴露值 ≤ 2」的件（理由是「A 是个低调的人」），
+	#   于是 `Σ|你穿的 − 原貌|` 里原貌那一项几乎恒为 0，公式退化成 `Σ你穿的`
+	#   —— 也就是**暴露值 × 系数**。实测（120 种子）口径 B 的最优值精确落在
+	#   `暴露上限 × 5` 这条线上，一毫不差：反差不再是独立指标，只是暴露值的别名。
+	#
+	#   要打破它，唯一的路是让原貌**也可能穿得露** —— 那样「你比他保守」
+	#   也能得分，而「穿保守」几乎不吃暴露值预算，曲线才立得住。
+	#
+	#   入池的 5 件都满足三条：
+	#     ① 名字看起来是日常着装（不是乳贴 / 开档这种一眼就「不像 A」的东西），
+	#        所以「A 平时也穿这些」在设定上说得通；
+	#     ② 门槛 ≤ START_ACCEPTANCE(10)，第 1 轮就抽得到；
+	#     ③ 全是**已在池外**的既有物品，一件新衣服都没有加。
+	#
+	#   ★ 为什么不把 bra_lace（黑色蕾丝内衣，暴露 4）也放进来：
+	#     放进来之后「最坏情况原貌暴露合计」会到 33，而第 1 关的暴露上限只有
+	#     `10 + 10 × 2 = 30` —— 原貌自己就超上限了，「穿得和他一模一样」
+	#     这条路会被封死（情报台全中变得不可能）。去掉它正好压到 29 ≤ 30。
+	#     这条约束由 `WardrobeTest._pool_within_first_cap()` 守着。
+	"top": ["top_highneck", "top_plain", "top_longsleeve", "top_sheer"],
 	"bra": ["bra_plain"],
 	"gloves": ["gloves_none", "gloves_leather"],
 	# ★ 第三十四轮：黄铜胸针被整件删掉，这一栏的候选也跟着收敛成**只有空件**。
 	#   效果是「A 的原貌从此不戴配饰」—— 目击情报里这一句恒定是
 	#   「没有一件多余的物件，干干净净」。
-	#   （不影响反差值：反差只统计 top / bottom 两个槽位，见 WardrobeModel。）
 	"accessory": ["acc_none"],
-	"bottom": ["bottom_longskirt", "bottom_trousers"],
+	"bottom": ["bottom_longskirt", "bottom_trousers", "bottom_cut"],
 	# ★ 第二十六轮新增的整件式槽位：A 的原貌可能穿着一件素色成装，
 	#   也可能什么都没穿（dress_none 的暴露值是 0 —— 「没穿成装」只是穿着
 	#   上衣 + 下装而已，不暴露）。晚礼服不入池：那件太扎眼，不像 A 的日常。
@@ -1408,10 +1450,12 @@ const TRUE_POOL := {
 	#   反而会白送数值，情报台也会同时报出两条自相矛盾的目击（见 _counts_with 的互斥闸）。
 	#   所以干脆不在源头制造冲突：**A 的原貌永远是「上衣 + 下装」**，
 	#   成装留给玩家主动去穿 —— 那才是「单开一栏」的玩法价值。
+	#   ★ 第四十九轮改全槽位反差之后这条**依然不变** —— 成装的暴露值很高
+	#     （最高 9），放进池子会直接把「最坏情况原貌」顶穿第 1 关上限。
 	"dress": ["dress_none"],
-	"panties": ["panties_plain"],
-	"stockings": ["stockings_none", "stockings_opaque"],
-	"shoes": ["shoes_boots"],
+	"panties": ["panties_plain", "panties_thong"],
+	"stockings": ["stockings_none", "stockings_opaque", "stockings_sheer"],
+	"shoes": ["shoes_boots", "shoes_heels"],
 	"robe": ["robe_none", "robe_travel"],
 }
 
@@ -1578,6 +1622,8 @@ func forced_pool(acceptance: int) -> Array:
 			continue        # ★ 第三十九轮：妙妙工具只能手动装备，永不强制
 		if locked.has(slot):
 			continue        # 见 forced_locked_out_slots()：锁死这个槽位 = 本轮死局
+		if FORCED_NEVER_SLOTS.has(slot):
+			continue        # 见 FORCED_NEVER_SLOTS：下装 / 成装一锁就废掉最大的反差杠杆
 		if is_bare(it):
 			continue
 		if is_high_exposure(it) and can_equip(it, acceptance):

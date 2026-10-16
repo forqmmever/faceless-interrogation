@@ -1578,24 +1578,27 @@ func _test_run_randomization() -> void:
 	print("\n-- 按关抽题 --")
 	var q0: Array = RunData.questions_for_level(0, Interrogation.QUESTIONS_PER_LEVEL)
 	var q1: Array = RunData.questions_for_level(1, Interrogation.QUESTIONS_PER_LEVEL)
-	_check("每轮抽 8 道题", q0.size() == Interrogation.QUESTIONS_PER_LEVEL)
+	_check("每轮抽 %d 道题" % Interrogation.QUESTIONS_PER_LEVEL,
+		q0.size() == Interrogation.QUESTIONS_PER_LEVEL)
 	_check("同局同关题目稳定",
 		_questions_eq(RunData.questions_for_level(0, Interrogation.QUESTIONS_PER_LEVEL), q0))
 	_check("同一局不同关题目不同", not _questions_eq(q0, q1))
 	_check("抽出的题都指向存在的卡 / 事实", _questions_resolve_arr(q0))
 
-	# ---- 编排（一关 8 道，★ 第十三轮）：
-	#      0 档案题 · 1 新事实 · 2 同行者提问 · 3 档案题
-	#      4 档案题 · 5 ★盲区题 · 6 跨轮复问 · 7 档案题
+	# ---- 编排（一关 6 道，★ 第十三轮；题数 8 → 6 见第五十轮）：
+	#      第 1 轮：0 新说法 · 1 同行者提问 · 2 ★盲区题 · 3~5 档案题
+	#      第 2 轮起：上面三道固定题 + 1 道跨轮复问 + 从通用池补足
 	#    ★ 改动点：第 4 道原来是「同关复问」，现在**改回档案题** ——
 	#      一轮之内不再复问同一个事实，所以一轮之内也不会出现前后矛盾。
-	#      第 1 轮没有「上一轮」，第 6 道让给档案题（于是第 1 轮 5 道档案题）。
+	#      第 1 轮没有「上一轮」，那道位置让给档案题（于是第 1 轮 3 道档案题）。
+	#    ★ 第五十轮：题数 8 → 6，通用池从 5 道减到 3 道（第 1 轮）。
+	#      通用池里出厂有 8 道档案题，每轮独立洗牌各取所需，四轮都够。
 	var f0 := _fact_questions(q0)
 	var c0 := _card_questions(q0)
 	var comp0 := _companion_questions(q0)
 	var b0 := _blind_questions(q0)
-	_check("第 1 轮：5 道档案题 + 1 道新说法题 + 1 道同行者提问 + 1 道盲区题",
-		c0.size() == 5 and f0.size() == 1 and comp0.size() == 1 and b0.size() == 1)
+	_check("第 1 轮：3 道档案题 + 1 道新说法题 + 1 道同行者提问 + 1 道盲区题",
+		c0.size() == 3 and f0.size() == 1 and comp0.size() == 1 and b0.size() == 1)
 	# ★ 第二十九轮：题序 = **题目清单的顺序**（固定题先出 → 复问 → 通用池抽取），
 	#   不再由代码写死成「档案 / 说法 / 同行者 / 档案 / 档案 / 盲区 / 档案」。
 	#   出厂迁移过来的那一份是「新说法 → 同行者 → 盲区 → 档案题…」。
@@ -1605,9 +1608,8 @@ func _test_run_randomization() -> void:
 		_q_kind(q0[0]) == "fact" and not bool((q0[0] as Dictionary).get("recall", false)))
 	_check("第 2 道是同行者提问", _q_kind(q0[1]) == "companion")
 	_check("第 3 道是盲区题（「完全没给信息的题」）", _q_kind(q0[2]) == "blind")
-	_check("第 4~8 道都是档案题（第 1 轮不排复问）",
-		_q_kind(q0[3]) == "card" and _q_kind(q0[4]) == "card" and _q_kind(q0[5]) == "card"
-		and _q_kind(q0[6]) == "card" and _q_kind(q0[7]) == "card")
+	_check("第 4~6 道都是档案题（第 1 轮不排复问）",
+		_q_kind(q0[3]) == "card" and _q_kind(q0[4]) == "card" and _q_kind(q0[5]) == "card")
 	_check("同行者提问打的是本轮刚立下的事实",
 		str((q0[1] as Dictionary).get("fact", "")) == str((q0[0] as Dictionary).get("fact", "")))
 	_check("同行者提问带 3 个回应", ((q0[1] as Dictionary)["options"] as Array).size() == 3)

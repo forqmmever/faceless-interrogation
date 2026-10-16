@@ -38,7 +38,7 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 ### 改一句界面文案 → 同时找三处
 
 ① `ScenarioData.gd` 的 `DEFAULT_*`（json 缺失时的兜底）；② `data/story.json`（游戏**实际读的**，它优先）；③ `tests/*.gd` 的**期望值**。
-★ **改了占位符数量 = 改了接口**：多一个 `%d`，所有调用点参数表都要补（否则运行时 `not all characters converted`）。顺序：① `_tf("key",[...],"默认")` 参数个数 → ② `DEFAULT_*` → ③ `story.json` → ④ **「占位符数量守卫」断言**（WardrobeTest / 手机编辑器冒烟各一处）→ ⑤ 编辑器字段表（`PHONE_FIELDS` / `PH_EXPECT`）。
+★ **改了占位符数量 = 改了接口**：多一个 `%d`，所有调用点参数表都要补（否则运行时 `not all characters converted`）。顺序：① `_tf("key",[...],"默认")` 参数个数 → ② `DEFAULT_*` → ③ `story.json` → ④ **「占位符数量守卫」断言**（WardrobeTest / 手机编辑器冒烟各一处）→ ⑤ 编辑器字段表（`PHONE_FIELDS` / `PH_EXPECT`）→ ⑥ **`ui` 段**：`tools/story_editor.html` 的 `A(...)` 第 5 参 `ph:true` = 必须含 `%`，0 个占位符时要去掉（否则编辑器冒烟报「丢了占位符」+ 连带挂两条断言）。
 
 ### ★ story.json 两段整段替换，另三段逐键覆盖
 
@@ -46,7 +46,7 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 **后果**：改 GDScript 里那几段 `DEFAULT_*`，story.json 旧值会**整段盖掉** —— 光改常量没用。
 **同步办法（第 47 / 49 轮）**：① 备份 → 目标段置空（`{}` / `[]`）写回；② 跑 `DumpStory` 拿全部默认值；③ 脚本对比备份，**备份独有的键**应恰好等于「这轮删掉的那些」；④ 重建两个编辑器快照。
 ★ **`DumpStory` 不能无条件重跑**：`backgrounds[].questions[]` 里第 29 轮迁移的题目**只存在于 story.json**，重跑就全冲掉。
-★ 只改 `rules` / `levels` / `true_presets` 这类段**不用重导** —— 脚本精确改字段 + 重建快照即可。
+★ 只改 `rules` / `levels` / `true_presets` 这类段**不用重导** —— 脚本精确改字段 + 重建快照即可（改快照的两个坑见 `REFERENCE.md`）。
 
 ### ★ 派生数据不会自己跟上来
 
@@ -55,7 +55,7 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 - `data/doll_au.json` 的图层 `z` → **重烘** `python tools/dol_prepare.py`（第 32 轮挪丁字裤槽位没重烘 → 预览里一直画在下装**下面**）
 - `data/story.json` 的 `catalog` → 重导
 - `tools/story_editor.html` 的 `TRUE_POOL` → **手改**（在 JS 常量区、**不在内嵌快照标记之间**）
-- `screenshots/_flow_overview.png` → **重跑** `python tools/flow_overview.py`（它不在五套验证里，**最容易漏**）
+- `screenshots/_flow_overview.png` → **重跑** `python tools/flow_overview.py`（不在五套验证里，**最容易漏**；图注表**写死了题数与手机次数**，改数值时要一起改）。用带 PIL 的解释器 `.../envs/default/Scripts/python.exe`。
 
 ★ 改完权威表顺手问一句「**哪些地方抄了它**」。出厂数据一改，**编辑器冒烟的「出厂状态」断言要跟着改**（第 49 轮填了 4 轮 `by_level` → `editor_smoke.js` 两条当场挂）。
 
@@ -75,7 +75,7 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 - ★ **纯函数测试测不出「时间线上的 bug」**（第 40 轮「假防御」与「粘关」）→ 涉及「状态随轮次推进而变」的功能**必须再写一个走完整流程的探针**；判据：**测试里没出现两次以上状态推进，就测不到时间线**。★ 探针要跑**真实链路**（`Main.tscn` 起场景，别只调 `RunData`）。
 - **约束作用域是「整局」时测试也要走完整流程**（照片「开局 3 张 + 每轮 +2 张」）。
 - **测试用完清跨局保留状态**：`ProfileData.add_gain()` 跨局保留 → 结尾必须 `reset_all()` + 注入的 `_*_presets` 清回 `{}`。
-- **截图「变了」不一定是回归**：① 同代码**连跑三次完全一致**；② 差异**稀疏点状**；③ 该镜头 `_plog` **逐字相同** → 三条同时成立 = 抗锯齿差异（`--import` 后字体图集重烘）。★ 二分排查**先做「代码全还原」**。
+- **截图「变了」不一定是回归**：① 同代码**连跑三次完全一致**；② 差异**稀疏点状**；③ 该镜头 `_plog` **逐字相同** → 三条同时成立 = 抗锯齿差异（`--import` 后字体图集重烘）。★ 二分排查**先做「代码全还原」**。★ 但有些镜头（相册 SubViewport / 带 shake 的 / QTE、判负）**每次跑都不同**，①必然失败 → 判据 = 「与旧版差异量级 ≈ 同代码两次跑量级」→ 噪声，`git checkout --` **还原别提交**（细则见 `REFERENCE.md`）。
 
 ## 四、数值曲线的规矩（第 49 轮重标后）
 

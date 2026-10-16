@@ -660,9 +660,10 @@ func _run() -> void:
 	RunData.level_index = 0
 	gd.level_index = 0
 
-	_plog("--- 9: 手机 · 盘问里掏了 4 次 → 收到审问者本人的短信（红框那条）---")
-	# 这一幕平时由盘问里的「掏出手机」触发（见 Interrogation._phone_pull_event）。
-	# 这里直接塞两条进去，把手机那一页拍下来。
+	_plog("--- 9: 手机 · 审问者本人的短信（红框那条）---")
+	# ★ 第五十轮：越界掏手机**不再**触发这条短信（用户口径「免罚后的收到短信功能取消」），
+	#   所以正常游戏里这一页是空的（PhoneDesk 判空就不摆这条线程）。
+	#   文案本身还留在 story.json 里，这里直接塞两条进去，只为把界面拍下来。
 	gd.interrogator_sms = [ScenarioData.interrogator_sms_at(0), ScenarioData.interrogator_sms_at(1)]
 	phone._switch_app("messages")
 	phone._open_thread(PhoneDesk.INTR_THREAD)

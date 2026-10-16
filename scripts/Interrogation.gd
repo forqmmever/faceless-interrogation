@@ -34,7 +34,11 @@ extends Control
 
 signal interrogation_finished(success: bool)
 
-const QUESTIONS_PER_LEVEL := 8
+# ★ 第五十轮：8 → 6（用户口径「目前计划每轮六个问题」）。
+#   抽题结构是「该轮的固定题（说法 / 同行者 / 盲区各一）+ 1 道跨轮复问
+#   + 从通用池补足到本数」，所以 6 道 = 3 + 1 + 2。
+#   通用池里能抽的档案题一共 8 道，四轮各 2 道正好对齐。
+const QUESTIONS_PER_LEVEL := 6
 const PASS_SUSPICION := 60.0
 
 # --- 说法题（前后矛盾）---
@@ -116,9 +120,22 @@ const STRIP_BAND_H := 96             # 底部常驻占位带的高度（要盖�
 
 # --- 盘问中「掏手机」---
 #  回答问题时可以把手机掏出来瞄一眼（短信 / 相册 / 备忘录 / 备注）。
-#  但他就坐在对面 —— 掏第 4 次起，桌上那部手机会震一下，发信人是他本人。
-const PHONE_PULL_FREE := 3            # 前 3 次不追究
-const PHONE_PULL_PENALTY := 15.0      # 第 n 次越界，怀疑度 +15 × n
+#  但他就坐在对面 —— 第二次掏出起，桌上那部手机会震一下，发信人是他本人。
+#
+#  ★ 第五十轮重标（用户口径：「手机拿出一次后，再次拿出增加怀疑值」）：
+#    免罚 3 → 1、单价 15 → 8，**两件事必须一起改**。
+#    账是这么算的：通过线 60、第 1 轮起点 20 → 一轮总共只有 40 点预算，
+#    而单次代价里「前后矛盾 35 / QTE 失败 24 / 盲区硬答 24 / 干扰没拦 18」都已就位，
+#    15 × n 在那张表里属于中档偏贵：
+#      · 免罚 3 的时候只有第 4 次掏出（+15）真的兑现在预算里 —— 第 5 次 +30 就过线了。
+#        也就是说「免罚 3 次」实际只兑现出 1 次宽限。
+#      · 只把免罚降到 1、单价不动 → 第 3 次掏出 20+15+30 = 65 直接过线，一轮只能掏 2 次。
+#        而一轮 6 道题里「必看的」就有 2~3 次（盲区题的解在备忘录第一条、
+#        说法题 / 同行者题要对上短信口径）→ 手机当场变成废功能。
+#    免罚 1 + 单价 8：掏出 3 次累计 24（20 → 44，余 16），第 4 次 +24 累计 48 才过线。
+#    刚好「必需的 2~3 次」落在安全线内，想多瞄几眼就得拿别处的容错去换。
+const PHONE_PULL_FREE := 1            # 第 1 次不追究
+const PHONE_PULL_PENALTY := 8.0       # 第 n 次越界，怀疑度 +8 × n
 
 var current_question_index: int = 0
 var is_qte_active: bool = false          # 表情 QTE（保留旧字段名，测试依赖）
@@ -460,7 +477,7 @@ func _open_phone() -> void:
 	phone_panel.rebuild()
 	phone_layer.show()
 	phone_btn.text = _ut("interrogation.phone_close_btn", "📱 收起手机")
-	# 前 3 次他当你是在整理行头。第 4 次起 —— 他看见了。
+	# 第 1 次他当你是在整理行头。第 2 次起 —— 他看见了。
 	if phone_pulls > _ri("phone_free_pulls", PHONE_PULL_FREE):
 		_phone_pull_event()
 
@@ -479,27 +496,32 @@ func _auto_retract_phone() -> void:
 	if _phone_open:
 		_close_phone()
 
-# 掏过头 → 桌上那部手机震一下，发信人是他本人
+# 掏过头 → 他看见了。
+#
+#  ★ 第五十轮：取消「他给你发短信」这一步（用户口径：「免罚后的收到短信功能取消」）。
+#    现在越界掏出只做三件事：震一下屏、涨怀疑度、弹一句即时反馈 + 手机面板上的通知条。
+#    短信正文不再写入 —— `story.json` 里那 5 条 `interrogator_sms` 文案留着，
+#    手机消息界面照旧能渲染这条线程（见 PhoneDesk.INTR_THREAD），只是不再由这里喂内容，
+#    所以它在正常游戏里是空的、不显示（PhoneDesk._build_message_list 判空跳过）。
+#
+#    ★ 顺带修掉一个隐患：旧版这里是 `var text := interrogator_sms_at(n-1)`，
+#      紧接着 `if text == "": return` —— 也就是**取不到短信文案时整个事件静默失效**，
+#      连怀疑度都不涨。编译器把 5 条删了或改空，这条惩罚就会无声无息地消失。
 func _phone_pull_event() -> void:
 	var n := phone_pulls - _ri("phone_free_pulls", PHONE_PULL_FREE)   # 第几次越界：1, 2, 3 ...
-	var text := ScenarioData.interrogator_sms_at(n - 1)
-	if text == "":
-		return
-	GameData.interrogator_sms.append(text)
+	var penalty := _rf("phone_pull_penalty", PHONE_PULL_PENALTY) * float(n)
 	shake(_rf("shake_phone_caught", 7.0), 0.32)
-	_add_suspicion(_rf("phone_pull_penalty", PHONE_PULL_PENALTY) * float(n))
+	_add_suspicion(penalty)
 	if _ended:
 		return
 	if phone_notice != null:
 		phone_notice.text = _ut("interrogation.phone_notice",
-			"📱 手机震了一下 —— 发信人：%s\n「%s」") % [RunData.interrogator(), text]
+			"📱 他看见你掏手机了 —— 怀疑度 +%d") % int(round(penalty))
 		phone_notice.show()
 	feedback_label.add_theme_color_override("font_color", Color(0.96, 0.44, 0.40))
 	feedback_label.text = _ut("interrogation.phone_caught",
 		"【他看见了】你把手机从袖子里摸出来的时候，他手里的笔停了一下。\n"
-		+ "桌上那部手机震了一下 —— 是他发来的。\n「%s」") % text
-	if phone_panel != null:
-		phone_panel.rebuild()
+		+ "他没抬头，只是把视线在你袖口停了两秒 —— 那点亮，他记住了。")
 
 func _make_bar_panel(parent: VBoxContainer, fill: Color) -> Control:
 	var panel := PanelContainer.new()

@@ -58,6 +58,53 @@ bbox**，不能照抄别人的 `scale`。
   `"D:/WorkBuddy/godot/Godot_v4.3-stable_win64_console.exe"`。
 - **编辑大文件后要回读一眼** —— 出现过「替换时把换行一起吃掉、两行合成一行」。
 
+### 改两个编辑器快照（内嵌 seed）—— 不用重跑 `DumpStory`
+
+`rules` / `ui` / `phone` 段是**逐键覆盖**语义，所以只改 `story.json` 里那几键时，
+可以直接改 `tools/story_editor.html` / `phone_editor.html` 里的内嵌 seed（`<script id="seed">`），
+**不用重跑 `DumpStory`**。
+
+★ **先验「解析 → 紧凑重序列化」是否逐字节还原**，还原才敢用脚本改字段
+（否则会把整份文件重排）。两个文件实测都是 `True`（106059 B，`separators=(",",":")` + `ensure_ascii=False`）：
+
+```python
+out = json.dumps(json.loads(raw), ensure_ascii=False, separators=(",", ":"))
+same = (out == raw)
+```
+
+★ **两个坑（第 50 轮踩的）**：
+
+1. **两处比较方式不同，不能共用同一对字符串。**
+   `story.json` 的**原始行文本**里换行是**字面的 `\n`**（两个字符）→ 用子串 `in` 匹配；
+   JSON **解析后的值**里是**真实换行** → 用全等 `==` 匹配。
+   混用会**静默漏改**（第 50 轮漏了 `help.phone_marks` 那条，而 `phone_tip` / `tail` 却改成功了
+   —— 表现得像「脚本只改了一部分」）。脚本里要维护两套：
+   `RAW_PAIRS`（字面 `\n`，给行替换）与 `VAL_PAIRS`（真实换行，给 JSON 值）。
+2. **脚本要幂等。** 第二次重跑时已改过的字段命中 **0 处**，若直接 `sys.exit(1)` 就 `ABORT`。
+   改成「**新值已经在行里就跳过**」才能安全重跑。
+3. ★★ **别用 `newline=""` 写这两个 HTML —— 会把整份文件的行尾从 CRLF 改成 LF。**
+   第 50 轮踩的：`io.open(f, "w", encoding="utf-8", newline="")` 写出后，
+   `tools/story_editor.html` / `phone_editor.html`（**3494 / 1261 行、全 CRLF**）
+   整体变成 LF → `git diff --stat` 显示 **6988 / 2522 行变化**，
+   真正的 4 行改动完全被淹没。（仓库里存的**就是 CRLF**：`core.autocrlf=false`、
+   无 `.gitattributes`，所以行尾差异会实打实进 diff。）
+
+   ```python
+   # 正确的写法：写 bytes，保住原行尾
+   raw = open(f, "rb").read()
+   raw = raw.replace(old_bytes, new_bytes)     # 只在 seed 段内做字节级替换
+   open(f, "wb").write(raw)
+
+   # 已经写坏了就救回来（确认过当前无 \r 才敢这么干）
+   b = open(f, "rb").read(); assert b"\r" not in b
+   open(f, "wb").write(b.replace(b"\n", b"\r\n"))
+   ```
+
+   **判据**：改完两个 HTML 后 `git diff --stat` 应该只有**个位数行**；
+   几百上千行就是行尾被动了。
+   ★ `data/story.json` 本来就是 **LF**（7514 行），所以它用 `newline=""` 写反而没事 ——
+   **动手前先量一下原文件的行尾**，别一刀切。
+
 ## 四、判「两张图是不是同一张」要两个独立方法交叉验证
 
 ① 文件 **MD5** 一致 ⇒ 绝对同一张；② `ImageChops.difference(a,b).getbbox()` 为 `None` ⇒ 逐像素一致。
@@ -137,6 +184,36 @@ bbox**，不能照抄别人的 `scale`。
 3. 该镜头的 `_plog` 状态输出**逐字相同**
 
 ★ 二分排查时**先做「代码全还原」这一步**，一次性排除所有代码嫌疑，比逐个文件试快得多。
+
+### ★★ 还有一类「每次跑都不一样」的镜头（第 50 轮补）
+
+上面那三条判据是针对「`--import` 后字体图集重烘」的（差异**稀疏点状**）。
+但**有一批镜头本身就带渲染非确定性**，跑几次就有几种结果 —— 它们的差异**不是**稀疏点状：
+
+| 镜头类型 | 例子 | 为什么 |
+|---|---|---|
+| **SubViewport 实时渲染 + 噪点 / 模糊 shader** | `06_phone_album` / `07_phone_album_cleared` | 照片是 `SubViewport` 里渲的，噪点与模糊每次采样的随机相位不同 → **整块照片区**都变 |
+| **带抖动（`shake`）或动画进度条** | `19_expression_qte` / `20_leak_exposed` / `25_run_failed` | 抖动让整个界面**位移**若干像素 → 大面积稀疏差异；进度条停在的帧也不同 |
+
+**判据（第 50 轮实测出来的）**：
+
+> **「与旧版的差异量级」≈「同一份代码连跑两次的差异量级」⇒ 非确定性渲染，不是回归。**
+
+实测（差异像素数，`-` 分隔为 `>0 / >8 / >40`）：
+
+| 对比 | `06_phone_album` | `07_phone_album_cleared` |
+|---|---|---|
+| 旧版 vs 本轮 | 22000 / 14223 / 1895 | 15528 / 2614 / 0 |
+| **同代码两次跑** | **21998 / 14261 / 1856** | **15542 / 2759 / 0** |
+
+两组数字几乎完全一样 → 差异**全部**来自渲染噪声。逐像素比对（判据①「连跑三次一致」）
+在这类镜头上**必然失败**（三次三个样），所以**它单独不能证伪**，必须配上这条量级对比。
+
+★ **处理办法：把这几个文件 `git checkout --` 还原成上一版，别提交噪声。**
+否则每次重拍都会在 git 里留下几个永远「未提交」的脏文件，
+真正因代码 / 文案变化的截图反而被淹没。
+（第 50 轮 43 张重拍后，真正该提交的只有 3 张：`00e_help_phone`、`09_phone_interrogator_sms`、
+`_flow_overview` —— 其余 5 张全是噪声。）
 
 ## 六、架构细节（`MEMORY.md` 五章的展开）
 

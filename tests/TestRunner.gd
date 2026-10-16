@@ -386,19 +386,25 @@ func _test_enter_interrogation() -> void:
 	interro.set_process(false)   # 关掉自动计时，改为手工步进
 	_check("盘问已启动", interro._running == true)
 	_check("开局怀疑度 = 20 + 失误 × 3", is_equal_approx(gd.suspicion_level, 20.0))
-	_check("本轮抽到 8 道题", interro.level_questions().size() == 8)
+	_check("本轮抽到 6 道题", interro.level_questions().size() == 6)
 	_check("题目都指向本局背景的档案", _questions_resolve(interro.level_questions()))
-	# ★ 第十三轮后：一轮之内不再复问同一个事实（第 4 道改回档案题），
-	#   第 6 道是盲区题，第 7 道才是跨轮复问。
+	# ★ 第十三轮后：一轮之内不再复问同一个事实 —— 复问只发生在**跨轮**。
+	# ★ 第五十轮：题数 8 → 6。编排没变，仍是
+	#   「本轮固定题（说法 / 同行者 / 盲区各一）+ 1 道跨轮复问 + 从通用池补足」，
+	#   于是 6 道 = 3 + 1 + 2；第 1 轮没有复问，= 3 + 3。
+	#   通用池里能抽的档案题一共 8 道，四轮各取 2 道正好对齐，不会缺题。
 	# ★ 第二十九轮：题序不再由代码写死 —— 它现在**等于题目清单的顺序**，
 	#   在题库页里拖一拖就能改。所以这里不再钉死开场顺序，
 	#   改为断言「本轮这一批题里四种类型都出现过」。
-	_check("本轮八道题里四种类型都出现了",
+	_check("本轮六道题里四种类型都出现了",
 		_count_kind(interro.level_questions(), "card") >= 1
 		and _count_kind(interro.level_questions(), "fact") >= 1
 		and _count_kind(interro.level_questions(), "companion") >= 1
 		and _count_kind(interro.level_questions(), "blind") >= 1)
-	_check("一关里档案题不少于 3 道", _count_kind(interro.level_questions(), "card") >= 3)
+	# ★ 第五十轮：档案题数跟着题数缩水 —— 6 道题 = 固定 3 道 + 通用池 3 道
+	#   （第 1 轮无复问）→ 3 道档案题；第 2 轮起被那 1 道复问占掉一个位，落到 2 道。
+	#   所以门槛从「不少于 3」降到「不少于 2」—— 仍然能抓到「通用池一道都没抽到」。
+	_check("一关里档案题不少于 2 道", _count_kind(interro.level_questions(), "card") >= 2)
 	_check("一关里恰好 1 道盲区题（完全没给信息的题）",
 		_count_kind(interro.level_questions(), "blind") == 1)
 	_check("一关里只有 1 道同行者提问", _count_kind(interro.level_questions(), "companion") == 1)
@@ -406,7 +412,9 @@ func _test_enter_interrogation() -> void:
 	_check("从第 1 题开始", interro.current_question_index == 0)
 
 	# 找一道 B 类题与一道 A 类题。
-	# 一关抽 4~5 道档案题，基本两类都有 —— 找不到就换一关（必要时换一局）。
+	# 一关抽 2~3 道档案题（第五十轮：题数 8 → 6 后通用池只补 2~3 道），
+	# 抽到「全是同一类」的概率约 14% —— 所以这里**必须有兜底**：找不到就换一关，
+	# 必要时换一局（见 _goto_level_with_card_owner）。
 	#
 	# ★ 这里刻意写成「先把值算出来、再统一 _check」的形状，保证**断言条数恒定**。
 	#   以前用 if/else 分叉：走哪个分支取决于本轮恰好抽到哪两道档案题，
@@ -757,7 +765,8 @@ func _test_cross_level_consistency() -> void:
 				if not stated_so_far.has(f):
 					bad_old += 1
 			asked.append(this_new)
-	_check("20 个种子 × 4 关：每轮都是 8 道题", bad_size == 0)
+	_check("20 个种子 × 4 关：每轮都是 %d 道题" % Interrogation.QUESTIONS_PER_LEVEL,
+		bad_size == 0)
 	_check("20 个种子：第 1 轮 1 道新说法、第 2 轮起 1 新 + 1 跨轮复问", bad_count == 0)
 	_check("20 个种子：新说法题永远问没问过的事（不会一上来就无解）", bad_new == 0)
 	_check("20 个种子：复问题永远落在已立过口径的事实上", bad_old == 0)
@@ -1615,6 +1624,16 @@ func _has_grid(root: Node) -> bool:
 #
 #  用户口径：「增加回答界面可以掏出手机的功能 回答完毕自动收回
 #            掏出次数超过三次触发 收到审问者的短信的事件 提升审问者的怀疑」
+#
+#  ★ 第五十轮改口径（用户）：「手机拿出一次后，再次拿出增加怀疑值」
+#                          + 「免罚后的收到短信功能取消」
+#    · 免罚 3 次 → **1 次**；单价 15 → **8**（第 n 次越界 = 8 × n）；
+#    · 越界**不再写入短信**，只震屏 + 涨怀疑度 + 弹通知条与反馈文案。
+#      （`story.json` 里那 5 条 `interrogator_sms` 文案留着，手机消息界面
+#        照旧能渲染这条线程，只是游戏不再往里喂内容。）
+#
+#  ★ 这一段的断言条数刻意保持与第五十轮之前一致（26 条）——
+#    旧的两条「收到短信」换成了「没有收到短信」，另加了精确数值校验。
 # ------------------------------------------------------------
 func _test_phone_in_interrogation() -> void:
 	print("\n-- 盘问中掏手机：掏太多次他会发现 --")
@@ -1627,7 +1646,7 @@ func _test_phone_in_interrogation() -> void:
 	_check("覆盖层不挡鼠标（左边选项照样能点）",
 		interro.phone_layer.mouse_filter == Control.MOUSE_FILTER_IGNORE)
 
-	# ---- 第 1 次：掏出 → 看两眼 → 顺手答题 → 自动收回 ----
+	# ---- 第 1 次：掏出 → 看两眼 → 顺手答题 → 自动收回（这一次免罚）----
 	var b_idx := _find_question_index("B")
 	if b_idx < 0:
 		b_idx = _goto_level_with_card_owner("B")
@@ -1638,56 +1657,56 @@ func _test_phone_in_interrogation() -> void:
 	if b_idx < 0:
 		return
 
+	var s1_before: float = gd.suspicion_level
 	interro._load_question(b_idx)
 	interro._open_phone()
 	_check("掏一次 → 覆盖层出现", interro.phone_layer.visible == true)
 	_check("掏一次 → 计数为 1", interro.phone_pulls == 1)
 	_check("掏一次 → 按钮变成「收起手机」", interro.phone_btn.text.contains("收起"))
 	_check("手机里的内容建出来了", interro.phone_panel.screen_box.get_child_count() > 0)
-	_check("前 3 次他不会发消息", gd.interrogator_sms.is_empty())
+	_check("★ 第 1 次免罚 → 他没管，也不弹通知条", interro.phone_notice.visible == false)
+	_check("★ 第 1 次免罚 → 怀疑度一点没涨",
+		is_equal_approx(gd.suspicion_level, s1_before))
 
 	interro._select_option(0)          # B 类题照答 = 安全
 	_check("回答完毕 → 手机自动收回", interro.phone_layer.visible == false)
 	_check("回答完毕 → 按钮变回「掏出手机」", interro.phone_btn.text.contains("掏出"))
 
-	# ---- 第 2、3 次：仍然不追究 ----
+	# ---- 第 2 次：免罚已经用完 —— 他看见了 ----
 	interro._ended = false
 	interro._running = true
 	interro.is_qte_active = false
 	interro.qte_container.hide()
 	interro._load_question(b_idx)
+	var s2_before: float = gd.suspicion_level
 	interro._open_phone()
-	interro._close_phone()
-	interro._open_phone()
-	_check("掏到第 3 次他还是没管", gd.interrogator_sms.is_empty())
-	_check("第 3 次仍在免罚额度内", interro.phone_pulls == Interrogation.PHONE_PULL_FREE)
-	interro._close_phone()
-
-	# ---- 第 4 次：手机震了 ----
-	var s4_before: float = gd.suspicion_level
-	interro._open_phone()
-	_check("掏到第 4 次 → 收到他发来的短信", gd.interrogator_sms.size() == 1)
-	_check("短信有正文", str(gd.interrogator_sms[0]).length() > 3)
-	_check("掏太多次 → 抬高怀疑度", gd.suspicion_level > s4_before)
-	_check("界面上弹出了短信提示", interro.phone_notice.visible == true)
+	_check("★ 掏到第 2 次 → 他看见了（弹通知条）", interro.phone_notice.visible == true)
+	_check("掏太多次 → 抬高怀疑度", gd.suspicion_level > s2_before)
+	var d2: float = gd.suspicion_level - s2_before
+	_check("★ 第 1 次越界恰好罚 %d" % int(Interrogation.PHONE_PULL_PENALTY),
+		is_equal_approx(d2, Interrogation.PHONE_PULL_PENALTY))
+	_check("★ 第五十轮：不再收到他发来的短信", gd.interrogator_sms.is_empty())
 	_check("反馈文案点明「他看见了」", interro.feedback_label.text.contains("他看见了"))
-	var d4: float = gd.suspicion_level - s4_before
+	_check("★ 通知条里写明了本次涨了多少怀疑度",
+		interro.phone_notice.text.contains(str(int(round(d2)))))
 
-	# ---- 第 5 次：又来一条，罚得更重 ----
-	var s5_before: float = gd.suspicion_level
+	# ---- 第 3 次：罚得更重（8 × n，n = 2）----
+	var s3_before: float = gd.suspicion_level
 	interro._close_phone()
 	interro._open_phone()
-	_check("再掏一次 → 又来一条", gd.interrogator_sms.size() == 2)
-	_check("越掏罚得越重", gd.suspicion_level - s5_before > d4)
-	_check("两条短信内容不同", str(gd.interrogator_sms[0]) != str(gd.interrogator_sms[1]))
+	var d3: float = gd.suspicion_level - s3_before
+	_check("越掏罚得越重", d3 > d2)
+	_check("★ 第 2 次越界恰好罚 %d" % int(Interrogation.PHONE_PULL_PENALTY * 2.0),
+		is_equal_approx(d3, Interrogation.PHONE_PULL_PENALTY * 2.0))
+	_check("★ 罚完了也还是不会收到短信", gd.interrogator_sms.is_empty())
 	interro._close_phone()
 
-	# ---- 换关：次数重新数，但短信留在手机里 ----
+	# ---- 换关：次数重新数，通知条收起来 ----
 	interro.start_interrogation()
 	interro.set_process(false)
 	_check("换关后掏出次数归零", interro.phone_pulls == 0)
 	_check("换关后手机覆盖层收起", interro.phone_layer.visible == false)
-	_check("他发过的短信留在手机里（同一局不消失）", gd.interrogator_sms.size() == 2)
+	_check("换关后通知条也收起来", interro.phone_notice.visible == false)
 
 	gd.interrogator_sms.clear()
 
@@ -3200,7 +3219,7 @@ func _test_multi_level_flow() -> void:
 		# 那个辅助函数会被条件调用，放里面会让断言总数浮动。
 		_check("第 %d 轮伪装成立" % n, wardrobe.model.evaluate()["verdict"] == "pass")
 		_check("第 %d 轮已进入盘问" % n, interro.visible == true and wardrobe.visible == false)
-		_check("第 %d 轮抽到 8 道题" % n, interro.level_questions().size() == 8)
+		_check("第 %d 轮抽到 6 道题" % n, interro.level_questions().size() == 6)
 
 		_pass_current_level()
 

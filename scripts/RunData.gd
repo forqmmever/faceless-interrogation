@@ -1034,7 +1034,7 @@ func questions_per_level_of(li: int) -> int:
 	var v := int(lv.get("questions_per_level", -1))
 	if v > 0:
 		return v
-	return int(ScenarioData.rule_i("questions_per_level", 8))
+	return int(ScenarioData.rule_i("questions_per_level", Interrogation.QUESTIONS_PER_LEVEL))
 
 func level_at_index(li: int) -> Dictionary:
 	var ls: Array = levels()

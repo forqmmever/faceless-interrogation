@@ -16,12 +16,16 @@
 ### 五套验证（只在动了 `scripts/` `data/` `tests/` `tools/*_editor.html` 时跑）
 
 ```bash
-godot --headless --path . res://tests/WardrobeTest.tscn   # 换装 + 数据层
-godot --headless --path . res://tests/TestRunner.tscn     # 端到端（3~4 分钟）
+godot --headless --path . res://tests/WardrobeTest.tscn   # 换装 + 数据层（~30~40 秒）
+godot --headless --path . res://tests/TestRunner.tscn     # 端到端（~3 分钟）
 node tools/editor_smoke.js                                 # 文本编辑器
 node tools/phone_editor_smoke.js                           # 手机编辑器
-godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ 非 headless
+godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ 非 headless（~45 秒）
 ```
+
+★ 两套 Godot 测试**跑完都会打印「耗时合计」+「最耗时的前 8 段」**（第 52 轮加的，常驻）
+—— 想给测试提速**先看那个**，别凭感觉猜哪段慢。做法见 `REFERENCE.md` 的
+「减少测试耗时：先量，再找『白跑』的那部分」。
 
 ★ 用户 2026-10-15：「没动代码不用跑四套验证」—— 纯文档 / 清点 / 加工具**跳过**。
 ★ **后台跑长测试时不要同时改它读得到的资源**（第 49 轮 E2E 那 3 分钟里换贴图 → 结论作废）。
@@ -32,21 +36,23 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 **一局** = 含一套背景 + 若干轮的那一整盘；**一轮** = 一次换装 + 问答环节（代码 `level_index`）。以前「关 / 轮」混用，**统一成「轮」**。
 ★ 替换用**精确模式 + SKIP 词表**：改「本关→本轮 / 每关→每轮 / 第 N 关→第 N 轮 / 关卡→轮次」，**不动**「关口 / 关隘 / 通关文书 / 进关 / 过关 / 关心 / 关键 / 相关 / 关闭」；改完复查 diff。
 ★ 脚本里别用 `line.split('#')[0]` 切注释 —— BBCode 的 `[color=#8a919c]` 会被当注释起点。
+★ **改全局常量（轮数 / 槽位数）时，夹具里的「下标访问」会越界** —— 而越界会跳过
+「还原现场」，导致一整片假红。详见 `REFERENCE.md` 的「夹具里的下标访问」。
 
 ## 二、改数据的三条链路
 
 ### 改一句界面文案 → 同时找三处
 
 ① `ScenarioData.gd` 的 `DEFAULT_*`（json 缺失时的兜底）；② `data/story.json`（游戏**实际读的**，它优先）；③ `tests/*.gd` 的**期望值**。
-★ **改了占位符数量 = 改了接口**：多一个 `%d`，所有调用点参数表都要补（否则运行时 `not all characters converted`）。顺序：① `_tf("key",[...],"默认")` 参数个数 → ② `DEFAULT_*` → ③ `story.json` → ④ **「占位符数量守卫」断言**（WardrobeTest / 手机编辑器冒烟各一处）→ ⑤ 编辑器字段表（`PHONE_FIELDS` / `PH_EXPECT`）→ ⑥ **`ui` 段**：`tools/story_editor.html` 的 `A(...)` 第 5 参 `ph:true` = 必须含 `%`，0 个占位符时要去掉（否则编辑器冒烟报「丢了占位符」+ 连带挂两条断言）。
+★ **改了占位符数量 = 改了接口**（否则运行时 `not all characters converted`）。六处依次同步：`_tf(...)` 参数 → `DEFAULT_*` → `story.json` → **占位符守卫断言**（两处）→ 编辑器字段表 → `ui` 段的 `ph:true` 标记（第 50 轮漏了最后一处，冒烟连带挂两条）。
 
 ### ★ story.json 两段整段替换，另三段逐键覆盖
 
 `_item_desc` / `_backgrounds` / `_traits` / `_clue_frame` / `_clue_sources` / `_photo_notes` = **整段替换**（空字典被忽略）；`_rules` / `_ui` / `_phone` = **逐键覆盖**。
 **后果**：改 GDScript 里那几段 `DEFAULT_*`，story.json 旧值会**整段盖掉** —— 光改常量没用。
-**同步办法（第 47 / 49 轮）**：① 备份 → 目标段置空（`{}` / `[]`）写回；② 跑 `DumpStory` 拿全部默认值；③ 脚本对比备份，**备份独有的键**应恰好等于「这轮删掉的那些」；④ 重建两个编辑器快照。
+**同步办法**：备份 → 目标段置空写回 → 跑 `DumpStory` → 对比备份（**备份独有的键**应恰好是这轮删掉的那些）→ 重建两个快照。
 ★ **`DumpStory` 不能无条件重跑**：`backgrounds[].questions[]` 里第 29 轮迁移的题目**只存在于 story.json**，重跑就全冲掉。
-★ 只改 `rules` / `levels` / `true_presets` 这类段**不用重导** —— 脚本精确改字段 + 重建快照即可（改快照的两个坑见 `REFERENCE.md`）。
+★ 只改 `rules` / `levels` / `true_presets` 这类段**不用重导**。
 
 ### ★ 派生数据不会自己跟上来
 
@@ -57,7 +63,7 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 - `tools/story_editor.html` 的 `TRUE_POOL` → **手改**（在 JS 常量区、**不在内嵌快照标记之间**）
 - `screenshots/_flow_overview.png` → **重跑** `python tools/flow_overview.py`（不在五套验证里，**最容易漏**；图注表**写死了题数与手机次数**，改数值时要一起改）。用带 PIL 的解释器 `.../envs/default/Scripts/python.exe`。
 
-★ 改完权威表顺手问一句「**哪些地方抄了它**」。出厂数据一改，**编辑器冒烟的「出厂状态」断言要跟着改**（第 49 轮填了 4 轮 `by_level` → `editor_smoke.js` 两条当场挂）。
+★ 改完权威表顺手问一句「**哪些地方抄了它**」——出厂数据一改，**编辑器冒烟的「出厂状态」断言要跟着改**。
 
 ### 加新物品的固定顺序
 
@@ -77,25 +83,35 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 - **测试用完清跨局保留状态**：`ProfileData.add_gain()` 跨局保留 → 结尾必须 `reset_all()` + 注入的 `_*_presets` 清回 `{}`。
 - **截图「变了」不一定是回归**：① 同代码**连跑三次完全一致**；② 差异**稀疏点状**；③ 该镜头 `_plog` **逐字相同** → 三条同时成立 = 抗锯齿差异（`--import` 后字体图集重烘）。★ 二分排查**先做「代码全还原」**。★ 但有些镜头（相册 SubViewport / 带 shake 的 / QTE、判负）**每次跑都不同**，①必然失败 → 判据 = 「与旧版差异量级 ≈ 同代码两次跑量级」→ 噪声，`git checkout --` **还原别提交**（细则见 `REFERENCE.md`）。
 
-## 四、数值曲线的规矩（第 49 轮重标后）
+## 四、数值曲线的规矩（第 52 轮：一局 **2 轮**）
+
+★ **一局现在是 2 轮**（第 52 轮从 4 轮压下来的，四套背景不变）。下面那些按 4 轮写的比例数字
+要按「只剩前两轮」读；**当前曲线 = 125 / 150**，暴露上限 **38 / 48**，
+接受度起点 14、每轮 +5。改轮数要动的**全部位置**见
+`2026-10-16-第五十二轮-两轮制与减测试耗时.md` 的第二节（那张表比这里全）。
 
 ### ★ 反差 = 全槽位求和
 
 `WardrobeModel.CONTRAST_EXCLUDED_SLOTS := []`（**空 = 不排除任何槽位**）—— 所有「看得见」（过门控）的槽位都计反差，含纹身。单件口径 `|你穿的暴露度 − 原貌那件| × 5`。
 ★ **改口径必须同时做两件事**：① **拉开原貌池** —— 原貌暴露值几乎全 0 时 `Σ|你 − 原貌|` 退化成 `Σ你穿的` = 暴露值 × 5（**共线**），反差只是暴露值的别名；② **重标 `contrast_req`**。
-出厂 `true_presets.by_level` 带逐轮递进（T = 7/16/22/33）；四轮要求**手写** 125/140/155/165（增量 15/15/10，**不是等差**，`base + step` 表达不了）；`rules` 出厂 `base` 125 / `step` 15；起始接受度 **14**（暴露上限 38/48/58/70）。实测余量 **+80 / +30 / +25 / +10**。
+出厂 `true_presets.by_level` 带逐轮递进；两轮要求**手写 125 / 150**；`rules` 出厂 `base` 125 / `step` 15。实测余量 **+80 / +5**。
+★★ **150 是实测定的，别凭感觉改**：2 轮的可达区间是 **205~210** 与 **155~215**（中位 215）——
+第 2 轮**写不了 160**（最不利那个原貌最多到 155，写 160 = 有种子无解）。
+★ **报「余量」要用最差值、不能用中位** —— 第 2 轮中位余量有 +65，只有最不利的原貌紧到 +5，
+而本作的难度本来就是「由原貌决定」的。
 
 ### ★ 下装 / 成装是整条曲线的命门
 
-**变露**或**被锁死** → 可达上限**断崖式下跌**：原貌下装换 `bottom_sarong`(8) → 第 3/4 轮 235 → **205**；收尾用 `bottom_none`(9) → 第 4 轮 **210**；下装进强制池 → 第 2 轮下限 215 → **130**（死局）；强制装备 = 原貌本身那一件 → 第 3 轮 235 → **125**。
-机制：拉满反差要把下装脱到 `bottom_none`(9) 才能让**内裤一起计分**（下装不够露时内裤整格不计数，白丢 9 档 = 45 点）；原貌下装本来就露时「脱到最露」的差反而是 0，只能改穿保守下装 → 内裤被盖住 → **一次丢 45 点**。
+**变露**或**被锁死** → 可达上限**断崖式下跌**（第 49 轮实测：下装进强制池 → 下限 215 → **130** 死局；强制装备 = 原貌那一件 → 235 → **125**）。
+机制：拉满反差要把下装脱到 `bottom_none`(9) 才能让**内裤一起计分**（下装不够露时内裤整格不计数，白丢 9 档 = 45 点）；原貌下装本来就露时「脱到最露」的差反而是 0 → 只能改穿保守下装 → 内裤被盖住 → **一次丢 45 点**。
 落地：出厂递进里下装**始终 `bottom_longskirt`**；`FORCED_NEVER_SLOTS := ["bottom","dress"]`；`_roll_forced_items()` **不抽「与原貌完全相同」的那一件**。
 ★ 换序注意：`advance_level()` / `resume_run()` 里「抽原貌」必须在「抽强制装备」**之前**（强制池按本轮原貌过滤）；两者各用独立随机流（`_level_rng` / `_forced_rng`）。
 
 ### ★ 标定必须用真实求解器，不能用测试里那份 DP
 
-`WardrobeTest._dp_optimum`（无缺陷约束）报 175/265/250/250，真实 `WardrobeModel.auto_complete_outfit()`（DP + 缺陷掩码）只有 165/225/195/195。
+`WardrobeTest._dp_optimum`（无缺陷约束）会**高估** —— 第 49 轮实测差 10~55 点。曲线标定与余量必须用 `WardrobeModel.auto_complete_outfit()`。
 ★ **原貌越露曲线越宽松**（不是越紧）：原貌全高暴露最差余量 **+36**；全在谷底（中间档）**−64（会卡关）**。
+★ 探针要覆盖**测试用的那个种子池**（第 52 轮教训：换一串种子就漏掉了更差的局面）。
 
 ### ★ DP 的暴露账是「保守上界」
 
@@ -106,7 +122,7 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 
 ## 五、架构约定（细节见 `REFERENCE.md`）
 
-- **★ 只用 AU 图包（第 37 轮硬约定）**：DoL 链路**已从代码拆掉**（`dol_prepare.PACKS` 只有 `au`；`dol_map` 用 `AU_OVERRIDE`）。**产物只有一份** `assets/dol_au/` + `data/doll_au.json`（`assets/dol/`、`data/doll.json` 已删，**不要写回**）。取景框只有 AU 一套（**68×203**，画布 512×256，`crop=(62,0,130,203)` 纯平移）。路径走 `DolDoll.root()` / `data_path()`，**不要写死 `assets/dol_au`**。
+- **★ 只用 AU 图包（第 37 轮硬约定）**：DoL 链路**已从代码拆掉**（`PACKS` 只有 `au`；用 `AU_OVERRIDE`）。产物只有一份 `assets/dol_au/` + `data/doll_au.json`（`assets/dol/`、`data/doll.json` 已删，**不要写回**）。取景框 **68×203**，`crop=(62,0,130,203)` 纯平移。路径走 `DolDoll.root()` / `data_path()`，**不要写死**。
 - **★ 成装（`dress`）= 两层源图叠加**：AU 把每件成装拆成**两个文件**，**只取一层就只有上半身**（第 49 轮修的 bug）；两层 y 范围精密衔接（74→74 / 82→82 / 85→85 / 87→85），顺序 `upper` 前 `lower` 后 →「裙子压住上衣下摆」；例外 `dress_slip`。**加新成装第一件事**：查 `upper/<款>` 与 `lower/<款>` 是否都在。
 - **两条槽位级名单语义相反（第 39 轮）**：`DISABLED_SLOTS` = 下架（玩家看不到）；`MANUAL_SLOTS` = 只能手动装备（看得到、点得到，系统从不代劳）。配套 `active_slots()`（**界面口径**）/ `auto_slots()`（**自动流程 + 数值口径**）/ `slot_enabled()` / `is_manual_slot()` **别混用**。
 - **多件槽位（`MULTI_SLOTS := {"tattoo": 2}`）**：`equipped` 里**单件 = `String`，多件 = `Array`** → **一律走访问器** `ids_at` / `id_at` / `has_id` / `set_ids` / `solid_ids` / `_ids_of`；「空件」必须标 `"bare": true`；门控先看件自己的 `gate`、没有才退回槽位级 `UNDER_GATE`；`_delta()` 连带项只在**可见性真的翻转时**才重算。

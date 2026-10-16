@@ -85,6 +85,7 @@ func _ready() -> void:
 		_finish()
 		return
 
+	_t_prev = Time.get_ticks_msec()
 	_test_boot()
 	_test_clue_reveal()
 	_test_identity_assign()
@@ -94,26 +95,47 @@ func _ready() -> void:
 	_test_interference()
 	_test_expression_qte()
 	_test_qte_budget()
+	_tick("① 开局~QTE预算（9 段）")
 	await _test_qte_live_loop()
+	_tick("QTE 实时循环（协程）")
 	_test_shake()
+	_tick("晃动")
 	_test_fact_consistency()
+	_tick("说法一致性")
 	_test_cross_level_consistency()
+	_tick("跨轮一致性")
 	_test_companion_question()
+	_tick("同行者提问")
 	_test_phone()
+	_tick("手机")
 	_test_phone_in_interrogation()
+	_tick("盘问里的手机")
 	_test_interrogator_intel()
+	_tick("审讯官情报")
 	_test_blind_question()
+	_tick("盲区题")
 	_test_new_mechanics()
+	_tick("新机制")
 	_test_title_and_save()
+	_tick("标题与存档")
 	await _test_intro_and_help()
+	_tick("开场与帮助（协程）")
 	await _test_dol_style()
+	_tick("纸娃娃风格（协程）")
 	_test_suspicion_decay()
+	_tick("怀疑度衰减")
 	_test_story_config()
+	_tick("剧情配置")
 	_test_multi_level_flow()
+	_tick("多轮流程")
 	_test_leak_and_fail_restart()
+	_tick("说漏嘴与失败重来")
 	_test_retry_level_semantics()
+	_tick("重试语义")
 	_test_underwear_gate_ui()
+	_tick("内衣门控界面")
 	_test_editable_flow_data()
+	_tick("可编辑流程数据")
 
 	_finish()
 
@@ -133,25 +155,25 @@ func _test_boot() -> void:
 	_check("开始界面写着本局/账号进度", main.title_info.text.length() > 6)
 
 	# 点「开始游戏」→ 先出选关面板（第二十一轮）
-	print("\n-- 开局：点「开始游戏」先出选关面板（四关入口）--")
+	print("\n-- 开局：点「开始游戏」先出选关面板（两轮入口）--")
 	main._on_title_start()
 	_check("选关面板出现", main._is_level_select_open())
-	_check("选关面板一共 4 行", main.level_select_rows.size() == OutfitData.MAX_LEVELS)
+	# ★ 第五十二轮：一局 4 轮 → 2 轮，面板行数跟着变成 2
+	_check("选关面板一共 2 行", main.level_select_rows.size() == OutfitData.MAX_LEVELS
+		and main.level_select_rows.size() == 2)
 	_check("第 1 轮那行点得动", main.level_select_rows[0]["btn"].disabled == false)
-	_check("第 2 / 3 / 4 轮那行点不动（暂时锁定）",
-		main.level_select_rows[1]["btn"].disabled == true
-		and main.level_select_rows[2]["btn"].disabled == true
-		and main.level_select_rows[3]["btn"].disabled == true)
+	_check("第 2 轮那行点不动（暂时锁定）",
+		main.level_select_rows[1]["btn"].disabled == true)
 	_check("锁定的行写着「尚未开放」",
 		main.level_select_rows[1]["note"].text.contains("尚未开放"))
 	_check("开放的行写着「可以进入」",
 		main.level_select_rows[0]["note"].text.contains("可以进入"))
-	_check("四关的名字都还在（锁定不等于删除）",
-		main.level_select_rows[3]["btn"].text.contains(
-			str(OutfitData.LEVELS[3].get("name", ""))))
+	_check("两轮的名字都还在（锁定不等于删除）",
+		main.level_select_rows[1]["btn"].text.contains(
+			str(OutfitData.LEVELS[1].get("name", ""))))
 	_check("选关时还没开局（准备室仍藏着）", wardrobe.visible == false)
-	# 点锁定的那一关不该有反应
-	main._on_level_selected(2)
+	# 点锁定的那一轮不该有反应
+	main._on_level_selected(1)
 	_check("点锁定轮次无效（面板还在，也没开局）",
 		main._is_level_select_open() and wardrobe.visible == false)
 
@@ -174,7 +196,7 @@ func _test_boot() -> void:
 	_check("局号 ≥ 1", RunData.run_index >= 1)
 	_check("已抽定背景", RunData.background_id != "")
 	_check("背景名已显示在标题栏", wardrobe.run_label.text.contains(RunData.background_name()))
-	_check("标题栏显示了轮次进度", wardrobe.run_label.text.contains("第 1 / 4 轮"))
+	_check("标题栏显示了轮次进度", wardrobe.run_label.text.contains("第 1 / 2 轮"))
 
 	var m: WardrobeModel = wardrobe.model
 	_check("%d 个槽位全部有装备" % OutfitData.active_slots().size(), m.equipped.size() == OutfitData.active_slots().size())
@@ -709,7 +731,7 @@ func _test_cross_level_consistency() -> void:
 		interro.qte_container.hide()
 		gd.contradictions = 0     # 下一轮重新数，免得提前撞上限
 
-	_check("第 2~4 关都有复问题参与跨关判定",
+	_check("第 2 轮有复问题参与跨关判定",
 		recall_checked == OutfitData.MAX_LEVELS - 1)
 
 	# ---- 整局重开 → 换了一个人，口径必须清空 ----
@@ -841,7 +863,8 @@ func _test_companion_question() -> void:
 	_run_a_clean_level()
 	# ★ 第二十九轮：同行者提问进了统一的题目清单（speaker = companion），
 	#   不再有独立的 companion_questions 段。
-	_check("同行者提问库非空", _count_kind(RunData.question_list(), "companion") >= 3)
+	# ★ 第五十二轮：每套背景的同行者提问 4 条 → 2 条
+	_check("同行者提问库非空", _count_kind(RunData.question_list(), "companion") >= 2)
 
 	var ci := _find_companion_question_index()
 	_check("本轮题序里有同行者提问", ci >= 0)
@@ -1089,8 +1112,9 @@ func _test_phone() -> void:
 		not intel.phone_btn.text.contains("/") and not intel.phone_btn.text.contains("🔒"))
 	# 短信是逐关解锁的 —— 第 1 轮只有 1 条到手，往后每过一关再收到一条
 	_check("第 1 轮只解锁 1 条短信", DossierData.sms_count() == 1)
-	_check("本局一共 4 条短信（一关一条）", DossierData.sms_total() == 4)
-	_check("还有 3 条没到手", DossierData.sms_locked_count() == 3)
+	_check("本局一共 2 条短信（一轮一条）", DossierData.sms_total() == 2)
+	# ★ 第五十二轮：一局 2 条短信，第 1 轮拿到 1 条 → 还剩 1 条
+	_check("还有 1 条没到手", DossierData.sms_locked_count() == 1)
 	_check("每局都有照片", DossierData.photo_count() > 0)
 
 	# ---- 短信：读过才学到官方说法 ----
@@ -2877,9 +2901,9 @@ func _test_new_mechanics() -> void:
 		if li < OutfitData.MAX_LEVELS - 1:
 			RunData.advance_level()
 			main._start_level()
-	_check("第 1~4 关解锁条数依次是 1/2/3/4", counts == [1, 2, 3, 4])
+	_check("第 1~2 轮解锁条数依次是 1/2", counts == [1, 2])
 	_check("手机按钮各关都不显示计数（字样已删）", btn_clean)
-	_check("到第 4 轮全部解锁", DossierData.sms_locked_count() == 0)
+	_check("到第 2 轮全部解锁", DossierData.sms_locked_count() == 0)
 
 	# 新解锁的那条短信，正好写着本轮要问的那个说法
 	main._start_new_run(20261011)
@@ -2918,12 +2942,13 @@ func _test_new_mechanics() -> void:
 	_check("新一局局号 +1（换背景换原貌）", RunData.run_index >= 2)
 
 	# 战绩记账
-	ProfileData.note_run_finished(3, false)
+	# ★ 第五十二轮：一局 2 轮 —— 所以「打了一半」只能是 1 关、通关是 2 关
+	ProfileData.note_run_finished(1, false)
 	_check("记战绩：打过 1 局", ProfileData.runs_played == 1)
-	_check("记战绩：单局最好 3 关", ProfileData.best_cleared == 3)
-	ProfileData.note_run_finished(4, true)
+	_check("记战绩：单局最好 1 轮", ProfileData.best_cleared == 1)
+	ProfileData.note_run_finished(2, true)
 	_check("记战绩：通关 1 局", ProfileData.runs_cleared == 1)
-	_check("记战绩：单局最好刷新到 4", ProfileData.best_cleared == 4)
+	_check("记战绩：单局最好刷新到 2", ProfileData.best_cleared == 2)
 	ProfileData.reset_all()
 
 # ------------------------------------------------------------
@@ -3000,12 +3025,12 @@ func _test_title_and_save() -> void:
 	_check("读档：口径恢复",
 		str((RunSave.game.get("stated_facts", {}) as Dictionary).get("__probe_fact__", "")) == "probe_val")
 	_check("读档：矛盾计数恢复", int(RunSave.game.get("contradictions", 0)) == 1)
-	_check("存档摘要写明停在第 2 / 4 轮", RunSave.summary().contains("第 2 / 4 轮"))
+	_check("存档摘要写明停在第 2 / 2 轮", RunSave.summary().contains("第 2 / 2 轮"))
 
 	# 开始界面：有存档 → 「继续游戏」可点
 	main._show_title()
 	_check("有存档时「继续游戏」可点", main.title_continue_btn.disabled == false)
-	_check("开始界面摘要写明进度", main.title_info.text.contains("第 2 / 4 轮"))
+	_check("开始界面摘要写明进度", main.title_info.text.contains("第 2 / 2 轮"))
 
 	# 模拟「关掉再打开」：内存里换成另一局，只剩磁盘上的存档
 	RunData.start_new_run(555001)
@@ -3026,7 +3051,7 @@ func _test_title_and_save() -> void:
 	_check("继续游戏：回到准备室（标题界面收起）",
 		wardrobe.visible == true and main.title_screen.visible == false)
 	_check("继续游戏：标题栏写明第 2 轮",
-		wardrobe.run_label.text.contains("第 2 / 4 轮"))
+		wardrobe.run_label.text.contains("第 2 / 2 轮"))
 	_check("继续游戏：打扮还原", _dict_eq(wardrobe.model.equipped, saved_equipped))
 	_check("继续游戏：手机进度还原", gd.sms_read.has(probe_sms))
 	_check("继续游戏：口径还原",
@@ -3260,9 +3285,10 @@ func _test_multi_level_flow() -> void:
 				RunData.exposure_cap_at(RunData.level_index) > OutfitData.exposure_cap(acc_before))
 			_check("覆盖层已关闭", main.overlay.visible == false)
 		else:
-			_check("第 4 关通过 → 整局已通关", RunData.is_run_complete() == true)
-			_check("已通过 4 关", RunData.cleared_levels == 4)
-			_check("第 4 关通过 → 通关覆盖层出现", main.overlay.visible == true)
+			# ★ 第五十二轮：末轮从第 4 轮变成第 2 轮
+			_check("第 2 轮通过 → 整局已通关", RunData.is_run_complete() == true)
+			_check("已通过 2 轮", RunData.cleared_levels == 2)
+			_check("第 2 轮通过 → 通关覆盖层出现", main.overlay.visible == true)
 			_check("通关 → 按钮指向新的一局", main._pending_action == "new_run")
 
 			var old_bg := RunData.background_id
@@ -3811,9 +3837,34 @@ func _no_slot_label_has_question() -> bool:
 			return false
 	return true
 
+# ★ 第五十二轮：分段计时（与 WardrobeTest 同一套做法）。
+#   起因是用户口径「适当减少测试时间」—— 这套端到端测试原本要跑 ~3 分钟，
+#   但它几乎不等待帧（只有几次 `await process_frame`），所以时间基本全花在**计算**上。
+#   打点方式是「在两段测试之间记一次时间」，不是给每个函数加装饰器 ——
+#   这套里有 4 个 `await` 的协程，用动态 `call()` 包起来会把执行顺序弄乱。
+var _t_prev := 0
+var _marks: Array = []
+
+func _tick(label: String) -> void:
+	var now := Time.get_ticks_msec()
+	_marks.append([label, now - _t_prev])
+	_t_prev = now
+
 func _finish() -> void:
 	print("\n=========================================")
 	print(" Checks: ", checks, "   Failures: ", failures)
 	print(" Result: ", "ALL TESTS PASSED" if failures == 0 else "SOME TESTS FAILED")
+	var total_ms := 0
+	for m in _marks:
+		total_ms += int(m[1])
+	print(" 耗时合计 %.1f 秒" % (float(total_ms) / 1000.0))
+	if not _marks.is_empty():
+		var sorted_m := _marks.duplicate()
+		sorted_m.sort_custom(func(a, b): return int(a[1]) > int(b[1]))
+		print(" 最耗时的前 8 段：")
+		for i in mini(8, sorted_m.size()):
+			var ms: int = int(sorted_m[i][1])
+			var pct := 100.0 * float(ms) / float(maxi(1, total_ms))
+			print("   %-30s %7.2f 秒  %5.1f%%" % [str(sorted_m[i][0]), float(ms) / 1000.0, pct])
 	print("=========================================")
 	get_tree().quit(0 if failures == 0 else 1)

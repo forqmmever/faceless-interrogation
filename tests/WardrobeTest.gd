@@ -39,40 +39,63 @@ func _ready() -> void:
 
 	_build_slot_cache()
 
-	_test_slots()
-	_test_disabled_slots()
-	_test_manual_slot_tool()
-	_test_item_overrides()
-	_test_true_presets()
-	_test_bg_overrides()
-	_test_question_order()
-	_test_photos_v2()
-	_test_underwear_gate()
-	_test_tattoo_multi()
-	_test_true_pool()
-	_test_scenario_data()
-	_test_run_randomization()
-	_test_model_basics()
-	_test_defect_tradeoff()
-	_test_exposure_cap()
-	_test_contrast()
-	_test_level_curve()
-	_test_editable_sections()
-	_test_open_levels()
-	_test_profile()
-	_test_forced_items()
-	_test_forced_solvability()
-	_test_auto_complete()
-	_test_sms_levels()
-	_test_companion_sms()
-	_test_phone_text()
-	_test_blind_questions()
-	_test_cast()
-	_test_assets()
+	# ★ 第五十二轮：加**分段计时**。
+	#   起因是用户口径「适当减少测试时间」—— 但没有数据就没法知道该砍哪里：
+	#   这套里既有毫秒级的纯数据断言，也有几千次 DP 求解（`auto_complete_outfit`
+	#   一次要 70~80 ms）。先量出来，再决定动谁。
+	#   这份计时**常驻保留**：以后每次加测试都能看到自己那一段花了多少。
+	var t_all := Time.get_ticks_msec()
+	var sections := [
+		["槽位体系", "_test_slots"],
+		["下架槽位", "_test_disabled_slots"],
+		["妙妙工具", "_test_manual_slot_tool"],
+		["数值覆写", "_test_item_overrides"],
+		["原貌预设", "_test_true_presets"],
+		["背景级覆写", "_test_bg_overrides"],
+		["题目出场序号", "_test_question_order"],
+		["相册", "_test_photos_v2"],
+		["内衣门控", "_test_underwear_gate"],
+		["纹身多件", "_test_tattoo_multi"],
+		["原貌候选池", "_test_true_pool"],
+		["剧本数据", "_test_scenario_data"],
+		["每局随机化", "_test_run_randomization"],
+		["模型基础", "_test_model_basics"],
+		["缺陷权衡", "_test_defect_tradeoff"],
+		["暴露上限", "_test_exposure_cap"],
+		["反差值", "_test_contrast"],
+		["轮次曲线", "_test_level_curve"],
+		["可编辑段", "_test_editable_sections"],
+		["选关开放", "_test_open_levels"],
+		["账号存档", "_test_profile"],
+		["强制装备", "_test_forced_items"],
+		["强制装备可解性", "_test_forced_solvability"],
+		["一键达标", "_test_auto_complete"],
+		["短信解锁", "_test_sms_levels"],
+		["同行者短信", "_test_companion_sms"],
+		["手机文案", "_test_phone_text"],
+		["盲区题", "_test_blind_questions"],
+		["卡司", "_test_cast"],
+		["资产完整性", "_test_assets"],
+	]
+	var timings: Array = []
+	for ent in sections:
+		var t0 := Time.get_ticks_msec()
+		call(str(ent[1]))
+		timings.append([str(ent[0]), Time.get_ticks_msec() - t0])
 
 	print("\n=========================================")
 	print(" Checks: ", checks, "   Failures: ", failures)
 	print(" Result: ", "ALL TESTS PASSED" if failures == 0 else "SOME TESTS FAILED")
+	var total_ms := Time.get_ticks_msec() - t_all
+	print(" 耗时合计 %.1f 秒" % (float(total_ms) / 1000.0))
+	# 按耗时降序，只看前 8 段（占大头的永远是那几段 DP 重的）
+	var sorted_t := timings.duplicate()
+	sorted_t.sort_custom(func(a, b): return int(a[1]) > int(b[1]))
+	print(" 最耗时的前 8 段：")
+	for i in mini(8, sorted_t.size()):
+		var ms: int = int(sorted_t[i][1])
+		var pct := 100.0 * float(ms) / float(maxi(1, total_ms))
+		print("   %-18s %7.2f 秒  %5.1f%%" % [str(sorted_t[i][0]), float(ms) / 1000.0, pct])
 	print("=========================================")
 	get_tree().quit(0 if failures == 0 else 1)
 
@@ -862,44 +885,64 @@ func _test_true_presets() -> void:
 			{"name": "空套", "slots": {}},
 			null,
 		],
-		"by_level": [{"name": "第1轮", "slots": {"hair": "hair_short"}}, null, null, null],
+		# ★ 第五十二轮：一局 2 轮，所以夹具也降到 2 项
+		"by_level": [{"name": "第1轮", "slots": {"hair": "hair_short"}}, null],
 	}
 	ScenarioData._true_presets = dirty
 	var cleaned: Array = ScenarioData.true_preset_pool()
 	_check("★ 清洗后被丢掉 4 项，只剩「好套」1 套（实际 %d）" % cleaned.size(),
 		cleaned.size() == 1 and str(cleaned[0].get("name", "")) == "好套")
 	var lv2: Array = ScenarioData.true_preset_by_level()
-	_check("按关覆写保留位置：第 1 轮有值，其余 3 关是空",
+	_check("按轮覆写保留位置：第 1 轮有值，第 2 轮是空",
 		not (lv2[0] as Dictionary).is_empty()
-		and (lv2[1] as Dictionary).is_empty()
-		and (lv2[2] as Dictionary).is_empty()
-		and (lv2[3] as Dictionary).is_empty())
+		and (lv2[1] as Dictionary).is_empty())
 
 	# ---- ★ 未配覆写的关必须「回到基础原貌」，不能粘着上一轮 ----
 	#   这个 bug 是端到端探针抓出来的：第 2 轮配了覆写、第 3 轮没配，
 	#   第 3 轮却还在用第 2 轮的衣服（true_app 被覆写覆盖后就丢了基础那套）。
 	#   修法：基础原貌（base_true_app）整局只算一次，按关覆写只临时顶替它。
+	# ★ 第五十二轮：只剩两轮，所以把覆写放在**第 1 轮**、第 2 轮不配 ——
+	#   这样「未配的那一轮必须回到基础原貌、不能粘着上一轮的覆写」这条不变式
+	#   照样验得到（原来是「第 2 轮配、第 3 轮不配」）。
 	ScenarioData._true_presets = {
 		"pool": [{"name": "基础套", "slots": {"top": "top_longsleeve"}}],
-		"by_level": [{}, {"name": "第2轮", "slots": {"top": "top_highneck"}}, {}, {}],
+		"by_level": [{"name": "第1轮", "slots": {"top": "top_highneck"}}, {}],
 	}
 	ProfileData.reset_all()
 	RunData.start_new_run(4242)
 	var t1 := str(RunData.true_item("top"))
 	RunData.advance_level()
 	var t2 := str(RunData.true_item("top"))
-	RunData.advance_level()
-	var t3 := str(RunData.true_item("top"))
-	_check("★ 第 1 轮（未配）用随机池那套：" + t1, t1 == "top_longsleeve")
-	_check("★ 第 2 轮（配了覆写）换成覆写那套：" + t2, t2 == "top_highneck")
-	_check("★ 第 3 轮（未配）**回到基础那套**，不粘着第 2 轮：" + t3, t3 == "top_longsleeve")
-	_check("基础原貌整局只算一次（第 1 轮与第 3 轮一致）", t1 == t3)
-
-	# ---- 从选关面板直接进第 2 轮 → 开局就该用那一关的覆写 ----
-	#   ★ level_index 必须**先**设好再抽原貌（以前它在抽完之后才设，会取错轮次）
+	_check("★ 第 1 轮（配了覆写）换成覆写那套：" + t1, t1 == "top_highneck")
+	_check("★ 第 2 轮（未配）**回到基础那套**，不粘着第 1 轮：" + t2, t2 == "top_longsleeve")
+	# 第 1 轮就配了覆写，于是「回到基础」这件事要在别的轮次上再确认一次：
+	# 重开一局、这次两轮都不配覆写 → 两轮都该是基础那套
+	ScenarioData._true_presets = {
+		"pool": [{"name": "基础套", "slots": {"top": "top_longsleeve"}}],
+		"by_level": [{}, {}],
+	}
 	ProfileData.reset_all()
-	RunData.start_new_run(4242, 1)
-	_check("★ 直接进第 2 轮时开局原貌就是覆写那套：" + str(RunData.true_item("top")),
+	RunData.start_new_run(4242)
+	var t1b := str(RunData.true_item("top"))
+	RunData.advance_level()
+	var t2b := str(RunData.true_item("top"))
+	_check("两轮都不配覆写时，两轮都用基础那套（且一致）", t1b == t2b and t1b == "top_longsleeve")
+
+	# ★★ 上面那个子用例把夹具换成了「两轮都不配」——下面两条要验的是**配了覆写**的
+	#    那套行为，所以这里必须把夹具装回来。
+	#    （第五十二轮第一版漏了这一步，于是下面两条拿「两轮都不配」的夹具去跑，
+	#      104/105 两条当场假红 —— 是**夹具**的问题，不是产品的。）
+	ScenarioData._true_presets = {
+		"pool": [{"name": "基础套", "slots": {"top": "top_longsleeve"}}],
+		"by_level": [{"name": "第1轮", "slots": {"top": "top_highneck"}}, {}],
+	}
+
+	# ---- 从选关面板直接进「配了覆写的那一轮」→ 开局就该用那一轮的覆写 ----
+	#   ★ level_index 必须**先**设好再抽原貌（以前它在抽完之后才设，会取错轮次）
+	#   ★ 第五十二轮：覆写配在第 1 轮（见上），所以这里直接进第 1 轮
+	ProfileData.reset_all()
+	RunData.start_new_run(4242, 0)
+	_check("★ 直接进第 1 轮时开局原貌就是覆写那套：" + str(RunData.true_item("top")),
 		str(RunData.true_item("top")) == "top_highneck")
 
 	# ---- 换原貌时情报要跟着换（条数不变、文案跟着新原貌）----
@@ -1433,16 +1476,16 @@ func _test_true_pool() -> void:
 				slots_ok = false
 			t += int(it.get("exposure", 0))
 		totals.append(t)
-	_check("四轮都配了原貌覆写（缺一轮就退回随机，最优值区间会重新变宽）", all_set)
+	_check("两轮都配了原貌覆写（缺一轮就退回随机，最优值区间会重新变宽）", all_set)
 	_check("覆写里的物品 id 全部存在", items_ok)
 	_check("覆写里的物品都挂在它写的那个槽位上", slots_ok)
-	print("      四轮原貌暴露总和 = %s" % str(totals))
+	print("      两轮原貌暴露总和 = %s" % str(totals))
 	var rising := totals.size() == OutfitData.level_count()
 	for i in range(1, totals.size()):
 		if int(totals[i]) < int(totals[i - 1]):
 			rising = false
 	_check("原貌暴露总和逐轮不降（A 逐轮变露）", rising)
-	_check("第四轮确实比第一轮露得多", totals.size() > 1 and int(totals[-1]) > int(totals[0]))
+	_check("第二轮确实比第一轮露得多", totals.size() > 1 and int(totals[-1]) > int(totals[0]))
 	_check("★ 第一轮的原貌自己就穿得起（否则「复现原貌」这条路被堵死）",
 		totals.size() > 0 and int(totals[0]) <= OutfitData.exposure_cap(OutfitData.START_ACCEPTANCE))
 
@@ -1465,7 +1508,11 @@ func _test_scenario_data() -> void:
 
 	for bg in ScenarioData.BACKGROUNDS:
 		var nm := str(bg["name"])
-		_check("[%s] 轮次名 4 条" % nm, (bg["levels"] as Array).size() == OutfitData.MAX_LEVELS)
+		# ★ 第五十二轮：轮次名改成通用「第一轮 / 第二轮」，每套背景的 `levels` 覆写整段删掉 ——
+		#   所以这里不再要求「本套背景自己配了 N 条名字」，而是要求它**不超过**轮数
+		#   （0 = 回落全局通用名，这是出厂状态）。
+		_check("[%s] 轮次名覆写不超轮数（0 = 回落全局）" % nm,
+			(bg["levels"] as Array).size() <= OutfitData.MAX_LEVELS)
 		_check("[%s] 身份情报 12 条" % nm, (bg["cards"] as Array).size() == 12)
 		_check("[%s] 其中 B 的档案 5 条" % nm, _count_owner(bg, "B") == 5)
 		_check("[%s] 其中 A 的禁区 7 条" % nm, _count_owner(bg, "A") == 7)
@@ -1711,18 +1758,20 @@ func _test_run_randomization() -> void:
 	var bad_bg := 0
 	for bid in ScenarioData.background_ids():
 		var bg := ScenarioData.get_background(str(bid))
+		# ★ 第五十二轮：轮数 4 → 2，事实与短信的下限跟着从 4/3 降到 2/2
 		if ScenarioData.facts_of(bg).size() < OutfitData.MAX_LEVELS:
 			bad_bg += 1
-		if ScenarioData.sms_of(bg).size() < 3:
+		if ScenarioData.sms_of(bg).size() < OutfitData.MAX_LEVELS:
 			bad_bg += 1
 		# ★ 第二十九轮：同行者提问已并入统一题目清单（speaker = companion）
 		var comp_n := 0
 		for q in (bg.get("questions", []) as Array):
 			if str((q as Dictionary).get("speaker", "")) == "companion":
 				comp_n += 1
-		if comp_n < 3:
+		if comp_n < OutfitData.MAX_LEVELS:
 			bad_bg += 1
-	_check("每套背景都有 ≥4 个事实 / ≥3 段短信 / ≥3 条同行者提问", bad_bg == 0)
+	_check("每套背景都有 ≥2 个事实 / ≥2 段短信 / ≥2 条同行者提问（第五十二轮：2 轮制）",
+		bad_bg == 0)
 
 	# ---- 短信必须能推出一条官方口径，且 value id 合法 ----
 	var bad_sms := 0
@@ -1779,7 +1828,8 @@ func _test_run_randomization() -> void:
 					has_canon = true
 			if not has_canon:
 				missing_canonical += 1
-	_check("样本里确实查到了同行者提问（否则这几条断言是空转）", seen_cq >= 12)
+		# ★ 第五十二轮：每套背景的同行者提问从 4 条降到 2 条 → 4 套共 8 条
+	_check("样本里确实查到了同行者提问（否则这几条断言是空转）", seen_cq >= 8)
 	_check("每条同行者提问都有 3 个选项且至少一个能顶回去", bad_cq == 0)
 	_check("同行者提问的每个 value 都能解析成真实版本", bad_cq_val == 0)
 	_check("同行者提问「顶回去」的那个就是官方口径", missing_canonical == 0)
@@ -1981,12 +2031,15 @@ func _test_contrast() -> void:
 # ------------------------------------------------------------
 func _test_level_curve() -> void:
 	print("\n-- 轮次曲线 --")
-	_check("一局 4 关", OutfitData.LEVELS.size() == 4)
-	_check("MAX_LEVELS = 4", OutfitData.MAX_LEVELS == 4)
+	# ★ 第五十二轮：一局 4 轮 → **2 轮**（用户口径「现在的四个背景改成两轮」）
+	_check("一局 2 轮", OutfitData.LEVELS.size() == 2)
+	_check("MAX_LEVELS = 2", OutfitData.MAX_LEVELS == 2)
 	_check("起始接受度 > 0（否则第 1 轮几乎无物可换）", OutfitData.START_ACCEPTANCE > 0)
-	_check("反差要求逐关递增", _req_increasing())
-	_check("暴露值上限逐关递增", _cap_increasing())
-	_check("最后一关不再给接受度", int(OutfitData.LEVELS[3]["acceptance_gain"]) == 0)
+	_check("反差要求逐轮递增", _req_increasing())
+	_check("暴露值上限逐轮递增", _cap_increasing())
+	# 两个轮次都给接受度（原来 4 轮时最后一轮是 0，因为后面没有更强的东西了）
+	_check("两轮都给接受度", int(OutfitData.LEVELS[0]["acceptance_gain"]) > 0
+		and int(OutfitData.LEVELS[1]["acceptance_gain"]) > 0)
 
 	# ★ 第二十九轮：反差值要求改成「自增 + 可手写覆盖」——
 	#   留空的关 = 上一轮 + rules.contrast_req_step；手写的值成为后面自增的新起点。
@@ -2000,30 +2053,29 @@ func _test_level_curve() -> void:
 	var rq_step := int(ScenarioData.rule_i("contrast_req_step", -1))
 	_check("反差值曲线的 base / step 都在 rules 里",
 		rq_base > 0 and rq_step > 0)
-	_check("四关的反差要求都是**手写**的（不是自增出来的）",
-		not OutfitData.contrast_req_is_auto(0) and not OutfitData.contrast_req_is_auto(1)
-		and not OutfitData.contrast_req_is_auto(2) and not OutfitData.contrast_req_is_auto(3))
-	_check("四关要求 = 125 / 140 / 155 / 160（第五十一轮：配饰下架后第 4 轮 165→160）",
+	_check("两轮的反差要求都是**手写**的（不是自增出来的）",
+		not OutfitData.contrast_req_is_auto(0) and not OutfitData.contrast_req_is_auto(1))
+	# ★ 第五十二轮：曲线 = 125 / **150**。150 是**实测定的** ——
+	#   150 种子真实求解器量出第 2 轮可达 155~215（中位 215），
+	#   所以 150 留 +5 余量；原本想写的 160 会让最不利那批原貌**无解**。
+	_check("两轮要求 = 125 / 150（实测第 2 轮可达下限 155）",
 		int(OutfitData.level_at(0)["contrast_req"]) == 125
-		and int(OutfitData.level_at(1)["contrast_req"]) == 140
-		and int(OutfitData.level_at(2)["contrast_req"]) == 155
-		and int(OutfitData.level_at(3)["contrast_req"]) == 160)
+		and int(OutfitData.level_at(1)["contrast_req"]) == 150)
 
-	# ---- 自增机制本身：临时清空第 3、4 关的要求，重跑一次解析 ----
+	# ---- 自增机制本身：临时清空第 2 轮的要求，重跑一次解析 ----
+	#   ★ 第五十二轮：只剩两轮，可用来验自增的「留空那一格」也只有第 2 轮这一处，
+	#     所以断言从两条减到一条（原来是「第 3 关 = 第 2 关 + step」与
+	#     「第 4 关再 + step」）。机制一行没改，只是可验的格子少了。
 	var saved_rq: Array = []
 	for i in OutfitData.MAX_LEVELS:
 		saved_rq.append((OutfitData.LEVELS[i] as Dictionary).duplicate())
-	OutfitData.LEVELS[2].erase("contrast_req")
-	OutfitData.LEVELS[3].erase("contrast_req")
+	OutfitData.LEVELS[1].erase("contrast_req")
 	OutfitData._resolve_contrast_req()
-	var lv2_want: int = int(OutfitData.LEVELS[1]["contrast_req"]) + rq_step
-	_check("★ 留空的关仍走自增：第 3 关 = %d + step %d = %d（实测 %d）" % [
-			int(OutfitData.LEVELS[1]["contrast_req"]), rq_step, lv2_want,
-			int(OutfitData.LEVELS[2]["contrast_req"])],
-		int(OutfitData.LEVELS[2]["contrast_req"]) == lv2_want)
-	_check("★ 留空的关仍走自增：第 4 关再 + step（实测 %d）"
-		% int(OutfitData.LEVELS[3]["contrast_req"]),
-		int(OutfitData.LEVELS[3]["contrast_req"]) == lv2_want + rq_step)
+	var lv2_want: int = int(OutfitData.LEVELS[0]["contrast_req"]) + rq_step
+	_check("★ 留空的关仍走自增：第 2 轮 = %d + step %d = %d（实测 %d）" % [
+			int(OutfitData.LEVELS[0]["contrast_req"]), rq_step, lv2_want,
+			int(OutfitData.LEVELS[1]["contrast_req"])],
+		int(OutfitData.LEVELS[1]["contrast_req"]) == lv2_want)
 	# 还原
 	for i in OutfitData.MAX_LEVELS:
 		OutfitData.LEVELS[i] = saved_rq[i]
@@ -2052,13 +2104,11 @@ func _test_level_curve() -> void:
 	RunData.advance_level()
 	_check("推进后到第 2 轮", RunData.level_index == 1)
 	_check("推进后接受度提升", RunData.acceptance == RunData.acceptance_at(1))
+	# ★ 第五十二轮：两轮制 —— 推进 1 次就整局通关
+	_check("第 2 轮仍未通关", RunData.is_run_complete() == false)
 	RunData.advance_level()
-	RunData.advance_level()
-	_check("推进 3 次后到第 4 轮", RunData.level_index == 3)
-	_check("第 4 关仍未通关", RunData.is_run_complete() == false)
-	RunData.advance_level()
-	_check("第 4 关推进后整局通关", RunData.is_run_complete() == true)
-	_check("已通过 4 关", RunData.cleared_levels == 4)
+	_check("第 2 轮推进后整局通关", RunData.is_run_complete() == true)
+	_check("已通过 2 轮", RunData.cleared_levels == 2)
 
 	print("\n-- 背景跨关不变 · 原貌按轮切换 --")
 	# ★ 第四十九轮：原貌的语义从「整局固定」改成「**逐轮提升**」——
@@ -2079,19 +2129,17 @@ func _test_level_curve() -> void:
 	_check("第二轮的暴露总和 ≥ 第一轮（A 逐轮变露）", t1 >= t0)
 	_check("进入下一轮后外貌情报跟着换（不再复述上一轮的脸）",
 		str(DossierData.clue_for_slot("hair")["text"]) == ScenarioData.clue_text("hair", ta_next["hair"]))
-	# 第三、四轮继续涨
+	# ★ 第五十二轮：一局只剩两轮，不再有「第三、四轮」——
+	#   原来这里连推两次 `advance_level()` 再取原貌，两轮制下那两次推进
+	#   会把 level_index 推过末尾（`is_run_complete()` 在 index==2 时才成立，
+	#   所以推进不会提前返回），量到的是「超出轮次范围」的兜底原貌，
+	#   于是总数出现 [5, 14, 8, 8] 这种先升后降的假象。
+	#   现在只断言两轮：单调不降 + 第 2 轮确实比第 1 轮露 + 两套原貌不同。
 	var totals := [t0, t1]
-	RunData.advance_level()
-	totals.append(_true_total_exposure(RunData.true_appearance()))
-	RunData.advance_level()
-	totals.append(_true_total_exposure(RunData.true_appearance()))
-	var rising := true
-	for i in range(1, totals.size()):
-		if int(totals[i]) < int(totals[i - 1]):
-			rising = false
-	_check("四轮的暴露总和单调不降（%s）" % str(totals), rising)
-	_check("第四轮确实比第一轮露得多", int(totals[3]) > int(totals[0]))
-	_check("四套原貌各不相同", _all_distinct(ScenarioData.true_preset_by_level()))
+	var rising := totals.size() >= 2 and int(totals[1]) >= int(totals[0])
+	_check("两轮的暴露总和单调不降（%s）" % str(totals), rising)
+	_check("第二轮确实比第一轮露得多", int(totals[1]) > int(totals[0]))
+	_check("两套原貌各不相同", _all_distinct(ScenarioData.true_preset_by_level()))
 
 	print("\n-- 本轮重来（失败 → 回到本轮开始）--")
 	ProfileData.reset_all()          # 从零开始，好精确断言「跨局保留」
@@ -2136,7 +2184,7 @@ func _test_level_curve() -> void:
 	_check("重来后强制装备与原来一致（同一关同一个种子）",
 		_arr_eq(RunData.forced_item_ids(), forced_before))
 
-	print("\n-- 多关可解性（动态规划，%d 个种子 × 4 关；原貌按轮钉死）--" % PROBE_SEEDS)
+	print("\n-- 多轮可解性（动态规划，%d 个种子 × %d 轮；原貌按轮钉死）--" % [PROBE_SEEDS, OutfitData.MAX_LEVELS])
 	# ★ 第四十九轮：这里必须清掉跨局累积的接受度加成 ——
 	#   否则量到的是「打了 120 局之后」的口径，
 	#   而真实新账号是 14/19/24/30（cap 38/48/58/70）。
@@ -2361,7 +2409,7 @@ func _test_editable_sections() -> void:
 	print("\n-- 可编辑的流程数据（轮次 / 强制穿着 / QTE 计划 / 缺陷）--")
 
 	# ---- ① 轮次表 ----
-	_check("默认读到 4 关", OutfitData.level_count() == 4)
+	_check("默认读到 2 轮", OutfitData.level_count() == 2)
 	var lv0 := OutfitData.level_at(0)
 	_check("第 1 轮带齐四个字段",
 		lv0.has("name") and lv0.has("acceptance_gain") and lv0.has("contrast_req")
@@ -2471,36 +2519,35 @@ func _outfit_covers(a: String, b: String) -> int:
 #  这里把「锁定 ≠ 删除」钉死：四关的曲线 / 名字一条不少，锁的只是入口。
 # ------------------------------------------------------------
 func _test_open_levels() -> void:
-	print("\n-- 选关开放状态（四关入口，只开放第一轮）--")
+	print("\n-- 选关开放状态（两轮入口，只开放第一轮）--")
 	_check("开放表非空", not OutfitData.OPEN_LEVELS.is_empty())
 	_check("第 1 轮开放", OutfitData.level_unlocked(0))
-	_check("第 2 / 3 / 4 轮暂时锁定",
-		not OutfitData.level_unlocked(1) and not OutfitData.level_unlocked(2)
-		and not OutfitData.level_unlocked(3))
-	_check("开放关数 = 1", OutfitData.open_level_count() == 1)
+	_check("第 2 轮暂时锁定", not OutfitData.level_unlocked(1))
+	_check("开放轮数 = 1", OutfitData.open_level_count() == 1)
 	_check("开放表里没有越界下标",
 		OutfitData.OPEN_LEVELS.all(func(li): return int(li) >= 0 and int(li) < OutfitData.MAX_LEVELS))
 
-	# ★ 锁定不等于删除：四关的数值曲线与名字全都还在
-	_check("锁定的轮次数值曲线还在（LEVELS 仍是 4 条）", OutfitData.LEVELS.size() == 4)
-	_check("锁定的轮次名字还在", OutfitData.LEVELS[3].get("name", "") != "")
+	# ★ 锁定不等于删除：两轮的数值曲线与名字全都还在
+	_check("锁定的轮次数值曲线还在（LEVELS 仍是 2 条）", OutfitData.LEVELS.size() == 2)
+	_check("锁定的轮次名字还在", OutfitData.LEVELS[1].get("name", "") != "")
 	var all_named := true
 	for lv in OutfitData.LEVELS:
 		if str(lv.get("name", "")) == "" or int(lv.get("contrast_req", -1)) < 0:
 			all_named = false
-	_check("四关都有名字与反差要求", all_named)
+	_check("两轮都有名字与反差要求", all_named)
 
-	# 从某一关开局：关卡索引与已通过关数都拨到那一关，接受度不白送
-	RunData.start_new_run(8888, 2)
-	_check("从第 3 轮开局 → 轮次索引 = 2", RunData.level_index == 2)
-	_check("从第 3 关开局 → 已通过关数 = 2", RunData.cleared_levels == 2)
-	_check("从第 3 轮开局 → 接受度不白送",
+	# 从某一轮开局：轮次索引与已通过轮数都拨到那一轮，接受度不白送
+	#   ★ 第五十二轮：只剩两轮，所以拿第 2 轮（索引 1）来验
+	RunData.start_new_run(8888, 1)
+	_check("从第 2 轮开局 → 轮次索引 = 1", RunData.level_index == 1)
+	_check("从第 2 轮开局 → 已通过轮数 = 1", RunData.cleared_levels == 1)
+	_check("从第 2 轮开局 → 接受度不白送",
 		RunData.acceptance == OutfitData.START_ACCEPTANCE + ProfileData.bonus())
-	# 同一个种子 + 同一关 → 强制装备可复现（重来时靠的就是这条）
-	var forced_at_3: Array = RunData.forced_item_ids().duplicate()
-	RunData.start_new_run(8888, 2)
-	_check("同一关同一个种子 → 强制装备可复现",
-		_arr_eq(RunData.forced_item_ids(), forced_at_3))
+	# 同一个种子 + 同一轮 → 强制装备可复现（重来时靠的就是这条）
+	var forced_at_2: Array = RunData.forced_item_ids().duplicate()
+	RunData.start_new_run(8888, 1)
+	_check("同一轮同一个种子 → 强制装备可复现",
+		_arr_eq(RunData.forced_item_ids(), forced_at_2))
 	# 越界的起始关会被夹回最后一关，而不是崩掉
 	RunData.start_new_run(8889, 99)
 	_check("越界的起始关会被夹回最后一关", RunData.level_index == OutfitData.MAX_LEVELS - 1)
@@ -2523,10 +2570,10 @@ func _test_profile() -> void:
 	_check("add_gain(负数) 不改变累计", ProfileData.bonus() == 11)
 
 	ProfileData.note_level_failed()      # 第二十一轮：失败只作废本轮
-	ProfileData.note_run_finished(4, true)
+	ProfileData.note_run_finished(2, true)
 	_check("记战绩：本轮重来 1 次", ProfileData.level_failures == 1)
 	_check("记战绩：通关 1 局", ProfileData.runs_cleared == 1)
-	_check("记战绩：单局最好 4 关", ProfileData.best_cleared == 4)
+	_check("记战绩：单局最好 2 轮", ProfileData.best_cleared == 2)
 	_check("失败不计入「打过几局」（它只作废本轮）", ProfileData.runs_played == 1)
 	_check("战绩摘要里写着重来次数", ProfileData.summary().contains("本轮重来 1 次"))
 
@@ -2660,15 +2707,28 @@ func _test_forced_items() -> void:
 #  所以照真实流程跑：start_new_run(seed) → 逐关取 RunData 抽出来的强制件 →
 #  用「先补缺陷、再拉反差」的贪心求解（强制槽位不许动）→ 断言 verdict == pass。
 # ------------------------------------------------------------
+# ★★ 第五十二轮：**这两个常量是整套测试的耗时大头**（实测 147 秒里占 96%）。
+#   用户口径「适当减少测试时间」，于是这一轮做了三件事：
+#     ① 给 `_ready()` 加了分段计时（常驻），以后调优有数据可依；
+#     ② `_test_forced_solvability` 只对**真的抽到强制装备的轮次**走 DP ——
+#        实测 240 个轮次里只有 71 个带强制装备，**70% 的 DP 是白跑的**
+#        （没强制装备的那一轮等于在重复验「普通可解性」，已被别的段落覆盖）；
+#     ③ 两个种子数各减一档。
+#   ★ 想再快/再稳就调这两个数；改完记得看跑完时打印的「耗时合计」与
+#     「最耗时的前 8 段」—— 别再凭感觉猜哪个段慢。
+#   ★★ 种子数**没有**动（`FORCED_SEEDS` 仍是 120）：第 ② 条是**零覆盖损失**的
+#      优化（跳过本来就白跑的那些轮次），所以不必顺手砍种子。
+#      实测：只做第 ② 条 + 下面的 `AUTO_SEEDS` 减一档，总时就够低了。
 const FORCED_SEEDS := 120
 
 func _test_forced_solvability() -> void:
-	print("\n-- 强制装备的可解性（%d 个种子 × 4 关）--" % FORCED_SEEDS)
+	print("\n-- 强制装备的可解性（%d 个种子 × %d 轮）--" % [FORCED_SEEDS, OutfitData.MAX_LEVELS])
 	var bad := 0
 	var levels_with_forced := 0
 	var first_level_forced := 0
 	var total_levels := 0
 	var worst := ""
+	var solved := 0
 	for k in FORCED_SEEDS:
 		ProfileData.reset_all()
 		RunData.start_new_run(400000 + k * 7919)
@@ -2679,6 +2739,19 @@ func _test_forced_solvability() -> void:
 				levels_with_forced += 1
 			if li == 0 and not forced.is_empty():
 				first_level_forced += 1
+			# ★★ 第五十二轮减时：**没抽到强制装备的轮次直接跳过 DP**。
+			#   这一段要验的是「强制装备不会造成死局」—— 没有强制装备的轮次
+			#   不构成这个检验，跑它等于重复验「普通可解性」（`PROBE_SEEDS`
+			#   那段多轮可解性 + 「一键达标」段都已覆盖）。
+			#   实测 240 个轮次里只有 71 个带强制装备 → 这一步砍掉约 70% 的 DP。
+			#   ★ 但 `first_level_forced` 与 `levels_with_forced` 两个统计
+			#     **照旧在跳过之前算** —— 它们是「强制规则确实按轮生效」的证据，
+			#     一个都不能省。
+			if forced.is_empty():
+				if li < OutfitData.MAX_LEVELS - 1:
+					RunData.advance_level()
+				continue
+			solved += 1
 			var ev := _solve_with_forced(RunData.true_appearance(), li, forced)
 			if str(ev["verdict"]) != "pass":
 				bad += 1
@@ -2698,7 +2771,8 @@ func _test_forced_solvability() -> void:
 		levels_with_forced > 0)
 	if worst != "":
 		print("      首个无解：", worst)
-	print("      （%d / %d 轮带强制装备）" % [levels_with_forced, total_levels])
+	print("      （%d / %d 轮带强制装备；其中 %d 轮走了 DP，其余跳过——减时）" % [
+		levels_with_forced, total_levels, solved])
 	ProfileData.reset_all()
 
 # 带强制装备的贪心求解：强制件先穿上并锁死，其余槽位「先补缺陷、再拉反差」
@@ -2723,10 +2797,11 @@ func _solve_with_forced(true_app: Dictionary, li: int, forced_ids: Array) -> Dic
 #  断言求解出来的搭配真的通过 evaluate()，而且没有越权
 #  （不会穿上接受度还不够的东西），也不比贪心解差。
 # ------------------------------------------------------------
-const AUTO_SEEDS := 24
+# 一键达标用的种子数（每次 `auto_complete_outfit()` 约 0.5 秒，是第二大耗时段）
+const AUTO_SEEDS := 16
 
 func _test_auto_complete() -> void:
-	print("\n-- 一键达标（%d 个种子 × 4 关）--" % AUTO_SEEDS)
+	print("\n-- 一键达标（%d 个种子 × %d 轮）--" % [AUTO_SEEDS, OutfitData.MAX_LEVELS])
 	var total := AUTO_SEEDS * OutfitData.MAX_LEVELS
 	var bad := 0                 # 违反硬约束的次数
 	var not_pass := 0
@@ -3573,7 +3648,10 @@ func _bg_fields_ok() -> bool:
 			if str(b.get(k, "")).length() < 2:
 				print("      bg field bad: ", b.get("id", "?"), " / ", k)
 				return false
-		for k in ["levels", "cards", "questions", "interference_lines"]:
+		# ★ 第五十二轮：`levels` 从「必须非空」里拿掉 —— 空 = **回落全局那份**
+		#   （`OutfitData.bg_levels()` 空 → 用 DEFAULT_LEVELS），这是运行时支持的语义；
+		#   而且第五十二轮起每套背景的 `levels` 覆写就是空的（轮次名改成通用名字了）。
+		for k in ["cards", "questions", "interference_lines"]:
 			if (b.get(k, []) as Array).is_empty():
 				print("      bg array empty: ", b.get("id", "?"), " / ", k)
 				return false
@@ -3923,7 +4001,7 @@ func _test_blind_questions() -> void:
 			if seen.has(id):
 				bad_id += 1
 			seen[id] = true
-	_check("每套背景至少 4 条盲区题", bad_count == 0)
+	_check("每套背景至少 2 条盲区题（第五十二轮：2 轮制，每轮 1 条）", bad_count == 0)
 	_check("每条盲区题 id / 题面 / 说明 / 撒谎 / 回避 都齐全", bad_fields == 0)
 	_check("同一套背景里 id 不重复", bad_id == 0)
 
@@ -3940,10 +4018,14 @@ func _test_blind_questions() -> void:
 				with_made_up += 1
 			else:
 				no_made_up += 1
-	_check("每套背景各有 1 条不写「硬答」（2 选项）",
-		no_made_up == ScenarioData.BACKGROUNDS.size())
-	_check("其余盲区题都带「硬答」（3 选项）",
-		with_made_up == ScenarioData.BACKGROUNDS.size() * 3)
+	# ★ 第五十二轮：删掉多余内容时，**唯一那条 2 选项的盲区题**（原 level 3、
+	#   没写「硬答」的那条）跟着被删了 —— 所以现在每套背景剩的 2 条**都带「硬答」**。
+	#   ★ 这条「2 选项」的代码路径因此不再被出厂数据覆盖（`_build_blind_options`
+	#     仍支持它），这里如实断言成 0 条，别假装它还覆盖着。
+	_check("出厂数据里已没有 2 选项的盲区题（那条随 level 3 一起删了）",
+		no_made_up == 0)
+	_check("每套背景剩的盲区题都带「硬答」（3 选项）",
+		with_made_up == ScenarioData.BACKGROUNDS.size() * OutfitData.MAX_LEVELS)
 
 	# 一局 4 关抽到的必须是 4 条不同的题（每轮第 i 条固定给第 i 关）
 	ProfileData.reset_all()

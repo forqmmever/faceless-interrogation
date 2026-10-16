@@ -165,32 +165,12 @@
 			"name": "第二轮",
 			"acceptance_gain": 5,
 			"derived_profile": "有点来头的商贩",
-			"contrast_req": 140
-		},
-		{
-			"name": "第三轮",
-			"acceptance_gain": 6,
-			"derived_profile": "被人打过招呼的熟面孔",
-			"contrast_req": 155
-		},
-		{
-			"name": "第四轮",
-			"acceptance_gain": 0,
-			"derived_profile": "即将被放行的清白之人",
-			"contrast_req": 160
+			"contrast_req": 150
 		}
 	],
 	"forced_rules": [
 		{
 			"mode": "none",
-			"rules": []
-		},
-		{
-			"mode": "random",
-			"rules": []
-		},
-		{
-			"mode": "random",
 			"rules": []
 		},
 		{
@@ -219,9 +199,7 @@
 			]
 		}
 	],
-	"item_overrides": {
-
-	},
+	"item_overrides": {},
 	"true_presets": {
 		"pool": [],
 		"by_level": [
@@ -243,28 +221,6 @@
 					"panties": "panties_plain",
 					"stockings": "stockings_sheerskin",
 					"shoes": "shoes_open_sandal"
-				}
-			},
-			{
-				"name": "第三轮 · 上衣换成网纱透视",
-				"slots": {
-					"top": "top_mesh",
-					"bottom": "bottom_longskirt",
-					"panties": "panties_plain",
-					"stockings": "stockings_sheerskin",
-					"shoes": "shoes_open_sandal"
-				}
-			},
-			{
-				"name": "第四轮 · 纱下透出内衣，颈上挂了链",
-				"slots": {
-					"top": "top_mesh",
-					"bottom": "bottom_longskirt",
-					"panties": "panties_plain",
-					"stockings": "stockings_sheerskin",
-					"shoes": "shoes_open_sandal",
-					"bra": "bra_tape",
-					"neckwear": "neck_spiked"
 				}
 			}
 		]
@@ -2941,24 +2897,7 @@
 			"cover_role": "北境香料行商",
 			"true_role": "北环帮的联络人",
 			"true_name": "沈棠",
-			"levels": [
-				{
-					"name": "第一轮 · 外栅栏哨位",
-					"derived_profile": "一个赶路的行商"
-				},
-				{
-					"name": "第二轮 · 查验棚",
-					"derived_profile": "手续齐全的香料贩子"
-				},
-				{
-					"name": "第三轮 · 哨所长官室",
-					"derived_profile": "有靠山的商队领队"
-				},
-				{
-					"name": "第四轮 · 关隘地牢前厅",
-					"derived_profile": "即将被放行的清白旅人"
-				}
-			],
+			"levels": [],
 			"cards": [
 				{
 					"id": "b_identity",
@@ -3345,108 +3284,6 @@
 					"note": "事实题：跨轮复问「goods」（哪一轮复问由运行时决定）"
 				},
 				{
-					"id": "q_fact_purpose_new",
-					"level": 2,
-					"speaker": "interrogator",
-					"text": "这趟进关，你是来做什么的？",
-					"fact": "purpose",
-					"options": [
-						{
-							"text": "替东家送样品，顺路讨去年欠下的货款",
-							"tone": "version",
-							"value": "deliver"
-						},
-						{
-							"text": "来见一位老朋友，私事",
-							"tone": "version",
-							"value": "visit"
-						},
-						{
-							"text": "想在这儿找个长期买主，把线铺开",
-							"tone": "version",
-							"value": "work"
-						}
-					],
-					"note": "事实题：本轮新问的「purpose」"
-				},
-				{
-					"id": "q_fact_purpose_recall",
-					"level": -1,
-					"speaker": "interrogator",
-					"text": "（合上本子）说重点 —— 你来这儿图什么？",
-					"fact": "purpose",
-					"recall": true,
-					"options": [
-						{
-							"text": "替东家送样品，顺路讨去年欠下的货款",
-							"tone": "version",
-							"value": "deliver"
-						},
-						{
-							"text": "来见一位老朋友，私事",
-							"tone": "version",
-							"value": "visit"
-						},
-						{
-							"text": "想在这儿找个长期买主，把线铺开",
-							"tone": "version",
-							"value": "work"
-						}
-					],
-					"note": "事实题：跨轮复问「purpose」（哪一轮复问由运行时决定）"
-				},
-				{
-					"id": "q_fact_scar_new",
-					"level": 3,
-					"speaker": "interrogator",
-					"text": "你手背上这片疤，怎么弄的？",
-					"fact": "scar",
-					"options": [
-						{
-							"text": "幼年在香料工坊帮工，被蒸煮锅的蒸汽烫的",
-							"tone": "version",
-							"value": "workshop"
-						},
-						{
-							"text": "打猎的时候被火燎了一下",
-							"tone": "version",
-							"value": "hunt"
-						},
-						{
-							"text": "年轻时候跟人动手，被油灯砸的",
-							"tone": "version",
-							"value": "fight"
-						}
-					],
-					"note": "事实题：本轮新问的「scar」"
-				},
-				{
-					"id": "q_fact_scar_recall",
-					"level": -1,
-					"speaker": "interrogator",
-					"text": "（盯着你的手）这印子，是烫的还是划的？",
-					"fact": "scar",
-					"recall": true,
-					"options": [
-						{
-							"text": "幼年在香料工坊帮工，被蒸煮锅的蒸汽烫的",
-							"tone": "version",
-							"value": "workshop"
-						},
-						{
-							"text": "打猎的时候被火燎了一下",
-							"tone": "version",
-							"value": "hunt"
-						},
-						{
-							"text": "年轻时候跟人动手，被油灯砸的",
-							"tone": "version",
-							"value": "fight"
-						}
-					],
-					"note": "事实题：跨轮复问「scar」（哪一轮复问由运行时决定）"
-				},
-				{
 					"id": "q_companion_origin",
 					"level": 0,
 					"speaker": "companion",
@@ -3503,62 +3340,6 @@
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
 				},
 				{
-					"id": "q_companion_purpose",
-					"level": 2,
-					"speaker": "companion",
-					"text": "「您这趟不是来见老朋友的吗？上回您跟我说的。」",
-					"fact": "purpose",
-					"plant": "审讯官把笔搁下看了你很久 —— 一个跑商的，行程里不该有说不清的部分。",
-					"options": [
-						{
-							"text": "「替东家送样品，顺路讨一笔旧账。」",
-							"tone": "version",
-							"suspicion": -2,
-							"value": "deliver"
-						},
-						{
-							"text": "「……也见个朋友。」",
-							"tone": "version",
-							"suspicion": 16,
-							"value": "visit"
-						},
-						{
-							"text": "「私事，不方便讲。」",
-							"tone": "evade",
-							"suspicion": 6
-						}
-					],
-					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
-				},
-				{
-					"id": "q_companion_scar",
-					"level": 3,
-					"speaker": "companion",
-					"text": "「您手上那疤，是跟人动手落下的吧？看着就不像烫的。」",
-					"fact": "scar",
-					"plant": "「不像烫的」—— 这句话被原样记进了册子。他不下结论，只是留了个问号。",
-					"options": [
-						{
-							"text": "「幼年在香料工坊帮工，被蒸煮锅的蒸汽烫的。」",
-							"tone": "version",
-							"suspicion": -2,
-							"value": "workshop"
-						},
-						{
-							"text": "「……年轻时打过一架。」",
-							"tone": "version",
-							"suspicion": 16,
-							"value": "fight"
-						},
-						{
-							"text": "「旧伤，没什么好说的。」",
-							"tone": "evade",
-							"suspicion": 6
-						}
-					],
-					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
-				},
-				{
 					"id": "q_blind_border_0",
 					"level": 0,
 					"speaker": "interrogator",
@@ -3597,46 +3378,6 @@
 						},
 						{
 							"text": "「您看错了 —— 我不戴那些玩意儿。」",
-							"tone": "evade"
-						}
-					],
-					"note": "盲区题：档案与短信里都没有，只能按他的脾性选"
-				},
-				{
-					"id": "q_blind_border_2",
-					"level": 2,
-					"speaker": "interrogator",
-					"text": "你这一路上，跟谁搭过伙？",
-					"setup": "档案里没写同伴 —— 你一直是一个人走的。",
-					"options": [
-						{
-							"text": "「有个姓吴的猎户，同行了三天，到北岔口就分了。」",
-							"tone": "made_up"
-						},
-						{
-							"text": "「搭过一两回吧，路上碰见的，名字都没问。」",
-							"tone": "bluff"
-						},
-						{
-							"text": "「跑单帮的，谁也不认谁。您问这个做什么？」",
-							"tone": "evade"
-						}
-					],
-					"note": "盲区题：档案与短信里都没有，只能按他的脾性选"
-				},
-				{
-					"id": "q_blind_border_3",
-					"level": 3,
-					"speaker": "interrogator",
-					"text": "你靴子底下那层泥 —— 是从哪段路上带进来的？",
-					"setup": "档案里没有这一条 —— 你自己也说不清，连编都没处编。",
-					"options": [
-						{
-							"text": "「一路走一路沾，谁知道是哪段。」",
-							"tone": "bluff"
-						},
-						{
-							"text": "「泥就是泥，您还能从泥里看出什么来？」",
 							"tone": "evade"
 						}
 					],
@@ -3691,48 +3432,6 @@
 						{
 							"id": "medicine",
 							"label": "药材为主，还有些南边来的蜜饯"
-						}
-					]
-				},
-				{
-					"id": "purpose",
-					"prompts": [
-						"这趟进关，你是来做什么的？",
-						"（合上本子）说重点 —— 你来这儿图什么？"
-					],
-					"values": [
-						{
-							"id": "deliver",
-							"label": "替东家送样品，顺路讨去年欠下的货款"
-						},
-						{
-							"id": "visit",
-							"label": "来见一位老朋友，私事"
-						},
-						{
-							"id": "work",
-							"label": "想在这儿找个长期买主，把线铺开"
-						}
-					]
-				},
-				{
-					"id": "scar",
-					"prompts": [
-						"你手背上这片疤，怎么弄的？",
-						"（盯着你的手）这印子，是烫的还是划的？"
-					],
-					"values": [
-						{
-							"id": "workshop",
-							"label": "幼年在香料工坊帮工，被蒸煮锅的蒸汽烫的"
-						},
-						{
-							"id": "hunt",
-							"label": "打猎的时候被火燎了一下"
-						},
-						{
-							"id": "fight",
-							"label": "年轻时候跟人动手，被油灯砸的"
 						}
 					]
 				}
@@ -3797,66 +3496,6 @@
 							"text": "记着。走黑石山脉那条陆路，二十天能到。"
 						}
 					]
-				},
-				{
-					"id": "sms_hand",
-					"level": 2,
-					"contact": "同行的伙计·阿岸",
-					"avatar": "🧑",
-					"reveals": [
-						{
-							"fact": "purpose",
-							"value": "deliver"
-						}
-					],
-					"messages": [
-						{
-							"me": false,
-							"text": "到了哨卡少说话。东家交代的，货单只报一半。"
-						},
-						{
-							"me": true,
-							"text": "知道。样品给老兵过一眼，剩下三包走暗格。"
-						},
-						{
-							"me": false,
-							"text": "去年那笔货款呢？他要是不认，你别跟他绕。"
-						},
-						{
-							"me": true,
-							"text": "我就说顺路来讨的，不专门为这个跑一趟。"
-						}
-					]
-				},
-				{
-					"id": "sms_workshop",
-					"level": 3,
-					"contact": "工坊的老周",
-					"avatar": "👴",
-					"reveals": [
-						{
-							"fact": "scar",
-							"value": "workshop"
-						}
-					],
-					"messages": [
-						{
-							"me": false,
-							"text": "你手上那道疤，阴天还疼不疼？"
-						},
-						{
-							"me": true,
-							"text": "早不疼了。幼年在工坊帮工，蒸汽一扑就是一层皮。"
-						},
-						{
-							"me": false,
-							"text": "那年冬天冷得邪乎，你才七岁吧。"
-						},
-						{
-							"me": true,
-							"text": "别提了。周叔，你保重。"
-						}
-					]
 				}
 			],
 			"companion_sms": [
@@ -3899,46 +3538,6 @@
 							"text": "慢一点，像在回忆。回忆的人不着急。"
 						}
 					]
-				},
-				{
-					"id": "c_border_2",
-					"level": 2,
-					"contact": "车夫·老崔",
-					"avatar": "🪶",
-					"messages": [
-						{
-							"me": false,
-							"text": "他看你的眼神变了。他已经认出你一半。"
-						},
-						{
-							"me": true,
-							"text": "你怎么知道？"
-						},
-						{
-							"me": false,
-							"text": "我认识他比你早。真没起疑的人，不会让你进里屋。"
-						}
-					]
-				},
-				{
-					"id": "c_border_3",
-					"level": 3,
-					"contact": "车夫·老崔",
-					"avatar": "🪶",
-					"messages": [
-						{
-							"me": false,
-							"text": "里屋那盏灯亮着。他把册子翻到你那一页了。"
-						},
-						{
-							"me": true,
-							"text": "老崔，你到底站哪边？"
-						},
-						{
-							"me": false,
-							"text": "我站车这边。车得出去，别的我不管。"
-						}
-					]
 				}
 			],
 			"endings": {
@@ -3974,9 +3573,7 @@
 			"forced_rules": [],
 			"qte_plan": [],
 			"defects": [],
-			"true_presets": {
-
-			}
+			"true_presets": {}
 		},
 		{
 			"id": "town_inn",
@@ -3994,24 +3591,7 @@
 			"cover_role": "流浪琴师",
 			"true_role": "刺客公会的信使",
 			"true_name": "苏绾",
-			"levels": [
-				{
-					"name": "第一轮 · 驿站门房",
-					"derived_profile": "一个落魄的卖艺人"
-				},
-				{
-					"name": "第二轮 · 大堂账房",
-					"derived_profile": "靠卖唱换宿的琴师"
-				},
-				{
-					"name": "第三轮 · 后院上房",
-					"derived_profile": "被某位贵人召见的乐师"
-				},
-				{
-					"name": "第四轮 · 驿丞私室",
-					"derived_profile": "天亮就要上路的过客"
-				}
-			],
+			"levels": [],
 			"cards": [
 				{
 					"id": "b_identity",
@@ -4398,108 +3978,6 @@
 					"note": "事实题：跨轮复问「instrument」（哪一轮复问由运行时决定）"
 				},
 				{
-					"id": "q_fact_purpose_new",
-					"level": 2,
-					"speaker": "interrogator",
-					"text": "你在这镇上想做什么？",
-					"fact": "purpose",
-					"options": [
-						{
-							"text": "想讨个落脚的地方，卖唱换宿就行",
-							"tone": "version",
-							"value": "lodge"
-						},
-						{
-							"text": "等一个朋友，私事",
-							"tone": "version",
-							"value": "friend"
-						},
-						{
-							"text": "想找几家茶楼搭线，往后常来",
-							"tone": "version",
-							"value": "trade"
-						}
-					],
-					"note": "事实题：本轮新问的「purpose」"
-				},
-				{
-					"id": "q_fact_purpose_recall",
-					"level": -1,
-					"speaker": "interrogator",
-					"text": "（合上账本）说实在的，你来干什么？",
-					"fact": "purpose",
-					"recall": true,
-					"options": [
-						{
-							"text": "想讨个落脚的地方，卖唱换宿就行",
-							"tone": "version",
-							"value": "lodge"
-						},
-						{
-							"text": "等一个朋友，私事",
-							"tone": "version",
-							"value": "friend"
-						},
-						{
-							"text": "想找几家茶楼搭线，往后常来",
-							"tone": "version",
-							"value": "trade"
-						}
-					],
-					"note": "事实题：跨轮复问「purpose」（哪一轮复问由运行时决定）"
-				},
-				{
-					"id": "q_fact_scar_new",
-					"level": 3,
-					"speaker": "interrogator",
-					"text": "你手背上这片痕迹，怎么弄的？",
-					"fact": "scar",
-					"options": [
-						{
-							"text": "早年在码头搬货，被缆绳勒出来的",
-							"tone": "version",
-							"value": "rope"
-						},
-						{
-							"text": "打猎时被火燎了一下",
-							"tone": "version",
-							"value": "fire"
-						},
-						{
-							"text": "收网的时候被刀划的",
-							"tone": "version",
-							"value": "knife"
-						}
-					],
-					"note": "事实题：本轮新问的「scar」"
-				},
-				{
-					"id": "q_fact_scar_recall",
-					"level": -1,
-					"speaker": "interrogator",
-					"text": "（看了一眼你的手）缆绳勒的？还是别的？",
-					"fact": "scar",
-					"recall": true,
-					"options": [
-						{
-							"text": "早年在码头搬货，被缆绳勒出来的",
-							"tone": "version",
-							"value": "rope"
-						},
-						{
-							"text": "打猎时被火燎了一下",
-							"tone": "version",
-							"value": "fire"
-						},
-						{
-							"text": "收网的时候被刀划的",
-							"tone": "version",
-							"value": "knife"
-						}
-					],
-					"note": "事实题：跨轮复问「scar」（哪一轮复问由运行时决定）"
-				},
-				{
 					"id": "q_companion_origin",
 					"level": 0,
 					"speaker": "companion",
@@ -4556,62 +4034,6 @@
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
 				},
 				{
-					"id": "q_companion_purpose",
-					"level": 2,
-					"speaker": "companion",
-					"text": "「您不是说，来这儿等一位老朋友吗？」",
-					"fact": "purpose",
-					"plant": "「等人」两个字落进册子里 —— 一个卖唱的，等的是谁？",
-					"options": [
-						{
-							"text": "「我是来讨个落脚的地方，卖唱换宿。」",
-							"tone": "version",
-							"suspicion": -2,
-							"value": "lodge"
-						},
-						{
-							"text": "「……也等等人。」",
-							"tone": "version",
-							"suspicion": 16,
-							"value": "friend"
-						},
-						{
-							"text": "「私事。」",
-							"tone": "evade",
-							"suspicion": 6
-						}
-					],
-					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
-				},
-				{
-					"id": "q_companion_scar",
-					"level": 3,
-					"speaker": "companion",
-					"text": "「您手背那一片，是刀划的吧？缆绳勒不出那种口子。」",
-					"fact": "scar",
-					"plant": "他没有反驳，只是把「码头」两个字圈了起来。",
-					"options": [
-						{
-							"text": "「缆绳勒的。早年在码头搬货。」",
-							"tone": "version",
-							"suspicion": -2,
-							"value": "rope"
-						},
-						{
-							"text": "「……收网时被刀划了一下。」",
-							"tone": "version",
-							"suspicion": 16,
-							"value": "knife"
-						},
-						{
-							"text": "「旧伤，忘了。」",
-							"tone": "evade",
-							"suspicion": 6
-						}
-					],
-					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
-				},
-				{
 					"id": "q_blind_inn_0",
 					"level": 0,
 					"speaker": "interrogator",
@@ -4650,46 +4072,6 @@
 						},
 						{
 							"text": "「一把旧琴罢了，值得您这么问？」",
-							"tone": "evade"
-						}
-					],
-					"note": "盲区题：档案与短信里都没有，只能按他的脾性选"
-				},
-				{
-					"id": "q_blind_inn_2",
-					"level": 2,
-					"speaker": "interrogator",
-					"text": "前几日在西市，你是不是跟一个戴斗笠的人说过话？",
-					"setup": "档案里没有这一段 —— 西市你这几日根本没去过。",
-					"options": [
-						{
-							"text": "「是说过两句。他来问路，问的是城隍庙怎么走。」",
-							"tone": "made_up"
-						},
-						{
-							"text": "「西市？我这几日一直在驿站里，没出去过。」",
-							"tone": "bluff"
-						},
-						{
-							"text": "「戴斗笠的人满街都是，您说的是哪一位？」",
-							"tone": "evade"
-						}
-					],
-					"note": "盲区题：档案与短信里都没有，只能按他的脾性选"
-				},
-				{
-					"id": "q_blind_inn_3",
-					"level": 3,
-					"speaker": "interrogator",
-					"text": "你袖口那道口子，是跟人动手撕的？",
-					"setup": "档案里没有这一条 —— 你自己都没留意过，连编都没处编。",
-					"options": [
-						{
-							"text": "「哪儿挂的记不得了，衣裳穿久了总这样。」",
-							"tone": "bluff"
-						},
-						{
-							"text": "「一道口子而已 —— 您还想看出什么来？」",
 							"tone": "evade"
 						}
 					],
@@ -4744,48 +4126,6 @@
 						{
 							"id": "made",
 							"label": "自己削的，凑合能用就行"
-						}
-					]
-				},
-				{
-					"id": "purpose",
-					"prompts": [
-						"你在这镇上想做什么？",
-						"（合上账本）说实在的，你来干什么？"
-					],
-					"values": [
-						{
-							"id": "lodge",
-							"label": "想讨个落脚的地方，卖唱换宿就行"
-						},
-						{
-							"id": "friend",
-							"label": "等一个朋友，私事"
-						},
-						{
-							"id": "trade",
-							"label": "想找几家茶楼搭线，往后常来"
-						}
-					]
-				},
-				{
-					"id": "scar",
-					"prompts": [
-						"你手背上这片痕迹，怎么弄的？",
-						"（看了一眼你的手）缆绳勒的？还是别的？"
-					],
-					"values": [
-						{
-							"id": "rope",
-							"label": "早年在码头搬货，被缆绳勒出来的"
-						},
-						{
-							"id": "fire",
-							"label": "打猎时被火燎了一下"
-						},
-						{
-							"id": "knife",
-							"label": "收网的时候被刀划的"
 						}
 					]
 				}
@@ -4850,66 +4190,6 @@
 							"text": "就说师父传的，没别的说法。"
 						}
 					]
-				},
-				{
-					"id": "sms_tao",
-					"level": 2,
-					"contact": "阿桃",
-					"avatar": "👧",
-					"reveals": [
-						{
-							"fact": "purpose",
-							"value": "lodge"
-						}
-					],
-					"messages": [
-						{
-							"me": false,
-							"text": "你到镇上了吗？"
-						},
-						{
-							"me": true,
-							"text": "刚到。先找个地方落脚，卖唱换宿就行。"
-						},
-						{
-							"me": false,
-							"text": "驿丞爱听曲，你去他那儿试试。"
-						},
-						{
-							"me": true,
-							"text": "正是这么打算的。混口饭吃罢了。"
-						}
-					]
-				},
-				{
-					"id": "sms_dock",
-					"level": 3,
-					"contact": "码头的老李",
-					"avatar": "🧔",
-					"reveals": [
-						{
-							"fact": "scar",
-							"value": "rope"
-						}
-					],
-					"messages": [
-						{
-							"me": false,
-							"text": "手上那伤好了没？"
-						},
-						{
-							"me": true,
-							"text": "早好了。早年在码头搬货，被缆绳勒出来的。"
-						},
-						{
-							"me": false,
-							"text": "缆绳勒的都是一道一道的，你那片是斜的。"
-						},
-						{
-							"me": true,
-							"text": "……勒得深了呗。"
-						}
-					]
 				}
 			],
 			"companion_sms": [
@@ -4952,46 +4232,6 @@
 							"text": "记谱的人不会拿笔杆的姿势。你是写字的。"
 						}
 					]
-				},
-				{
-					"id": "c_inn_2",
-					"level": 2,
-					"contact": "琴师·阿武",
-					"avatar": "🎻",
-					"messages": [
-						{
-							"me": false,
-							"text": "楼上那位点你了。他点名点得太准。"
-						},
-						{
-							"me": true,
-							"text": "什么意思？"
-						},
-						{
-							"me": false,
-							"text": "意思是有人替你把名字递上去了。不是我。"
-						}
-					]
-				},
-				{
-					"id": "c_inn_3",
-					"level": 3,
-					"contact": "琴师·阿武",
-					"avatar": "🎻",
-					"messages": [
-						{
-							"me": false,
-							"text": "天亮之前他就放你走。你不觉得太顺了吗。"
-						},
-						{
-							"me": true,
-							"text": "顺不好吗。"
-						},
-						{
-							"me": false,
-							"text": "太顺的路，后头都跟着人。"
-						}
-					]
 				}
 			],
 			"endings": {
@@ -5027,9 +4267,7 @@
 			"forced_rules": [],
 			"qte_plan": [],
 			"defects": [],
-			"true_presets": {
-
-			}
+			"true_presets": {}
 		},
 		{
 			"id": "ducal_manor",
@@ -5047,24 +4285,7 @@
 			"cover_role": "府里新招的抄写文书",
 			"true_role": "宫廷密探",
 			"true_name": "陆青梧",
-			"levels": [
-				{
-					"name": "第一轮 · 侧门角房",
-					"derived_profile": "新来的抄写文书"
-				},
-				{
-					"name": "第二轮 · 文书房",
-					"derived_profile": "字迹端正的低等文书"
-				},
-				{
-					"name": "第三轮 · 内庭回廊",
-					"derived_profile": "被某位大人点名的近侍"
-				},
-				{
-					"name": "第四轮 · 执事厅",
-					"derived_profile": "即将领到腰牌的府中之人"
-				}
-			],
+			"levels": [],
 			"cards": [
 				{
 					"id": "b_identity",
@@ -5451,108 +4672,6 @@
 					"note": "事实题：跨轮复问「skill」（哪一轮复问由运行时决定）"
 				},
 				{
-					"id": "q_fact_purpose_new",
-					"level": 2,
-					"speaker": "interrogator",
-					"text": "执事传你，是为什么事？",
-					"fact": "purpose",
-					"options": [
-						{
-							"text": "核对去年的租册，有几处数目对不上",
-							"tone": "version",
-							"value": "ledger"
-						},
-						{
-							"text": "有人举荐我，让我来听差遣",
-							"tone": "version",
-							"value": "recommend"
-						},
-						{
-							"text": "替人跑一趟腿，送几封文书",
-							"tone": "version",
-							"value": "errand"
-						}
-					],
-					"note": "事实题：本轮新问的「purpose」"
-				},
-				{
-					"id": "q_fact_purpose_recall",
-					"level": -1,
-					"speaker": "interrogator",
-					"text": "（合上册子）说重点，你来府里做什么？",
-					"fact": "purpose",
-					"recall": true,
-					"options": [
-						{
-							"text": "核对去年的租册，有几处数目对不上",
-							"tone": "version",
-							"value": "ledger"
-						},
-						{
-							"text": "有人举荐我，让我来听差遣",
-							"tone": "version",
-							"value": "recommend"
-						},
-						{
-							"text": "替人跑一趟腿，送几封文书",
-							"tone": "version",
-							"value": "errand"
-						}
-					],
-					"note": "事实题：跨轮复问「purpose」（哪一轮复问由运行时决定）"
-				},
-				{
-					"id": "q_fact_scar_new",
-					"level": 3,
-					"speaker": "interrogator",
-					"text": "你指节上这些硬皮，怎么来的？",
-					"fact": "scar",
-					"options": [
-						{
-							"text": "磨墨磨的，常年压着砚台，皮都磨硬了",
-							"tone": "version",
-							"value": "ink"
-						},
-						{
-							"text": "早年在工地上干过活，落下的",
-							"tone": "version",
-							"value": "labor"
-						},
-						{
-							"text": "小时候被炭火烫过一片，一直没好利索",
-							"tone": "version",
-							"value": "burn"
-						}
-					],
-					"note": "事实题：本轮新问的「scar」"
-				},
-				{
-					"id": "q_fact_scar_recall",
-					"level": -1,
-					"speaker": "interrogator",
-					"text": "（看了一眼你的手）不像干粗活的，倒像常年压着什么。",
-					"fact": "scar",
-					"recall": true,
-					"options": [
-						{
-							"text": "磨墨磨的，常年压着砚台，皮都磨硬了",
-							"tone": "version",
-							"value": "ink"
-						},
-						{
-							"text": "早年在工地上干过活，落下的",
-							"tone": "version",
-							"value": "labor"
-						},
-						{
-							"text": "小时候被炭火烫过一片，一直没好利索",
-							"tone": "version",
-							"value": "burn"
-						}
-					],
-					"note": "事实题：跨轮复问「scar」（哪一轮复问由运行时决定）"
-				},
-				{
 					"id": "q_companion_origin",
 					"level": 0,
 					"speaker": "companion",
@@ -5609,62 +4728,6 @@
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
 				},
 				{
-					"id": "q_companion_purpose",
-					"level": 2,
-					"speaker": "companion",
-					"text": "「听说您是有人举荐才进府的？」",
-					"fact": "purpose",
-					"plant": "「举荐」两个字写得很轻，但写下来了。",
-					"options": [
-						{
-							"text": "「是执事传我来核对租册的。」",
-							"tone": "version",
-							"suspicion": -2,
-							"value": "ledger"
-						},
-						{
-							"text": "「……是有人举荐。」",
-							"tone": "version",
-							"suspicion": 16,
-							"value": "recommend"
-						},
-						{
-							"text": "「谁说的？」",
-							"tone": "evade",
-							"suspicion": 6
-						}
-					],
-					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
-				},
-				{
-					"id": "q_companion_scar",
-					"level": 3,
-					"speaker": "companion",
-					"text": "「您这手上的硬皮，是在工地上干出来的吧？」",
-					"fact": "scar",
-					"plant": "他把你的手看了很久 —— 像是在数，一个抄写的人手上该有几处茧。",
-					"options": [
-						{
-							"text": "「磨墨磨的。常年压着砚台。」",
-							"tone": "version",
-							"suspicion": -2,
-							"value": "ink"
-						},
-						{
-							"text": "「……早年在工地上干过。」",
-							"tone": "version",
-							"suspicion": 16,
-							"value": "labor"
-						},
-						{
-							"text": "「写字的人，手都这样。」",
-							"tone": "evade",
-							"suspicion": 6
-						}
-					],
-					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
-				},
-				{
 					"id": "q_blind_manor_0",
 					"level": 0,
 					"speaker": "interrogator",
@@ -5703,46 +4766,6 @@
 						},
 						{
 							"text": "「同房的事我从不多问 —— 府里的规矩。」",
-							"tone": "evade"
-						}
-					],
-					"note": "盲区题：档案与短信里都没有，只能按他的脾性选"
-				},
-				{
-					"id": "q_blind_manor_2",
-					"level": 2,
-					"speaker": "interrogator",
-					"text": "上月十五的灯会，你在府里还是在街上？",
-					"setup": "档案里没有这一天 —— 你也不记得府里办过灯会。",
-					"options": [
-						{
-							"text": "「在府里当值，跟着程九抄了一夜的卷宗。」",
-							"tone": "made_up"
-						},
-						{
-							"text": "「灯会？我那几日病着，一直在房里。」",
-							"tone": "bluff"
-						},
-						{
-							"text": "「日子我记不准。执事大人查当值簿更稳妥。」",
-							"tone": "evade"
-						}
-					],
-					"note": "盲区题：档案与短信里都没有，只能按他的脾性选"
-				},
-				{
-					"id": "q_blind_manor_3",
-					"level": 3,
-					"speaker": "interrogator",
-					"text": "你右手中指上的茧，是握什么磨出来的？",
-					"setup": "档案里没有这一条 —— 你自己也没留意过，连编都没处编。",
-					"options": [
-						{
-							"text": "「做粗活做出来的，家里早年开过磨坊。」",
-							"tone": "bluff"
-						},
-						{
-							"text": "「手上茧子多，哪一处是什么磨的，我自己也分不清。」",
 							"tone": "evade"
 						}
 					],
@@ -5797,48 +4820,6 @@
 						{
 							"id": "self",
 							"label": "自己照着旧帖描的，没正经拜过师"
-						}
-					]
-				},
-				{
-					"id": "purpose",
-					"prompts": [
-						"执事传你，是为什么事？",
-						"（合上册子）说重点，你来府里做什么？"
-					],
-					"values": [
-						{
-							"id": "ledger",
-							"label": "核对去年的租册，有几处数目对不上"
-						},
-						{
-							"id": "recommend",
-							"label": "有人举荐我，让我来听差遣"
-						},
-						{
-							"id": "errand",
-							"label": "替人跑一趟腿，送几封文书"
-						}
-					]
-				},
-				{
-					"id": "scar",
-					"prompts": [
-						"你指节上这些硬皮，怎么来的？",
-						"（看了一眼你的手）不像干粗活的，倒像常年压着什么。"
-					],
-					"values": [
-						{
-							"id": "ink",
-							"label": "磨墨磨的，常年压着砚台，皮都磨硬了"
-						},
-						{
-							"id": "labor",
-							"label": "早年在工地上干过活，落下的"
-						},
-						{
-							"id": "burn",
-							"label": "小时候被炭火烫过一片，一直没好利索"
 						}
 					]
 				}
@@ -5903,66 +4884,6 @@
 							"text": "照实说就行，家里传的。"
 						}
 					]
-				},
-				{
-					"id": "sms_yan",
-					"level": 2,
-					"contact": "书坊街·阿砚",
-					"avatar": "🧑",
-					"reveals": [
-						{
-							"fact": "purpose",
-							"value": "ledger"
-						}
-					],
-					"messages": [
-						{
-							"me": false,
-							"text": "执事传你，是为租册的事？"
-						},
-						{
-							"me": true,
-							"text": "嗯。去年的租册有几处数目对不上，让我核对。"
-						},
-						{
-							"me": false,
-							"text": "当心点，府里的账不好碰。"
-						},
-						{
-							"me": true,
-							"text": "我知道。看完就交回去。"
-						}
-					]
-				},
-				{
-					"id": "sms_chen",
-					"level": 3,
-					"contact": "老掌柜·陈",
-					"avatar": "🧓",
-					"reveals": [
-						{
-							"fact": "scar",
-							"value": "ink"
-						}
-					],
-					"messages": [
-						{
-							"me": false,
-							"text": "手还好使吗？"
-						},
-						{
-							"me": true,
-							"text": "好使。磨墨磨的，指节上一层硬皮，压着砚台压出来的。"
-						},
-						{
-							"me": false,
-							"text": "写字的苦，外头人不懂。"
-						},
-						{
-							"me": true,
-							"text": "习惯了。一天不写反而手痒。"
-						}
-					]
 				}
 			],
 			"companion_sms": [
@@ -6005,46 +4926,6 @@
 							"text": "第三本里夹着东西。你知道在哪儿，翻得比我还准。"
 						}
 					]
-				},
-				{
-					"id": "c_manor_2",
-					"level": 2,
-					"contact": "文书·程九",
-					"avatar": "🖋",
-					"messages": [
-						{
-							"me": false,
-							"text": "执事今天叫你的名字，叫了两次。"
-						},
-						{
-							"me": true,
-							"text": "两次怎么了。"
-						},
-						{
-							"me": false,
-							"text": "第二次他念得比第一次慢。他在嚼这个名字。"
-						}
-					]
-				},
-				{
-					"id": "c_manor_3",
-					"level": 3,
-					"contact": "文书·程九",
-					"avatar": "🖋",
-					"messages": [
-						{
-							"me": false,
-							"text": "腰牌已经刻好了。上头有字。"
-						},
-						{
-							"me": true,
-							"text": "什么字？"
-						},
-						{
-							"me": false,
-							"text": "我不知道。我只知道，刻字的师傅今天问过你老家在哪。"
-						}
-					]
 				}
 			],
 			"endings": {
@@ -6080,9 +4961,7 @@
 			"forced_rules": [],
 			"qte_plan": [],
 			"defects": [],
-			"true_presets": {
-
-			}
+			"true_presets": {}
 		},
 		{
 			"id": "harbor_customs",
@@ -6100,24 +4979,7 @@
 			"cover_role": "西码头的渔获贩子",
 			"true_role": "走私船的领航员",
 			"true_name": "阿沅",
-			"levels": [
-				{
-					"name": "第一轮 · 码头查验口",
-					"derived_profile": "一个刚上岸的渔贩"
-				},
-				{
-					"name": "第二轮 · 货栈过磅处",
-					"derived_profile": "账目清楚的渔获商"
-				},
-				{
-					"name": "第三轮 · 海关值房",
-					"derived_profile": "有船东作保的老贩子"
-				},
-				{
-					"name": "第四轮 · 值房内间",
-					"derived_profile": "天亮就要放行的良民"
-				}
-			],
+			"levels": [],
 			"cards": [
 				{
 					"id": "b_identity",
@@ -6504,108 +5366,6 @@
 					"note": "事实题：跨轮复问「catch」（哪一轮复问由运行时决定）"
 				},
 				{
-					"id": "q_fact_purpose_new",
-					"level": 2,
-					"speaker": "interrogator",
-					"text": "你往值房送鱼，是想办什么事？",
-					"fact": "purpose",
-					"options": [
-						{
-							"text": "送两筐新鲜货给值房的大人尝尝，顺带办通关文书",
-							"tone": "version",
-							"value": "papers"
-						},
-						{
-							"text": "来讨个说法，上个月扣了我一船货",
-							"tone": "version",
-							"value": "claim"
-						},
-						{
-							"text": "想把这条线的货，长期供到府里去",
-							"tone": "version",
-							"value": "sell"
-						}
-					],
-					"note": "事实题：本轮新问的「purpose」"
-				},
-				{
-					"id": "q_fact_purpose_recall",
-					"level": -1,
-					"speaker": "interrogator",
-					"text": "（合上单子）说重点，你来干什么？",
-					"fact": "purpose",
-					"recall": true,
-					"options": [
-						{
-							"text": "送两筐新鲜货给值房的大人尝尝，顺带办通关文书",
-							"tone": "version",
-							"value": "papers"
-						},
-						{
-							"text": "来讨个说法，上个月扣了我一船货",
-							"tone": "version",
-							"value": "claim"
-						},
-						{
-							"text": "想把这条线的货，长期供到府里去",
-							"tone": "version",
-							"value": "sell"
-						}
-					],
-					"note": "事实题：跨轮复问「purpose」（哪一轮复问由运行时决定）"
-				},
-				{
-					"id": "q_fact_scar_new",
-					"level": 3,
-					"speaker": "interrogator",
-					"text": "你手背上这些口子，怎么来的？",
-					"fact": "scar",
-					"options": [
-						{
-							"text": "收网的时候被缆绳绞的，年年都要添新伤",
-							"tone": "version",
-							"value": "net"
-						},
-						{
-							"text": "剖鱼的时候被刀划的，手上到处都是",
-							"tone": "version",
-							"value": "knife"
-						},
-						{
-							"text": "船上的炉子翻过，我拿手去挡，烫的",
-							"tone": "version",
-							"value": "burn"
-						}
-					],
-					"note": "事实题：本轮新问的「scar」"
-				},
-				{
-					"id": "q_fact_scar_recall",
-					"level": -1,
-					"speaker": "interrogator",
-					"text": "（看了一眼你的手）不像缆绳绞的。",
-					"fact": "scar",
-					"recall": true,
-					"options": [
-						{
-							"text": "收网的时候被缆绳绞的，年年都要添新伤",
-							"tone": "version",
-							"value": "net"
-						},
-						{
-							"text": "剖鱼的时候被刀划的，手上到处都是",
-							"tone": "version",
-							"value": "knife"
-						},
-						{
-							"text": "船上的炉子翻过，我拿手去挡，烫的",
-							"tone": "version",
-							"value": "burn"
-						}
-					],
-					"note": "事实题：跨轮复问「scar」（哪一轮复问由运行时决定）"
-				},
-				{
 					"id": "q_companion_origin",
 					"level": 0,
 					"speaker": "companion",
@@ -6662,62 +5422,6 @@
 					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
 				},
 				{
-					"id": "q_companion_purpose",
-					"level": 2,
-					"speaker": "companion",
-					"text": "「您上回说，是来讨说法的吧？上个月扣了您一船货。」",
-					"fact": "purpose",
-					"plant": "「讨说法」写进了册子 —— 一个来讨说法的人，态度未免太软了。",
-					"options": [
-						{
-							"text": "「送两筐新鲜货，顺带办通关文书。」",
-							"tone": "version",
-							"suspicion": -2,
-							"value": "papers"
-						},
-						{
-							"text": "「……对，也是来讨个说法。」",
-							"tone": "version",
-							"suspicion": 16,
-							"value": "claim"
-						},
-						{
-							"text": "「我不太想谈这个。」",
-							"tone": "evade",
-							"suspicion": 6
-						}
-					],
-					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
-				},
-				{
-					"id": "q_companion_scar",
-					"level": 3,
-					"speaker": "companion",
-					"text": "「您手上那几道，是烫的吧？看着像。」",
-					"fact": "scar",
-					"plant": "他把「炉子」两个字念了一遍，像是记，又像是试探。",
-					"options": [
-						{
-							"text": "「收网时被缆绳绞的。」",
-							"tone": "version",
-							"suspicion": -2,
-							"value": "net"
-						},
-						{
-							"text": "「……船上炉子翻过，烫的。」",
-							"tone": "version",
-							"suspicion": 16,
-							"value": "burn"
-						},
-						{
-							"text": "「旧伤了，记不清。」",
-							"tone": "evade",
-							"suspicion": 6
-						}
-					],
-					"note": "同行者提问（他的问法是错的，看你能不能顶住）"
-				},
-				{
 					"id": "q_blind_harbor_0",
 					"level": 0,
 					"speaker": "interrogator",
@@ -6756,46 +5460,6 @@
 						},
 						{
 							"text": "「您查一查港簿不就清楚了？」",
-							"tone": "evade"
-						}
-					],
-					"note": "盲区题：档案与短信里都没有，只能按他的脾性选"
-				},
-				{
-					"id": "q_blind_harbor_2",
-					"level": 2,
-					"speaker": "interrogator",
-					"text": "你左耳后面那道疤，是怎么来的？",
-					"setup": "档案里没有这一条 —— 你从没听人提过。",
-					"options": [
-						{
-							"text": "「小时候从桅杆上摔下来，磕在舱沿上。」",
-							"tone": "made_up"
-						},
-						{
-							"text": "「不记得了，打小就有的。」",
-							"tone": "bluff"
-						},
-						{
-							"text": "「有吗？我自己从没看见过。」",
-							"tone": "evade"
-						}
-					],
-					"note": "盲区题：档案与短信里都没有，只能按他的脾性选"
-				},
-				{
-					"id": "q_blind_harbor_3",
-					"level": 3,
-					"speaker": "interrogator",
-					"text": "这网是什么时候补的？谁的手艺？",
-					"setup": "档案里没有这一条 —— 你也说不清，连编都没处编。",
-					"options": [
-						{
-							"text": "「船上谁空了谁补，记不得是哪一天了。」",
-							"tone": "bluff"
-						},
-						{
-							"text": "「一张破网罢了。您也管这个？」",
 							"tone": "evade"
 						}
 					],
@@ -6850,48 +5514,6 @@
 						{
 							"id": "bought",
 							"label": "不全是我捞的，有一部分是从别的船上收的"
-						}
-					]
-				},
-				{
-					"id": "purpose",
-					"prompts": [
-						"你往值房送鱼，是想办什么事？",
-						"（合上单子）说重点，你来干什么？"
-					],
-					"values": [
-						{
-							"id": "papers",
-							"label": "送两筐新鲜货给值房的大人尝尝，顺带办通关文书"
-						},
-						{
-							"id": "claim",
-							"label": "来讨个说法，上个月扣了我一船货"
-						},
-						{
-							"id": "sell",
-							"label": "想把这条线的货，长期供到府里去"
-						}
-					]
-				},
-				{
-					"id": "scar",
-					"prompts": [
-						"你手背上这些口子，怎么来的？",
-						"（看了一眼你的手）不像缆绳绞的。"
-					],
-					"values": [
-						{
-							"id": "net",
-							"label": "收网的时候被缆绳绞的，年年都要添新伤"
-						},
-						{
-							"id": "knife",
-							"label": "剖鱼的时候被刀划的，手上到处都是"
-						},
-						{
-							"id": "burn",
-							"label": "船上的炉子翻过，我拿手去挡，烫的"
 						}
 					]
 				}
@@ -6956,66 +5578,6 @@
 							"text": "行。挑最肥的两筐，值房的大人爱吃青口。"
 						}
 					]
-				},
-				{
-					"id": "sms_clerk",
-					"level": 2,
-					"contact": "值房的差役·老潘",
-					"avatar": "🧑",
-					"reveals": [
-						{
-							"fact": "purpose",
-							"value": "papers"
-						}
-					],
-					"messages": [
-						{
-							"me": false,
-							"text": "那两筐货，别直说是给值房大人的。"
-						},
-						{
-							"me": true,
-							"text": "我就说顺路带的新鲜货，顺带把文书办了。"
-						},
-						{
-							"me": false,
-							"text": "文书的事别提太急，显得你专为这个来的。"
-						},
-						{
-							"me": true,
-							"text": "明白。货先递上，话后头再说。"
-						}
-					]
-				},
-				{
-					"id": "sms_lame",
-					"level": 3,
-					"contact": "船上的老瘸",
-					"avatar": "🧓",
-					"reveals": [
-						{
-							"fact": "scar",
-							"value": "net"
-						}
-					],
-					"messages": [
-						{
-							"me": false,
-							"text": "手上的口子又添了？"
-						},
-						{
-							"me": true,
-							"text": "收网的时候被缆绳绞的，年年都得添几道。"
-						},
-						{
-							"me": false,
-							"text": "你那双爪子，比渔网还破。"
-						},
-						{
-							"me": true,
-							"text": "破就破吧，能拉得动网就行。"
-						}
-					]
 				}
 			],
 			"companion_sms": [
@@ -7058,46 +5620,6 @@
 							"text": "空舱底的人不会先把「空」字说出来。"
 						}
 					]
-				},
-				{
-					"id": "c_harbor_2",
-					"level": 2,
-					"contact": "水手·阿鲛",
-					"avatar": "⚓",
-					"messages": [
-						{
-							"me": false,
-							"text": "他让人去称你的筐了。"
-						},
-						{
-							"me": true,
-							"text": "称就称，鱼是真的。"
-						},
-						{
-							"me": false,
-							"text": "鱼是真的，可筐底压过东西。压痕还在。"
-						}
-					]
-				},
-				{
-					"id": "c_harbor_3",
-					"level": 3,
-					"contact": "水手·阿鲛",
-					"avatar": "⚓",
-					"messages": [
-						{
-							"me": false,
-							"text": "值房内间的门开着。他让你自己进去。"
-						},
-						{
-							"me": true,
-							"text": "那不正好。"
-						},
-						{
-							"me": false,
-							"text": "让你自己走进去的门，后头都是锁上的。"
-						}
-					]
 				}
 			],
 			"endings": {
@@ -7133,9 +5655,7 @@
 			"forced_rules": [],
 			"qte_plan": [],
 			"defects": [],
-			"true_presets": {
-
-			}
+			"true_presets": {}
 		}
 	],
 	"traits": [

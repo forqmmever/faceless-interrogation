@@ -510,8 +510,8 @@ try {
     const S = P.story;
 
     // ---- 数据在 ----
-    ok(Array.isArray(S.levels) && S.levels.length === 4, "levels 有 4 关，实际 " + ((S.levels || []).length));
-    ok(Array.isArray(S.forced_rules) && S.forced_rules.length === 4, "forced_rules 有 4 条，实际 " + ((S.forced_rules || []).length));
+    ok(Array.isArray(S.levels) && S.levels.length === 2, "levels 有 2 轮，实际 " + ((S.levels || []).length));
+    ok(Array.isArray(S.forced_rules) && S.forced_rules.length === 2, "forced_rules 有 2 条，实际 " + ((S.forced_rules || []).length));
     ok(Array.isArray(S.qte_plan), "qte_plan 是数组（出厂为空 = 全自动）");
     ok(Array.isArray(S.defects) && S.defects.length === 2, "defects 有 2 项，实际 " + ((S.defects || []).length));
 
@@ -542,11 +542,12 @@ try {
     ok(S.levels.length === before, "关卡数改回原样（" + before + " 关）");
 
     // ★ 第二十九轮：反差要求「留空 = 自增」
-    // ★ 第四十九轮：出厂曲线改成**四关都手写**（125/140/155/165）——
+    // ★ 第四十九轮：出厂曲线改成**每轮都手写**（当时是 4 轮 125/140/155/165）——
     //   增量 15/15/10，**不是等差**，base+step 表达不了。
-    // ★ 第五十一轮：配饰下架后天花板掉 10~15 点，第 4 轮 165 → **160**
-    //   （前三档不动）。所以现在是 125/140/155/160。
-    ok(S.levels[1].contrast_req === 140, "第 2 关的反差要求是手写的 140（实际 "
+    // ★ 第五十一轮：配饰下架后天花板掉 10~15 点，末轮 165 → 160。
+    // ★ 第五十二轮：一局 4 轮 → **2 轮**，曲线跟着压成 125 / **150**
+    //   （150 是实测定的：第 2 轮可达 155~215，写 160 会让最不利的原貌无解）。
+    ok(S.levels[1].contrast_req === 150, "第 2 轮的反差要求是手写的 150（实际 "
       + JSON.stringify(S.levels[1].contrast_req) + "）");
     const autoSeq = (function(){
       const base = Number((S.rules||{}).contrast_req_base) || 20;
@@ -560,15 +561,15 @@ try {
       return out;
     })();
     // ★ 第四十九轮：反差改成**全槽位求和** + 原貌池放开之后重标过曲线
-    //   （可达上限从 ~90 涨到 ~260）。四关都是手写的，所以 autoSeq
-    //   就等于这四个手写值 —— 它顺带验了「解析器读的是手写值」。
-    ok(autoSeq.join("/") === "125/140/155/160", "四关手写值被正确解析：" + autoSeq.join("/"));
+    //   （可达上限从 ~90 涨到 ~260）。两轮都是手写的，所以 autoSeq
+    //   就等于这两个手写值 —— 它顺带验了「解析器读的是手写值」。
+    ok(autoSeq.join("/") === "125/150", "两轮手写值被正确解析：" + autoSeq.join("/"));
     // 留空仍然走自增（机制没删，只是出厂数据不再用到）
     const seqAuto = (function(){
       const base = Number((S.rules||{}).contrast_req_base) || 20;
       const step = Number((S.rules||{}).contrast_req_step) || 10;
       let prev = base; const out = [];
-      [125, null, 155, 165].forEach((g, i) => {
+      [125, null].forEach((g, i) => {
         prev = (g > 0) ? g : (i > 0 ? prev + step : base);
         out.push(prev);
       });
@@ -752,8 +753,9 @@ try {
     // ★ 第四十九轮起 story.json 自带一套「原貌逐轮递进」（下装始终保守、
     //   上装/袜子逐轮放开）。这条断言就是防它被谁清掉 —— 清掉之后
     //   随机原貌的暴露值几乎全为 0，反差会退化成「暴露值 × 系数」。
-    ok(P.presetSummary() === "逐轮 4 轮",
-      "出厂原貌 = 逐轮覆写 4 轮（实际 " + P.presetSummary() + "）");
+    // ★ 第五十二轮：一局 4 轮 → 2 轮，出厂原貌的逐轮覆写也跟着变成 2 套
+    ok(P.presetSummary() === "逐轮 2 轮",
+      "出厂原貌 = 逐轮覆写 2 轮（实际 " + P.presetSummary() + "）");
     // 两处都清空 → 摘要回到「默认」
     S.true_presets = { pool: [], by_level: [] };
     ok(P.presetSummary() === "默认", "两处都空时摘要 = 「默认」");
@@ -795,8 +797,9 @@ try {
     ok(P.issues.some(i => i.lv === "w" && i.m.includes("逐关变化")),
       "按关覆写生效时会提醒「A 的样子会逐关变化」");
 
-    // ---- 按关覆写：项数与关卡数不匹配 → 提醒 ----
-    S.true_presets.by_level = [null, null];
+    // ---- 按轮覆写：项数与轮数不匹配 → 提醒 ----
+    //   ★ 第五十二轮：轮数从 4 变 2，所以「不匹配」的样本要从 2 项改成 3 项
+    S.true_presets.by_level = [null, null, null];
     P.validateNow();
     ok(P.issues.some(i => i.lv === "w" && i.m.includes("关卡数")), "项数与关卡数不符会提醒");
 
@@ -886,9 +889,9 @@ try {
     ok(P.presetScope === "bg:" + (bg0.id || 0), "原貌编辑器的 scope 切到了这套背景：" + P.presetScope);
     ok(P.presetSummaryOf(bg0.true_presets).includes("池 1 套"),
       "按背景的摘要正确：" + P.presetSummaryOf(bg0.true_presets));
-    // 全局那份不该被背景的编辑串味（出厂那份 = 逐轮 4 轮）
-    ok(P.presetSummaryOf(S.true_presets) === "逐轮 4 轮",
-      "全局原貌没被背景那份串味（仍是出厂的逐轮 4 轮，实际 "
+    // 全局那份不该被背景的编辑串味（出厂那份 = 逐轮 2 轮）
+    ok(P.presetSummaryOf(S.true_presets) === "逐轮 2 轮",
+      "全局原貌没被背景那份串味（仍是出厂的逐轮 2 轮，实际 "
       + P.presetSummaryOf(S.true_presets) + "）");
     P.presetMode = "pool";
 

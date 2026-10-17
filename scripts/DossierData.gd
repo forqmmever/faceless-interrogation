@@ -125,10 +125,16 @@ func get_companion_sms(id: String) -> Dictionary:
 	return ScenarioData.get_companion_sms(RunData.background(), id)
 
 # ---------------- 手机：与审问官的短信 ----------------
-# 事件短信（不是剧情）：盘问里掏手机掏太多次，他本人发来的。
-# 存在 GameData 而不是背景里 —— 它跨关累积，且和「哪一套背景」无关。
-func interrogator_sms_list() -> Array:
-	return GameData.interrogator_sms
+# ★ 第五十五轮：和另外两组完全同构 —— 每套背景一份、逐轮解锁、没有 reveals。
+#   （原来是「掏手机越界收到的事件短信」，第 50 轮删了触发，第 55 轮连特殊渲染一起删。）
+func interrogator_sms_threads() -> Array:
+	return RunData.interrogator_sms_threads()
+
+func interrogator_sms_total() -> int:
+	return ScenarioData.interrogator_sms_of(RunData.background()).size()
+
+func get_interrogator_sms(sms_id: String) -> Dictionary:
+	return ScenarioData.get_interrogator_sms(RunData.background(), sms_id)
 
 # ---------------- 强制装备（每轮随机 0~2 件高暴露衣物）----------------
 func forced_items() -> Array:
@@ -140,7 +146,7 @@ func forced_items_info() -> Array:
 func has_forced_items() -> bool:
 	return RunData.has_forced_items()
 
-# ---------------- 本局固定卡司（A 真身 / B 马甲 / C 同行人 / 审讯官）----------------
+# ---------------- 本局固定主人公（A 真身 / B 马甲 / C 同行人 / 审讯官）----------------
 func cast() -> Dictionary:
 	return RunData.cast()
 

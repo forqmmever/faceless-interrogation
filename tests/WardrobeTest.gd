@@ -74,7 +74,7 @@ func _ready() -> void:
 		["同行者短信", "_test_companion_sms"],
 		["手机文案", "_test_phone_text"],
 		["盲区题", "_test_blind_questions"],
-		["卡司", "_test_cast"],
+		["主人公", "_test_cast"],
 		["资产完整性", "_test_assets"],
 	]
 	var timings: Array = []
@@ -2164,7 +2164,7 @@ func _test_level_curve() -> void:
 	GameData.stated_facts["trip"] = "by_sea"
 	GameData.contradictions = 2
 	GameData.answer_log.append({"level": 1, "q": "测试", "answer": "测试"})
-	GameData.interrogator_sms.append("测试短信")
+	GameData.companion_asked = 3
 	GameData.suspicion_carry = 77.0
 
 	var lv_before := RunData.level_index
@@ -2180,7 +2180,7 @@ func _test_level_curve() -> void:
 	_check("重来后本轮立下的说法回滚", GameData.stated_facts.is_empty())
 	_check("重来后矛盾计数回滚", GameData.contradictions == 0)
 	_check("重来后问答记录回滚", GameData.answer_log.is_empty())
-	_check("重来后本轮的事故短信回滚", GameData.interrogator_sms.is_empty())
+	_check("重来后同行者插话次数回滚", GameData.companion_asked == 0)
 	_check("重来后怀疑度底子回滚", is_equal_approx(GameData.suspicion_carry, 0.0))
 	# ★ 接受度是**跨局保留**的 —— 本轮重来也不会把已经赚到的还回去
 	_check("重来后接受度 = 起始值 + 跨局保留",
@@ -3068,14 +3068,14 @@ func _test_sms_levels() -> void:
 	ProfileData.reset_all()
 
 # ------------------------------------------------------------
-#  本局卡司：A 真身 / B 马甲 / C 同行人
+#  本局主人公：A 真身 / B 马甲 / C 同行人
 # ------------------------------------------------------------
 func _test_cast() -> void:
-	print("\n-- 本局卡司（A 真身 / B 马甲 / C 同行人）--")
+	print("\n-- 本局主人公（A 真身 / B 马甲 / C 同行人）--")
 	ProfileData.reset_all()
 	RunData.start_new_run(20261011)
 	var c: Dictionary = RunData.cast()
-	_check("卡司有 A 真身 / B 马甲 / 审讯官 / C 同行人",
+	_check("主人公有 A 真身 / B 马甲 / 审讯官 / C 同行人",
 		c.has("true_role") and c.has("cover_role")
 		and c.has("interrogator") and c.has("companion"))
 	_check("A 与 B 不是同一个人", str(c["true_role"]) != str(c["cover_role"]))
@@ -3088,12 +3088,12 @@ func _test_cast() -> void:
 	_check("同行人是男性", str(c["companion_gender"]) == "男")
 	_check("同行人有自己的来历描述", str(c["companion_desc"]).length() > 10)
 
-	# 一局之内绝不换人：跨关后卡司完全一致
+	# 一局之内绝不换人：跨关后主人公完全一致
 	var before := RunData.cast()
 	RunData.advance_level()
 	RunData.advance_level()
 	var after := RunData.cast()
-	_check("跨关之后卡司一个都没换", _dict_eq(before, after))
+	_check("跨关之后主人公一个都没换", _dict_eq(before, after))
 
 	# 换一局才会换人（而且不一定换）
 	var seen_bg := {}
@@ -3887,8 +3887,8 @@ func _test_phone_text() -> void:
 	_check("phone 段在（不是空的）", not p.is_empty())
 	for k in ["shell", "messages", "memo", "album", "notes"]:
 		_check("phone.%s 是字典" % k, p.get(k, null) is Dictionary)
-	_check("phone.interrogator_sms 非空",
-		(p.get("interrogator_sms", []) as Array).size() > 0)
+	# ★ 第五十五轮：interrogator_sms 搬进每套背景了（见下面「与审问官」那几条断言）
+	_check("phone 段里没有 interrogator_sms 了", not p.has("interrogator_sms"))
 
 	# 取文案：命中 / 落空
 	_check("phone_text 能取到 shell.time", ScenarioData.phone_text("shell.time") != "")
@@ -3897,11 +3897,19 @@ func _test_phone_text() -> void:
 	_check("phone_text 走到半路不是字典也回退",
 		ScenarioData.phone_text("shell.time.deeper", "FB") == "FB")
 
-	# 与审问官的事件短信会循环取用
-	var n: int = (p.get("interrogator_sms", []) as Array).size()
-	_check("interrogator_sms_at(0) 非空", ScenarioData.interrogator_sms_at(0) != "")
-	_check("interrogator_sms_at 越界后循环",
-		ScenarioData.interrogator_sms_at(n) == ScenarioData.interrogator_sms_at(0))
+	# 与审问官的短信（★ 第五十五轮：从 phone 段搬进每套背景，和另外两组同构）
+	_check("phone 段里不再有 interrogator_sms（改由每套背景提供）",
+		not p.has("interrogator_sms"))
+	var ibg: Dictionary = ScenarioData.get_background("border_post")
+	var ith: Array = ScenarioData.interrogator_sms_of(ibg)
+	_check("interrogator_sms_of(bg) 非空（实际 %d 条）" % ith.size(), ith.size() > 0)
+	_check("第 1 轮只解锁 level 0 的那条（实际 %d 条）"
+		% ScenarioData.interrogator_sms_for_level(ibg, 0).size(),
+		ScenarioData.interrogator_sms_for_level(ibg, 0).size() == 1)
+	_check("第 2 轮两条都解锁",
+		ScenarioData.interrogator_sms_for_level(ibg, 1).size() == ith.size())
+	_check("get_interrogator_sms 能按 id 取到",
+		not ScenarioData.get_interrogator_sms(ibg, str((ith[0] as Dictionary).get("id", ""))).is_empty())
 
 	# 每个**还在用**的文案字段都该有内容。
 	# ★ 第十三轮停用了一批：notes 里旧的「官方口径对照表」那几条已经不再渲染，

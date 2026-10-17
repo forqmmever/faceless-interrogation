@@ -93,6 +93,9 @@ mainJs += `
   // ★ 第四十一轮：背景级流程覆写 + 原貌编辑器复用
   presetEditor, presetSummaryOf, bgSections, cascadeDeleteRound,
   get presetScope(){ return presetScope; },
+  // ★ 第五十五轮：手机并入本编辑器 + 题目来源开关
+  phoneSections, smsSection, smsThreadFields, SMS_GROUPS, PHONE_PAGES, PHONE_SEGS,
+  PH_EXPECT, PH_MEANING, phone, phoneSec, bgQuestionsSource, countPh, questionTitle,
 };
 `;
 
@@ -205,7 +208,7 @@ try {
   ok(P.POOL_IDS.every(id => id in idsc), "ITEM_DESC 覆盖候选池全部");
   ok(P.PLAYER_GENDER === "女", "玩家（B 的马甲）性别 = 女");
 
-  console.log("\n-- 7b. 卡司 / 性别 / 短信关卡（本轮新增字段）--");
+  console.log("\n-- 7b. 主人公 / 性别 / 短信关卡（本轮新增字段）--");
   const GN = P.GENDERS.map(g => g.v);
   const badGender = [], badComp = [], badLevel = [], badAlign = [], badDup = [];
   P.story.backgrounds.forEach(bg => {
@@ -214,6 +217,12 @@ try {
     if (!cp || !cp.name || GN.indexOf(cp.gender) < 0) badComp.push(bg.id);
     const order = (bg.facts || []).map(f => f.id);
     const seenLv = new Set();
+    // ★ 第五十五轮：「与审问官」也变成每套背景的普通线程了 —— 一起查
+    (bg.interrogator_sms || []).forEach(t => {
+      if (!Number.isInteger(t.level) || t.level < 0 || t.level >= order.length)
+        badLevel.push(bg.id + "/" + t.id + " 越界 " + t.level);
+      if (!(t.messages || []).length) badLevel.push(bg.id + "/" + t.id + " 没有对话");
+    });
     (bg.sms || []).forEach(t => {
       if (!Number.isInteger(t.level)) { badLevel.push(bg.id + "/" + t.id + " = " + t.level); return; }
       if (t.level < 0 || t.level >= order.length) { badLevel.push(bg.id + "/" + t.id + " 越界 " + t.level); return; }
@@ -236,20 +245,32 @@ try {
   console.log("\n-- 7c. 新增字段在编辑器里真的能改 --");
   const secs0 = P.bgSections(P.story.backgrounds[0]);
   const compSec = secs0.find(s => s.key === "companion");
-  ok(!!compSec, "左侧有「卡司 · 同行人 C」一节");
+  ok(!!compSec, "左侧有「同行人 C」一节");
   if (compSec) {
     const ks = compSec.fields.map(f => (f.sub || "") + "." + f.k);
     ok(ks.indexOf("companion.name") >= 0, "能改 companion.name");
     ok(ks.indexOf("companion.gender") >= 0, "能改 companion.gender");
+    // ★ 第五十五轮：这两栏按用户口径下线了（数据还在，只是编辑器不再让你改）
+    ok(ks.indexOf("companion.relation") < 0, "「他和你的关系」已从编辑器去掉");
+    ok(ks.indexOf("companion.desc") < 0, "「他是谁、知道什么」已从编辑器去掉");
+    ok(compSec.fields.length === 2, "同行人只剩两栏（实际 " + compSec.fields.length + "）");
   }
   const metaSec = secs0.find(s => s.key === "meta");
   ok(!!metaSec && metaSec.fields.some(f => f.k === "interrogator_gender"), "基础信息里能改审讯官性别");
-  const smsSec = secs0.find(s => s.key === "sms");
-  ok(!!smsSec, "有短信一节");
-  if (smsSec) {
-    const f0 = smsSec.fieldsFor((P.story.backgrounds[0].sms || [])[0] || {});
-    ok(f0.some(f => f.k === "level"), "短信里能改 level（第几关解锁）");
-  }
+  // ★★ 第五十五轮：背景页里的「手机短信」一节删掉了（和手机编辑器重合），
+  //   短信改到「📱 手机」→ 三组短信页；三组结构完全一样。
+  ok(!secs0.some(s => s.key === "sms"), "背景页里不再有和手机编辑器重复的「手机短信」一节");
+  ["interrogator", "companion", "friends"].forEach(g => {
+    const sec = P.smsSection(g, P.story.backgrounds[0])[0];
+    ok(!!sec, "手机页里有「" + g + "」的短信一节");
+    const arr = sec.arr ? sec.arr() : [];
+    ok(arr.length > 0, g + "：出厂数据里有短信（" + arr.length + " 条）");
+    const f0 = sec.fieldsFor(arr[0] || {});
+    ["id", "level", "contact", "avatar", "messages"].forEach(k =>
+      ok(f0.some(f => f.k === k), g + "：短信里能改 " + k));
+    ok(f0.some(f => f.k === "reveals") === (g === "friends"),
+      g + "：reveals 只出现在「与朋友」那一组（实际 " + f0.some(f => f.k === "reveals") + "）");
+  });
 
   console.log("\n-- 7e. A 真身名 / 备忘录三条（本轮新增字段）--");
   const noTrueName = [], noMemo = [];
@@ -367,6 +388,64 @@ try {
     P.loadStory(keep, "t.json", false);
   }
 
+  console.log("\n-- 7i. 题目来源开关（第五十五轮）--");
+  {
+    const bgs = P.story.backgrounds;
+    ok(bgs.every(b => P.bgQuestionsSource(b) === "auto"), "出厂四套都是「自动生成」（没写这个键就是它）");
+    const autoKeys = P.questionFields(false).map(f => f.k);
+    const manKeys = P.questionFields(true).map(f => f.k);
+    ok(autoKeys.includes("card") && autoKeys.includes("fact"), "自动生成：题目里能选档案卡与事实");
+    ok(!manKeys.includes("card"), "自行编辑：没有「来源档案卡」");
+    ok(!manKeys.includes("fact"), "自行编辑：没有「挂到哪条事实」");
+    ok(manKeys.includes("text") && manKeys.includes("options"), "自行编辑：题面与选项照旧");
+    ok(!autoKeys.includes("speaker") && !manKeys.includes("speaker"), "「谁在问」已从题目里去掉");
+    const anyQ = (bgs[0].questions || [])[0];
+    ok(!P.questionTitle(anyQ, 0).includes("审讯官"), "题目标题不再显示「谁在问」：" + P.questionTitle(anyQ, 0).slice(0, 36));
+
+    // ★ 行为验证：manual 下把卡片 / 事实 / 题目的挂载全清掉，也不该再报「雷区 / 事实」类错误
+    const snap = JSON.stringify(P.story);
+    const bg = P.story.backgrounds[0];
+    bg.questions_source = "manual";
+    bg.cards = [];
+    bg.facts = [];
+    (bg.questions || []).forEach(q => { delete q.card; delete q.fact; });
+    P.validateNow();
+    const manErrs = P.issues.filter(i => i.lv === "e" && /档案卡|事实|雷区/.test(i.m));
+    ok(manErrs.length === 0, "自行编辑：没有卡片 / 事实时不再报雷区与事实绑定（实际 " + manErrs.length + " 条"
+      + (manErrs.length ? "：" + manErrs.slice(0, 2).map(x => x.m).join(" | ") : "") + "）");
+    // 切回自动生成 → 这些检查必须回来（否则等于把校验删了）
+    bg.questions_source = "auto";
+    P.loadStory(JSON.parse(snap), "t.json", false);
+    const bg2 = P.story.backgrounds[0];
+    bg2.cards = [];
+    P.validateNow();
+    ok(P.issues.some(i => i.m.includes("一张 A 卡都没有")), "自动生成：删光卡片仍会被提醒「没有 A 卡（没雷区）」");
+    P.loadStory(JSON.parse(snap), "t.json", false);
+  }
+
+  console.log("\n-- 7j. 手机（第五十五轮并入的五页 + 三组同构短信）--");
+  {
+    ok(P.PHONE_PAGES.length === 5, "手机有 5 个文案页，实际 " + P.PHONE_PAGES.length);
+    ok(P.SMS_GROUPS.length === 3, "手机有 3 组短信，实际 " + P.SMS_GROUPS.length);
+    P.PHONE_PAGES.forEach(p => {
+      const secs = P.phoneSections(p.key);
+      const nf = (secs[0] && secs[0].fields || []).length;
+      ok(nf > 0, "手机页「" + p.title + "」有 " + nf + " 个字段");
+    });
+    const msgKeys = P.PHONE_SEGS.messages.map(f => f.k);
+    ["btn_open", "interrogator_row", "interrogator_tail"].forEach(k =>
+      ok(msgKeys.indexOf(k) < 0, "「" + k + "」已从消息页下线（审问官短信不再特殊）"));
+    ok(P.countPh(P.story.phone.memo.cast_body) === P.PH_EXPECT["memo.cast_body"],
+      "备忘录第二条正文的占位符个数 = " + P.PH_EXPECT["memo.cast_body"]);
+    // 三组短信都得是「每套背景一份」
+    P.story.backgrounds.forEach(bg => {
+      P.SMS_GROUPS.forEach(gr => {
+        ok(Array.isArray(bg[gr.field]) && bg[gr.field].length > 0,
+          bg.id + " 的「" + gr.label + "」有短信（" + ((bg[gr.field] || []).length) + " 条）");
+      });
+    });
+  }
+
   console.log("\n-- 8. 反向测试：故意改坏，校验必须报错 --");
   const pristine = JSON.parse(JSON.stringify(P.story));
   const negCase = (name, mutate, expect) => {
@@ -414,7 +493,7 @@ try {
   negCase("短信 level 不是整数",
     s => { s.backgrounds[0].sms[0].level = "第一关"; }, "level 必须是整数");
   negCase("一关两条短信同时解锁",
-    s => { s.backgrounds[0].sms[1].level = s.backgrounds[0].sms[0].level; }, "一关只该来一条");
+    s => { s.backgrounds[0].sms[1].level = s.backgrounds[0].sms[0].level; }, "一轮只该来一条");
   negCase("短信 level 与 facts 顺序没对齐", s => {
     // 把第 1 关那条和第 2 关那条的 level 对调：揭示的内容就配不上本关要问的事实了
     const a = s.backgrounds[0].sms.find(t => t.level === 0);
@@ -450,6 +529,17 @@ try {
   negCase("结局文案缺一条（应是提醒）", s => { delete s.backgrounds[0].endings.recognized_line; }, "recognized_line");
   negCase("结局文案丢了占位符", s => { s.backgrounds[0].endings.recognized_line = "怎么是你。"; }, "丢了占位符");
   negCase("整块 endings 缺失", s => { delete s.backgrounds[0].endings; }, "没有 endings");
+  // ---- 第五十五轮：手机并入 / 三组同构短信 ----
+  negCase("手机文案少写一个占位符",
+    s => { s.phone.memo.cast_body = s.phone.memo.cast_body.replace("%s", "我"); }, "个占位符");
+  negCase("手机段落整块缺失",
+    s => { delete s.phone.album; }, "手机 · 相册");
+  negCase("短信一条对话都没有",
+    s => { s.backgrounds[0].companion_sms[0].messages = []; }, "一条消息都没有");
+  negCase("短信 id 重复",
+    s => { s.backgrounds[0].interrogator_sms[1].id = s.backgrounds[0].interrogator_sms[0].id; }, "id 重复");
+  negCase("审问官短信 level 越界",
+    s => { s.backgrounds[0].interrogator_sms[0].level = 7; }, "越界");
   P.loadStory(JSON.parse(JSON.stringify(pristine)), "t.json", false);
 
   console.log("\n-- 8b. 数值 / 界面文案 / 结局文案（本轮新增）--");

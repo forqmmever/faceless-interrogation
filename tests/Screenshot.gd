@@ -459,7 +459,7 @@ func _run() -> void:
 		% OutfitData.active_slots().size())
 	_plog("     背景=%s 种子=%d" % [RunData.background_name(), RunData.seed_value])
 	var cast0 := RunData.cast()
-	_plog("     卡司：A 真身=%s（%s·%s）→ B 马甲=%s　｜　审讯官=%s（%s）　｜　C 同行人=%s（%s·%s）" % [
+	_plog("     主人公：A 真身=%s（%s·%s）→ B 马甲=%s　｜　审讯官=%s（%s）　｜　C 同行人=%s（%s·%s）" % [
 		cast0["true_role"], cast0["true_name"], cast0["interrogator_gender"], cast0["cover_role"],
 		cast0["interrogator"], cast0["trait"],
 		cast0["companion"], cast0["companion_gender"], cast0["companion_relation"]])
@@ -615,7 +615,7 @@ func _run() -> void:
 	_plog("--- 5b: 手机 · 与 C 的短信 —— 他不给口径，只提醒你他一直都在旁边 ---")
 	phone._switch_app("messages")
 	_plog("     消息 App 的三个界面：与审问官 %d 条 ｜ 与同行的人 %d / %d 条 ｜ 与朋友 %d / %d 条" % [
-		DossierData.interrogator_sms_list().size(),
+		DossierData.interrogator_sms_threads().size(),
 		DossierData.companion_sms_count(), DossierData.companion_sms_total(),
 		DossierData.sms_count(), DossierData.sms_total()])
 	var ct: Dictionary = DossierData.companion_sms_threads()[0]
@@ -665,13 +665,14 @@ func _run() -> void:
 	RunData.level_index = 0
 	gd.level_index = 0
 
-	_plog("--- 9: 手机 · 审问者本人的短信（红框那条）---")
-	# ★ 第五十轮：越界掏手机**不再**触发这条短信（用户口径「免罚后的收到短信功能取消」），
-	#   所以正常游戏里这一页是空的（PhoneDesk 判空就不摆这条线程）。
-	#   文案本身还留在 story.json 里，这里直接塞两条进去，只为把界面拍下来。
-	gd.interrogator_sms = [ScenarioData.interrogator_sms_at(0), ScenarioData.interrogator_sms_at(1)]
+	_plog("--- 9: 手机 · 审问者本人的短信（第五十五轮起是普通线程）---")
+	# ★ 第五十五轮：他和另外两组完全同构 —— 每套背景写死的线程，按轮解锁，
+	#   不再有「掏手机越界才出现」的特殊性，也没有红框那一行。
 	phone._switch_app("messages")
-	phone._open_thread(PhoneDesk.INTR_THREAD)
+	var it9: Dictionary = DossierData.interrogator_sms_threads()[0]
+	_plog("     本轮解锁的那条：%s（%s）—— %d 句" % [
+		str(it9.get("contact", "")), str(it9.get("id", "")), (it9.get("messages", []) as Array).size()])
+	phone._open_thread(str(it9["id"]))
 	await _wait(16)
 	await _shot("09_phone_interrogator_sms")
 	phone._back_to_list()
@@ -948,9 +949,22 @@ func _run() -> void:
 	if a_idx >= 0:
 		var a_card := str(interro.level_questions()[a_idx]["card"])
 		gd.dossier_kept.append(a_card)
+		# ★ 第五十五轮：这里原来只复位了 `_ended` / `_running` / QTE，**没复位递话干扰**。
+		#   而 `_select_option()` 开头就是 `if _ended or interference_active: return` ——
+		#   上一步（18b 组合干扰）留下的激活状态如果还没收干净，这一题会被**整题跳过**：
+		#   怀疑度不涨、不出反馈、拍出来是一张「题目还在、什么都没发生」的图。
+		#   表现就是同一份代码两次跑出来的截图不一样（踩过一次）。
+		#   照上面第 19 步的办法把状态全部钉死，再禁掉 _process。
+		interro.interference_active = false
+		interro.interference_timer = 999.0
+		interro.set_process(false)
 		interro._load_question(a_idx)
+		_plog("     说漏嘴用的题：%s（第 %d 题，选项 0 = %s）" % [
+			str(interro.level_questions()[a_idx].get("id", "")), a_idx,
+			str(((interro.level_questions()[a_idx].get("options", []) as Array)[0] as Dictionary).get("tone", "-"))])
 		await _wait(10)
 		interro._select_option(0)
+		_plog("     答完 → 怀疑度 %.1f ｜ 已收场 = %s" % [gd.suspicion_level, str(interro._ended)])
 		await _wait(16)
 		await _shot("20_leak_exposed")
 		gd.dossier_kept.erase(a_card)

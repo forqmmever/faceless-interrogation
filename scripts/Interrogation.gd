@@ -500,9 +500,8 @@ func _auto_retract_phone() -> void:
 #
 #  ★ 第五十轮：取消「他给你发短信」这一步（用户口径：「免罚后的收到短信功能取消」）。
 #    现在越界掏出只做三件事：震一下屏、涨怀疑度、弹一句即时反馈 + 手机面板上的通知条。
-#    短信正文不再写入 —— `story.json` 里那 5 条 `interrogator_sms` 文案留着，
-#    手机消息界面照旧能渲染这条线程（见 PhoneDesk.INTR_THREAD），只是不再由这里喂内容，
-#    所以它在正常游戏里是空的、不显示（PhoneDesk._build_message_list 判空跳过）。
+#  ★ 第五十五轮：他的短信改成**每套背景写死的普通线程**（`bg.interrogator_sms`，
+#    逐轮解锁），这里彻底没有任何「喂短信」的代码了 —— 越界与短信内容完全解耦。
 #
 #    ★ 顺带修掉一个隐患：旧版这里是 `var text := interrogator_sms_at(n-1)`，
 #      紧接着 `if text == "": return` —— 也就是**取不到短信文案时整个事件静默失效**，

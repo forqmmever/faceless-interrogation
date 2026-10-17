@@ -13,15 +13,18 @@
    与旧工作区 `C:\Users\...\WorkBuddy AI\...\.workbuddy-ai\memory\`（**系统注入读这份**）。
    第 49 轮（续）收尾时发现第 12~39 轮的 28 个明细只在 C:、第 40 轮以后只在 D:，差点丢一半。
 
-### 五套验证（只在动了 `scripts/` `data/` `tests/` `tools/*_editor.html` 时跑）
+### 四套验证（只在动了 `scripts/` `data/` `tests/` `tools/*_editor.html` 时跑）
 
 ```bash
 godot --headless --path . res://tests/WardrobeTest.tscn   # 换装 + 数据层（~30~40 秒）
 godot --headless --path . res://tests/TestRunner.tscn     # 端到端（~3 分钟）
-node tools/editor_smoke.js                                 # 文本编辑器
-node tools/phone_editor_smoke.js                           # 手机编辑器
+node tools/editor_smoke.js                                 # 编辑器（★ 第 55 轮起含手机那 8 页）
 godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ 非 headless（~45 秒）
 ```
+
+★ **第 55 轮起只剩一个编辑器**：`phone_editor.html` / `build_phone_editor.py` /
+`phone_editor_smoke.js` / `open_phone_editor.bat` 全删了，手机那部分并进 `story_editor.html`
+（左侧「📱 手机」组）。快照也只剩 `build_story_editor.py` 一个。
 
 ★ 两套 Godot 测试**跑完都会打印「耗时合计」+「最耗时的前 8 段」**（第 52 轮加的，常驻）
 —— 想给测试提速**先看那个**，别凭感觉猜哪段慢。做法见 `REFERENCE.md` 的
@@ -40,6 +43,20 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 「还原现场」，导致一整片假红。详见 `REFERENCE.md` 的「夹具里的下标访问」。
 
 ## 二、改数据的三条链路
+
+### ★★ 只有一个编辑器（第 55 轮合并）
+
+`tools/story_editor.html` 是**唯一**的编辑器：背景 / 题目 / 手机 / 文案 / 数值 / 服装全在里面。
+手机那 8 个页面靠**声明式 section** 拼出来（`PHONE_SEGS` 字段表 + `smsSection()`），
+没有单独一套渲染代码 —— 加字段就是往 `PHONE_SEGS` / `SMS_GROUPS` 里加一行。
+
+★ 三组短信（`bg.interrogator_sms` / `bg.companion_sms` / `bg.sms`）**完全同构**：
+`id` / `level` / `contact` / `avatar` / `messages`，只有 `sms` 多一个 `reveals`。
+新加一组短信 = 往 `SMS_GROUPS` 加一项（`field` 写 bg 里的键名）。
+
+★ **`phone.*` 的文案字段分两处登记**：`PHONE_SEGS`（编辑器字段表）与
+`PH_EXPECT`（应该有几个占位符）。改占位符数量要同时动 `PhoneDesk.gd` 的 `_tf(...)` 参数
+—— 和「改一句界面文案 → 同时找三处」是同一件事。
 
 ### 改一句界面文案 → 同时找三处
 
@@ -89,7 +106,13 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 - ★ **写完断言要验证它真能抓到 bug**：把代码故意改回错的 → 确认挂 → 恢复 → 重跑。
 - ★ **「存在性 / 非空」断言看不见「少做了一步」**（第 49 轮成装只烘一层活了 12 轮）→ 断言要判**数值范围**，阈值用**实测**定。
 - ★ **写「单调 / 递增」断言前先把取样点数值写下来**（名字叫 low/mid/high 不代表递增）。
-- ★ **纯函数测试测不出「时间线上的 bug」**（第 40 轮「假防御」与「粘关」）→ 涉及「状态随轮次推进而变」的功能**必须再写一个走完整流程的探针**；判据：**测试里没出现两次以上状态推进，就测不到时间线**。★ 探针要跑**真实链路**（`Main.tscn` 起场景，别只调 `RunData`）。
+- ★ **截图脚本里每一屏都要把状态钉死**：第 55 轮发现第 20 步（说漏嘴）只复位了
+`_ended` / `_running` / QTE，**没复位 `interference_active`** —— 而
+`Interrogation._select_option()` 第一行就是 `if _ended or interference_active: return`，
+于是那一题被整题跳过，拍出来是空图、还**同代码两次跑结果不同**。
+判据：**截图变了先查这一屏的状态是否被钉死，别急着当回归**。
+
+★ **纯函数测试测不出「时间线上的 bug」**（第 40 轮「假防御」与「粘关」）→ 涉及「状态随轮次推进而变」的功能**必须再写一个走完整流程的探针**；判据：**测试里没出现两次以上状态推进，就测不到时间线**。★ 探针要跑**真实链路**（`Main.tscn` 起场景，别只调 `RunData`）。
 - **约束作用域是「整局」时测试也要走完整流程**（照片「开局 3 张 + 每轮 +2 张」）。
 - **测试用完清跨局保留状态**：`ProfileData.add_gain()` 跨局保留 → 结尾必须 `reset_all()` + 注入的 `_*_presets` 清回 `{}`。
 - **截图「变了」不一定是回归**：① 同代码**连跑三次完全一致**；② 差异**稀疏点状**；③ 该镜头 `_plog` **逐字相同** → 三条同时成立 = 抗锯齿差异（`--import` 后字体图集重烘）。★ 二分排查**先做「代码全还原」**。★ 但有些镜头（相册 SubViewport / 带 shake 的 / QTE、判负）**每次跑都不同**，①必然失败 → 判据 = 「与旧版差异量级 ≈ 同代码两次跑量级」→ 噪声，`git checkout --` **还原别提交**（细则见 `REFERENCE.md`）。

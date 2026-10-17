@@ -670,7 +670,7 @@ func companion_gender() -> String:
 func interrogator_gender() -> String:
 	return ScenarioData.interrogator_gender_of(background())
 
-# ---------------- 本局固定卡司 ----------------
+# ---------------- 本局固定主人公 ----------------
 # 「审讯官 / 同行人 / A / B 在一局之内不会变」这件事的唯一出处。
 # 背景是每局抽一次、advance_level() 不碰它，所以这几个人跨关、跨题都是同一批。
 #
@@ -909,6 +909,13 @@ func companion_sms_threads() -> Array:
 
 func companion_sms_total() -> int:
 	return ScenarioData.companion_sms_of(background()).size()
+
+# 与审问官的短信（★ 第五十五轮：和另外两组同构，逐轮解锁）
+func interrogator_sms_threads() -> Array:
+	return ScenarioData.interrogator_sms_for_level(background(), level_index)
+
+func interrogator_sms_total() -> int:
+	return ScenarioData.interrogator_sms_of(background()).size()
 
 func companion_questions() -> Array:
 	return ScenarioData.companion_questions_of(background())

@@ -97,7 +97,6 @@ func _capture_game() -> Dictionary:
 		"known_facts": GameData.known_facts.duplicate(),
 		"photo_wipes": GameData.photo_wipes.duplicate(),
 		"photos_revealed": GameData.photos_revealed.duplicate(),
-		"interrogator_sms": GameData.interrogator_sms.duplicate(),
 		"stated_facts": GameData.stated_facts.duplicate(),
 		"contradictions": GameData.contradictions,
 		"improvised": GameData.improvised,
@@ -154,7 +153,6 @@ func apply_to_gamedata() -> void:
 	GameData.known_facts = _as_dict(game.get("known_facts", {}))
 	GameData.photo_wipes = _as_int_keyed(game.get("photo_wipes", {}))
 	GameData.photos_revealed = _as_int_array(game.get("photos_revealed", []))
-	GameData.interrogator_sms = _as_array(game.get("interrogator_sms", []))
 	GameData.stated_facts = _as_dict(game.get("stated_facts", {}))
 	GameData.contradictions = int(game.get("contradictions", 0))
 	GameData.improvised = int(game.get("improvised", 0))

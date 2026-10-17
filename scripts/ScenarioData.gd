@@ -1802,13 +1802,13 @@ const DEFAULT_TRAITS := [
 #    短信**内容**（每套背景的 sms[] / companion_sms[]）早就能改了，
 #    但手机的**界面**一直硬编码在 PhoneDesk.gd 里 —— 想改一句提示、
 #    换个 App 名字、给三个分组换个标题，都得动 GDScript。
-#    这一节把手机里所有能看见的字都收进来，tools/phone_editor.html 直接编辑它。
+#    这一节把手机里所有能看见的字都收进来，文本编辑器的「📱 手机」页直接编辑它。
 #
 #  消息 App 分三个分组（用户定的）：
-#    · 与审问官   —— **事件短信**：★ 第五十轮起**这条线不再由游戏写入** ——
-#                    用户口径「免罚后的收到短信功能取消」，越界掏出只涨怀疑度。
-#                    下面的 interrogator_sms 文案留着（编辑器照旧能改、手机界面照旧能渲染），
-#                    但正常流程里它是空的、整个分组都不显示（见 PhoneDesk._build_message_list）。
+#    · 与审问官   —— ★ 第五十五轮起和另外两组**完全同构**：每套背景的
+#                    interrogator_sms[]，逐关解锁、一条一条读，不给口径（没有 reveals）。
+#                    原来是「掏手机越界收到的事件短信」，第 50 轮删掉了触发，
+#                    第 55 轮把那份运行时状态（GameData.interrogator_sms）也一起删了。
 #    · 与同行的人 —— C 发来的短信。每套背景的 companion_sms[]，逐关解锁。
 #                    ★ 它**不给口径**（没有 reveals），只提醒你他一直都在旁边。
 #    · 与朋友     —— 剧情短信。每套背景的 sms[]，逐关解锁。
@@ -1903,17 +1903,11 @@ const DEFAULT_PHONE := {
 		"mismatch": "",
 	},
 
-	# ---- 与审问官的短信 ----
-	#  ★ 第五十轮：**不再由游戏写入**（原来「第 4 次起每掏一次震一下，发信人是他本人」）。
-	#    用户口径「免罚后的收到短信功能取消」—— 越界掏出只震屏 + 涨怀疑度。
-	#    文案留着，编辑器可以改；手机界面（PhoneDesk.INTR_THREAD）也仍然能渲染它。
-	"interrogator_sms": [
-		"你袖子里那点光，我看见了。",
-		"手别一直往下放 —— 我在看着你。",
-		"第三次了。你在等谁的消息？",
-		"再让我看见一次，我们就换个地方说话。",
-		"把手机放到桌上。现在。",
-	],
+	# ★★ 第五十五轮：`interrogator_sms` 从 phone 段搬进**每套背景**
+	#   （`bg.interrogator_sms`），和「与朋友 / 与同行的人」完全同构：
+	#   id / level / contact / avatar / messages，逐轮解锁。
+	#   原来那 5 条事件短信按轮拆成了两条线程（第 1 轮 2 句、第 2 轮 3 句）。
+	#   用户口径：「拿起几次收到短信的功能删去，与审问官的短信的功能和其他人的一样」。
 }
 
 func phone_text(path: String, fallback: String = "") -> String:
@@ -1927,11 +1921,24 @@ func phone_text(path: String, fallback: String = "") -> String:
 		cur = d[part]
 	return str(cur)
 
-func interrogator_sms_at(n: int) -> String:
-	var arr: Array = PHONE.get("interrogator_sms", [])
-	if arr.is_empty():
-		return ""
-	return str(arr[n % arr.size()])
+# ---------------- 与审问官的短信（★ 第五十五轮：与另外两组同构） ----------------
+# 结构完全一样（id / level / contact / avatar / messages），区别只有一条：
+# **没有 reveals** —— 他不给你口径，他只是让你知道他已经注意到你了。
+func interrogator_sms_of(bg: Dictionary) -> Array:
+	return bg.get("interrogator_sms", [])
+
+func get_interrogator_sms(bg: Dictionary, sms_id: String) -> Dictionary:
+	for t in interrogator_sms_of(bg):
+		if str(t.get("id", "")) == sms_id:
+			return t
+	return {}
+
+func interrogator_sms_for_level(bg: Dictionary, li: int) -> Array:
+	var out := []
+	for t in interrogator_sms_of(bg):
+		if int(t.get("level", 0)) <= li:
+			out.append(t)
+	return out
 
 # ---------------- 取值助手 ----------------
 # 点号路径取界面文案：ui_t("interrogation.qte_prompt")
@@ -2075,7 +2082,7 @@ const DEFAULT_RULES := {
 #  界面文案（ui）—— 出厂默认
 #
 #  所有「不是剧情、但玩家会看到」的字都在这里：按钮、提示条、反馈句、
-#  玩法说明的每一段。剧情文本（题目 / 短信 / 开场介绍 / 卡司名）不在这里 ——
+#  玩法说明的每一段。剧情文本（题目 / 短信 / 开场介绍 / 主人公名）不在这里 ——
 #  那些在 backgrounds / traits / phone 三段里。
 #
 #  ★ 带 %s / %d 的是占位符，别删掉，也别改数量 —— 顺序就是参数顺序。
@@ -2777,7 +2784,7 @@ func _merge_phone(base: Dictionary, over: Variant) -> Dictionary:
 	return out
 
 # ============================================================
-#  本局固定卡司的性别（用户定的设定）
+#  本局固定主人公的性别（用户定的设定）
 #    A = 真身（玩家）    → 女
 #    B = 马甲（玩家装的）→ 女
 #    审讯官（被欺骗的人）→ 男（见 background.interrogator_gender）
@@ -2840,7 +2847,7 @@ func blind_question_for_level(bg: Dictionary, li: int) -> Dictionary:
 		return {}
 	return arr[li % arr.size()]
 
-# ---------------- 本局固定卡司（一局之内绝不改变）----------------
+# ---------------- 本局固定主人公（一局之内绝不改变）----------------
 # 审讯官、同行人、A、B 全部来自**背景**，而背景是每局抽一次、跨关不重抽的
 # （见 RunData.advance_level）。所以这四个人在一局里天然不会变 ——
 # 这里只是给他们一个统一的出处，省得各处各自去查背景。

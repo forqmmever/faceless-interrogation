@@ -24,7 +24,7 @@ extends Control
 #                反复「擦掉反光」把清晰度顶上去，够清楚了才认得出那处原貌。
 #                有些底片本身就废了，怎么擦都看不清 —— 这就是信息不全。
 #    📒 备忘录 —— 手记。**第一条就是他**：这一局来问你的那个人的脾性、喜好、
-#                忌讳。往后两页是卡司速记和本轮要点。篇幅刻意很短 —— 够用就行。
+#                忌讳。往后两页是主人公速记和本轮要点。篇幅刻意很短 —— 够用就行。
 #    📝 备注 —— 你已经掌握的说法清单（只记官方版本，不记你临场编的）。
 #
 #  ★ 界面上的每一个字都来自 ScenarioData.PHONE（data/story.json 的 phone 段）——
@@ -38,7 +38,7 @@ signal slot_revealed(slot: String)
 const SHADER_PATH := "res://shaders/photo_blur.gdshader"
 
 # 消息列表里那条「审讯官本人」的对话，用一个不会被剧情短信撞上的 id
-const INTR_THREAD := "__interrogator__"
+# ★ 第五十五轮：`INTR_THREAD` 那个「特殊线程 id」删掉了 —— 审问官的短信现在就是普通线程。
 
 const PHONE_W := 336
 # ★ 照片卡片的尺寸是「手机宽度」的约束条件，不是随便定的：
@@ -51,7 +51,7 @@ const PHONE_W := 336
 const PHOTO_VW := 108
 const PHOTO_VH := 158
 
-# 三个分组的强调色 —— 和准备室顶栏的卡司配色对齐：
+# 三个分组的强调色 —— 和准备室顶栏的主人公配色对齐：
 #   审问官 = 红（他就在桌子对面）｜ C = 紫（同行人）｜ 朋友 = 蓝
 const GROUP_COLORS := {
 	"interrogator": Color(0.96, 0.52, 0.46),
@@ -326,8 +326,10 @@ func _build_thread_list() -> void:
 
 	# ---- 1 · 审问官本人 ----
 	#  排在列表最上面：它不是「B 该怎么说话」，是「他已经注意到你了」。
-	if not DossierData.interrogator_sms_list().is_empty():
-		_intr_thread_row()
+	#  ★ 第五十五轮：和另外两组一样走 `_thread_row` —— 逐轮解锁的普通线程，
+	#    不再是一行特殊的「他发了 N 条」。
+	for t in DossierData.interrogator_sms_threads():
+		_thread_row(t, "interrogator")
 
 	# ---- 2 · 同行的人（C）----
 	for t in DossierData.companion_sms_threads():
@@ -391,90 +393,50 @@ func _thread_row(t: Dictionary, kind: String) -> void:
 	b.pressed.connect(_open_thread.bind(tid))
 	hb.add_child(b)
 
-# 列表里那条「审讯官本人」的对话 —— 红框，一眼就能看出不对劲
-func _intr_thread_row() -> void:
-	var msgs: Array = DossierData.interrogator_sms_list()
-	var row := _card()
-	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 8)
-	row.add_child(hb)
-
-	var av := Label.new()
-	av.text = "🕶"
-	av.add_theme_font_size_override("font_size", 20)
-	av.custom_minimum_size = Vector2(26, 0)
-	av.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	hb.add_child(av)
-
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 2)
-	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hb.add_child(vb)
-
-	var nm := Label.new()
-	nm.text = _tf("messages.interrogator_row",
-		[DossierData.interrogator_name(), msgs.size()], "%s  ●  %d 条")
-	nm.add_theme_font_size_override("font_size", 12)
-	nm.add_theme_color_override("font_color", GROUP_COLORS["interrogator"])
-	vb.add_child(nm)
-
-	var pv := Label.new()
-	pv.text = str(msgs[msgs.size() - 1]) if msgs.size() > 0 else ""
-	pv.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	pv.add_theme_font_size_override("font_size", 10)
-	pv.add_theme_color_override("font_color", Color(0.72, 0.52, 0.50))
-	vb.add_child(pv)
-
-	var b := Button.new()
-	b.text = _t("messages.btn_open", "看")
-	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(38, 0)
-	b.add_theme_font_size_override("font_size", 11)
-	b.pressed.connect(_open_thread.bind(INTR_THREAD))
-	hb.add_child(b)
+# ★ 第五十五轮：`_intr_thread_row()`（红框 + 「他发了 N 条」那一行）**删掉了** ——
+#   审问官的短信现在和别人的完全一样，走同一个 `_thread_row`。
 
 func _open_thread(id: String) -> void:
 	_open_sms = id
-	if id == INTR_THREAD:
-		rebuild()
-		return
 
-	# 先按「与朋友」找，找不到再按「与同行的人」找 ——
-	# 两组共用同一套阅读/气泡渲染，只有「读完之后学到什么」不同。
-	var t := DossierData.get_sms(id)
-	var is_comp := false
-	if t.is_empty():
-		t = DossierData.get_companion_sms(id)
-		is_comp = true
-	if t.is_empty():
+	# 三组共用同一套阅读 / 气泡渲染（★ 第五十五轮：审问官也并进来了），
+	# 只有「读完之后学到什么」不同 —— 只有「与朋友」揭示官方口径。
+	var found := _find_thread(id)
+	if found.is_empty():
+		_open_sms = ""
 		rebuild()
 		return
 
 	var first_time: bool = not GameData.sms_read.has(id)
 	if first_time:
 		GameData.sms_read.append(id)
-		# ★ 只有「与朋友」那一组揭示官方口径。
-		#   C 的短信读了不涨知识 —— 他就是不给你口径。
-		if not is_comp:
-			for r in t.get("reveals", []):
+		if str(found.get("group", "")) == "friends":
+			for r in (found["t"].get("reveals", [])):
 				GameData.known_facts[str(r["fact"])] = str(r["value"])
 	rebuild()
 	if first_time:
 		changed.emit()
 
-func _build_thread_view() -> void:
-	if _open_sms == INTR_THREAD:
-		_build_interrogator_thread()
-		return
+# 在三个分组里找一条短信 —— 找不到就返回 {}
+#   返回 {t: 线程, group: "friends" | "companion" | "interrogator"}
+func _find_thread(id: String) -> Dictionary:
+	var t := DossierData.get_sms(id)
+	if not t.is_empty():
+		return {"t": t, "group": "friends"}
+	t = DossierData.get_companion_sms(id)
+	if not t.is_empty():
+		return {"t": t, "group": "companion"}
+	t = DossierData.get_interrogator_sms(id)
+	if not t.is_empty():
+		return {"t": t, "group": "interrogator"}
+	return {}
 
-	var t := DossierData.get_sms(_open_sms)
-	var is_comp := false
-	if t.is_empty():
-		t = DossierData.get_companion_sms(_open_sms)
-		is_comp = true
-	if t.is_empty():
+func _build_thread_view() -> void:
+	var found := _find_thread(_open_sms)
+	if found.is_empty():
 		_back_to_list()
 		return
+	var t: Dictionary = found["t"]
 
 	_header(_tf("messages.thread_title", [str(t.get("contact", "?"))], "与 %s 的对话"), true)
 
@@ -517,8 +479,9 @@ func _build_thread_view() -> void:
 			line.add_child(bubble)
 			line.add_child(sp_l)
 
-	# C 的短信到此为止 —— 没有「记进脑子」那一段，因为它本来就没给口径
-	if is_comp:
+	# 只有「与朋友」这一组读了会「记进脑子」——
+	# C 的短信不给口径（第五十五轮起审问官的也一样）。
+	if str(found.get("group", "")) != "friends":
 		return
 
 	# 读完提示
@@ -533,31 +496,8 @@ func _build_thread_view() -> void:
 			Color(0.52, 0.80, 0.62))
 
 # 审讯官本人的那条对话 —— 只有一条气泡列，全是「他发的」
-func _build_interrogator_thread() -> void:
-	_header(_tf("messages.thread_title", [DossierData.interrogator_name()], "与 %s 的对话"), true)
-
-	for text in GameData.interrogator_sms:
-		var bubble := PanelContainer.new()
-		bubble.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.26, 0.13, 0.13)
-		sb.set_corner_radius_all(9)
-		sb.content_margin_left = 8
-		sb.content_margin_right = 8
-		sb.content_margin_top = 6
-		sb.content_margin_bottom = 6
-		bubble.add_theme_stylebox_override("panel", sb)
-
-		var txt := Label.new()
-		txt.text = str(text)
-		txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		txt.add_theme_font_size_override("font_size", 11)
-		txt.add_theme_color_override("font_color", Color(0.96, 0.88, 0.86))
-		bubble.add_child(txt)
-		screen_box.add_child(bubble)
-
-	_hint(_t("messages.interrogator_tail",
-		"（每次你把手机掏出来看，这条线就会再长一句。）"), Color(0.62, 0.50, 0.48))
+# ★ 第五十五轮：`_build_interrogator_thread()`（把所有事件短信平铺成一片气泡）**删掉了** ——
+#   审问官的短信现在走 `_build_thread_view`，和别人一样一条一条读。
 
 # ============================================================
 #  App 2 · 相册
@@ -793,12 +733,12 @@ func _make_photo_subviewport(i: int) -> SubViewport:
 #
 #  **第一条记的就是审问者**：这一局来问你的那个人是什么脾性、喜欢听什么、
 #  最忌讳什么。篇幅刻意很短 —— 就是临出门前匆匆记下的几行字。
-#  第二条是这一局的卡司速记。
+#  第二条是这一局的主人公速记。
 #
 #  ★ 第十三轮：**备忘录的内容整局不变**。
 #    原来还有「【第三条】这一轮」（轮次名 / 本轮强制装备 / 反差要求）——
 #    它每过一轮就变，掏出手机看到的字跟着跳，反而干扰「记着什么」这件事。
-#    现在只留审问者与卡司两条 —— 一局之内一个字都不变，翻到第几次都一样。
+#    现在只留审问者与主人公两条 —— 一局之内一个字都不变，翻到第几次都一样。
 # ============================================================
 func _build_memo() -> void:
 	title_label.text = _t("memo.title", "备忘录")
@@ -860,7 +800,7 @@ func _build_memo_interrogator() -> void:
 	howto.add_theme_color_override("font_color", Color(0.72, 0.80, 0.94))
 	card.add_child(howto)
 
-# ---- 第二条 · 本局卡司速记 ----
+# ---- 第二条 · 本局主人公速记 ----
 func _build_memo_cast() -> void:
 	var c := DossierData.cast()
 

@@ -3575,7 +3575,45 @@
 			"forced_rules": [],
 			"qte_plan": [],
 			"defects": [],
-			"true_presets": {}
+			"true_presets": {},
+			"interrogator_sms": [
+				{
+					"id": "intr_border_post_0",
+					"level": 0,
+					"contact": "哨所的老兵",
+					"avatar": "🕶",
+					"messages": [
+						{
+							"me": false,
+							"text": "你袖子里那点光，我看见了。"
+						},
+						{
+							"me": false,
+							"text": "手别一直往下放 —— 我在看着你。"
+						}
+					]
+				},
+				{
+					"id": "intr_border_post_1",
+					"level": 1,
+					"contact": "哨所的老兵",
+					"avatar": "🕶",
+					"messages": [
+						{
+							"me": false,
+							"text": "第三次了。你在等谁的消息？"
+						},
+						{
+							"me": false,
+							"text": "再让我看见一次，我们就换个地方说话。"
+						},
+						{
+							"me": false,
+							"text": "把手机放到桌上。现在。"
+						}
+					]
+				}
+			]
 		},
 		{
 			"id": "town_inn",
@@ -4269,7 +4307,45 @@
 			"forced_rules": [],
 			"qte_plan": [],
 			"defects": [],
-			"true_presets": {}
+			"true_presets": {},
+			"interrogator_sms": [
+				{
+					"id": "intr_town_inn_0",
+					"level": 0,
+					"contact": "驿丞",
+					"avatar": "🕶",
+					"messages": [
+						{
+							"me": false,
+							"text": "你袖子里那点光，我看见了。"
+						},
+						{
+							"me": false,
+							"text": "手别一直往下放 —— 我在看着你。"
+						}
+					]
+				},
+				{
+					"id": "intr_town_inn_1",
+					"level": 1,
+					"contact": "驿丞",
+					"avatar": "🕶",
+					"messages": [
+						{
+							"me": false,
+							"text": "第三次了。你在等谁的消息？"
+						},
+						{
+							"me": false,
+							"text": "再让我看见一次，我们就换个地方说话。"
+						},
+						{
+							"me": false,
+							"text": "把手机放到桌上。现在。"
+						}
+					]
+				}
+			]
 		},
 		{
 			"id": "ducal_manor",
@@ -4963,7 +5039,45 @@
 			"forced_rules": [],
 			"qte_plan": [],
 			"defects": [],
-			"true_presets": {}
+			"true_presets": {},
+			"interrogator_sms": [
+				{
+					"id": "intr_ducal_manor_0",
+					"level": 0,
+					"contact": "府中的执事",
+					"avatar": "🕶",
+					"messages": [
+						{
+							"me": false,
+							"text": "你袖子里那点光，我看见了。"
+						},
+						{
+							"me": false,
+							"text": "手别一直往下放 —— 我在看着你。"
+						}
+					]
+				},
+				{
+					"id": "intr_ducal_manor_1",
+					"level": 1,
+					"contact": "府中的执事",
+					"avatar": "🕶",
+					"messages": [
+						{
+							"me": false,
+							"text": "第三次了。你在等谁的消息？"
+						},
+						{
+							"me": false,
+							"text": "再让我看见一次，我们就换个地方说话。"
+						},
+						{
+							"me": false,
+							"text": "把手机放到桌上。现在。"
+						}
+					]
+				}
+			]
 		},
 		{
 			"id": "harbor_customs",
@@ -5657,7 +5771,45 @@
 			"forced_rules": [],
 			"qte_plan": [],
 			"defects": [],
-			"true_presets": {}
+			"true_presets": {},
+			"interrogator_sms": [
+				{
+					"id": "intr_harbor_customs_0",
+					"level": 0,
+					"contact": "海关的验货官",
+					"avatar": "🕶",
+					"messages": [
+						{
+							"me": false,
+							"text": "你袖子里那点光，我看见了。"
+						},
+						{
+							"me": false,
+							"text": "手别一直往下放 —— 我在看着你。"
+						}
+					]
+				},
+				{
+					"id": "intr_harbor_customs_1",
+					"level": 1,
+					"contact": "海关的验货官",
+					"avatar": "🕶",
+					"messages": [
+						{
+							"me": false,
+							"text": "第三次了。你在等谁的消息？"
+						},
+						{
+							"me": false,
+							"text": "再让我看见一次，我们就换个地方说话。"
+						},
+						{
+							"me": false,
+							"text": "把手机放到桌上。现在。"
+						}
+					]
+				}
+			]
 		}
 	],
 	"traits": [
@@ -5928,7 +6080,6 @@
 			"title": "消息",
 			"hint": "（%d/%d 已读）",
 			"btn_read": "读",
-			"btn_open": "看",
 			"btn_back": "‹ 返回",
 			"thread_title": "与 %s 的对话",
 			"reveals_head": "你把这几条记进了脑子：\n",
@@ -5941,9 +6092,7 @@
 			"group_friends": "与朋友",
 			"group_friends_hint": "东家、家人、旧相识。",
 			"group_friends_empty": "（这一段还没有新消息）",
-			"companion_thread_hint": "（这些话，别让对面的人看见。）",
-			"interrogator_tail": "（这条线只会变长，不会变短。）",
-			"interrogator_row": "%s  ●  %d 条"
+			"companion_thread_hint": "（这些话，别让对面的人看见。）"
 		},
 		"memo": {
 			"title": "备忘录",
@@ -5979,13 +6128,6 @@
 			"no_facts": "",
 			"no_stated": "",
 			"mismatch": ""
-		},
-		"interrogator_sms": [
-			"你袖子里那点光，我看见了。",
-			"手别一直往下放 —— 我在看着你。",
-			"第三次了。你在等谁的消息？",
-			"再让我看见一次，我们就换个地方说话。",
-			"把手机放到桌上。现在。"
-		]
+		}
 	}
 }

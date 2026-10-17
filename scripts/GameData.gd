@@ -64,7 +64,7 @@ var run_seed: int = 0                # 本局种子（可复现）
 var background_name: String = ""     # 本局背景名
 var cleared_levels: int = 0          # 本局已通过关数
 
-# --- 本局固定卡司（一局之内绝不改变，由 RunData 写入）---
+# --- 本局固定主人公（一局之内绝不改变，由 RunData 写入）---
 # 审讯官 / 同行人 / A / B 都来自背景，而背景每局只抽一次、跨关不重抽。
 var interrogator_name: String = ""   # 本局审讯官的称呼
 var companion_name: String = ""      # 本局同行人的名字
@@ -88,11 +88,10 @@ var known_facts: Dictionary = {}     # fact id -> value id（B 的官方说法�
 var photo_wipes: Dictionary = {}     # 照片序号 -> 已擦次数
 var photos_revealed: Array = []      # 已经看清的照片（对应槽位因此还原）
 
-# --- 盘问中「掏手机掏太多次」收到的短信 ---
-# 这不是剧情短信（剧情短信是 B 的官方口径，逐关解锁、写在 story.json 里），
-# 而是**事件短信**：你在答题时把手机掏出来看，他看见了，于是发消息过来。
-# 手机「消息」App 里会多出一条来自审讯官本人的对话，正文就是这个数组。
-var interrogator_sms: Array = []
+# ★ 第五十五轮：`interrogator_sms`（掏手机越界收到的事件短信）**整个删掉了**。
+#   第 50 轮起游戏就不再往里写，它一直是空数组；而「与审问官」的短信现在
+#   和另外两组一样，是**每套背景里写死的普通线程**（`bg.interrogator_sms`），
+#   由 ScenarioData 按轮次解锁，不再来自运行时事故。
 
 # --- 前后矛盾（跨关累计，因为审讯官是同一个人，他记得你说过什么）---
 var stated_facts: Dictionary = {}    # fact id -> value id（你第一次立下的说法，之后不许改口）
@@ -137,7 +136,6 @@ func reset_run_state() -> void:
 	known_facts = {}
 	photo_wipes = {}
 	photos_revealed = []
-	interrogator_sms = []
 	stated_facts = {}
 	contradictions = 0
 	improvised = 0
@@ -181,7 +179,6 @@ func reset_game() -> void:
 #      （注意：快照里带着**前面几轮**立下的口径，所以跨关复问照样成立）；
 #    · companion_asked —— 同行者在这一轮插了几次话，重来就重新数；
 #    · answer_log —— 备注回放的是「你真正走过的那一轮」，答砸的那次不该留在上面；
-#    · interrogator_sms —— 掏手机掏太多次收到的短信属于这一轮的事故；
 #    · suspicion_carry —— 回滚到进这一轮时的底子，怀疑度才不会越重来越高。
 #
 #  不回滚的（刻意留着）：短信进度、相册、外貌情报、身份归类、接受度、装备池。
@@ -194,7 +191,6 @@ func snapshot_level_state() -> void:
 		"plants": plants,
 		"companion_asked": companion_asked,
 		"answer_log": answer_log.duplicate(),
-		"interrogator_sms": interrogator_sms.duplicate(),
 		"suspicion_carry": suspicion_carry,
 	}
 
@@ -209,8 +205,6 @@ func restore_level_snapshot() -> void:
 	companion_asked = int(_level_snapshot.get("companion_asked", 0))
 	var al: Variant = _level_snapshot.get("answer_log", [])
 	answer_log = (al as Array).duplicate() if typeof(al) == TYPE_ARRAY else []
-	var isms: Variant = _level_snapshot.get("interrogator_sms", [])
-	interrogator_sms = (isms as Array).duplicate() if typeof(isms) == TYPE_ARRAY else []
 	suspicion_carry = float(_level_snapshot.get("suspicion_carry", 0.0))
 
 # 有快照可回滚吗（测试 / 边界用）

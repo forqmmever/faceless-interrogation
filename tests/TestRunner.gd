@@ -1271,25 +1271,32 @@ func _test_phone() -> void:
 	_check("备忘录写出他的性情", mtxt.contains(str(DossierData.interrogator_trait().get("name", ""))))
 	_check("备忘录写出他的喜好", mtxt.contains("喜好"))
 	_check("备忘录写出他的忌讳", mtxt.contains("忌讳"))
-	_check("备忘录还记了本局卡司", mtxt.contains("【第二条】"))
+	_check("备忘录还记了本局主人公", mtxt.contains("【第二条】"))
 	_check("★ 备忘录不再有「这一轮」那一条（内容整局不变）",
 		not mtxt.contains("【第三条】"))
 	_check("备忘录篇幅很短（就是临出门记的几行）", mtxt.length() < 900)
 	_check("★ 备忘录内容不随轮次变（没有「第 N / 4 关」这类字）",
 		not mtxt.contains("强制装备：") and not mtxt.contains("反差值要求"))
 
-	# ---- 审问者本人的短信（盘问里掏手机掏太多次招来的）----
-	gd.interrogator_sms = ["你袖子里那点光，我看见了。"]
+	# ---- 审问官的短信（★ 第五十五轮：和另外两组完全同构）----
+	#   原来是「掏手机越界收到的事件短信」，现在是**每套背景写死的普通线程**，
+	#   按轮解锁、一条一条读，没有红框那一行。
 	phone._switch_app("messages")
+	var ith := DossierData.interrogator_sms_threads()
+	_check("消息列表里有审问官的短信（本轮解锁的那条）", ith.size() > 0)
 	var ltxt := _collect_text(phone.screen_box)
-	_check("掏过头之后消息列表里多出一条审讯官的对话",
-		ltxt.contains(DossierData.interrogator_name()) and ltxt.contains("袖子里"))
-	phone._open_thread(PhoneDesk.INTR_THREAD)
-	_check("能打开审讯官那条对话", phone.screen_box.get_child_count() > 0)
+	_check("列表里显示他的联系人名（= 本局审讯官）",
+		ltxt.contains(str((ith[0] as Dictionary).get("contact", ""))))
+	var known_before: int = GameData.known_facts.size()
+	phone._open_thread(str((ith[0] as Dictionary)["id"]))
+	_check("能打开审问官那条对话", phone.screen_box.get_child_count() > 0)
 	var itxt := _collect_text(phone.screen_box)
-	_check("对话页显示他发来的正文", itxt.contains("你袖子里那点光"))
+	var first_line := str((((ith[0] as Dictionary).get("messages", []) as Array)[0] as Dictionary).get("text", ""))
+	_check("对话页显示他发来的正文", itxt.contains(first_line.substr(0, 6)))
+	_check("★ 他的短信没有 reveals（他不给口径）",
+		((ith[0] as Dictionary).get("reveals", []) as Array).is_empty())
+	_check("★ 读他的短信不会多学到官方口径", GameData.known_facts.size() == known_before)
 	phone._back_to_list()
-	gd.interrogator_sms.clear()
 
 	# ---- 备注：按轮次累积的问答记录 ----
 	#  第一轮：整页空着（连说明文字都没有）
@@ -1712,7 +1719,8 @@ func _test_phone_in_interrogation() -> void:
 	_check("盘问界面有「掏出手机」按钮", interro.phone_btn != null)
 	_check("手机覆盖层初始隐藏", interro.phone_layer.visible == false)
 	_check("开局掏出次数为 0", interro.phone_pulls == 0)
-	_check("开局还没有他的短信", gd.interrogator_sms.is_empty())
+	var intr0: int = DossierData.interrogator_sms_threads().size()
+	_check("开局就有他本轮那条短信（第五十五轮起是普通线程，不再由掏手机触发）", intr0 > 0)
 	_check("覆盖层不挡鼠标（左边选项照样能点）",
 		interro.phone_layer.mouse_filter == Control.MOUSE_FILTER_IGNORE)
 
@@ -1755,7 +1763,8 @@ func _test_phone_in_interrogation() -> void:
 	var d2: float = gd.suspicion_level - s2_before
 	_check("★ 第 1 次越界恰好罚 %d" % int(Interrogation.PHONE_PULL_PENALTY),
 		is_equal_approx(d2, Interrogation.PHONE_PULL_PENALTY))
-	_check("★ 第五十轮：不再收到他发来的短信", gd.interrogator_sms.is_empty())
+	_check("★ 越界掏手机不会新增他的短信（第五十五轮起完全没有这条触发）",
+		DossierData.interrogator_sms_threads().size() == intr0)
 	_check("反馈文案点明「他看见了」", interro.feedback_label.text.contains("他看见了"))
 	_check("★ 通知条里写明了本次涨了多少怀疑度",
 		interro.phone_notice.text.contains(str(int(round(d2)))))
@@ -1768,7 +1777,7 @@ func _test_phone_in_interrogation() -> void:
 	_check("越掏罚得越重", d3 > d2)
 	_check("★ 第 2 次越界恰好罚 %d" % int(Interrogation.PHONE_PULL_PENALTY * 2.0),
 		is_equal_approx(d3, Interrogation.PHONE_PULL_PENALTY * 2.0))
-	_check("★ 罚完了也还是不会收到短信", gd.interrogator_sms.is_empty())
+	_check("★ 罚完了也还是不会新增短信", DossierData.interrogator_sms_threads().size() == intr0)
 	interro._close_phone()
 
 	# ---- 换关：次数重新数，通知条收起来 ----
@@ -1777,8 +1786,6 @@ func _test_phone_in_interrogation() -> void:
 	_check("换关后掏出次数归零", interro.phone_pulls == 0)
 	_check("换关后手机覆盖层收起", interro.phone_layer.visible == false)
 	_check("换关后通知条也收起来", interro.phone_notice.visible == false)
-
-	gd.interrogator_sms.clear()
 
 # ------------------------------------------------------------
 # 同行者干扰

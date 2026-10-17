@@ -516,7 +516,7 @@ func _add_pip_line(parent: VBoxContainer, letter: String, ramp: Array, mx: int) 
 
 # ---------------- 手机（浮层）----------------
 #  整块地方留给换装，手机改成点按钮才出来的浮层。
-#  卡司（A / B / C / 审讯官是谁）没丢 —— 它就写在手机备忘录里。
+#  主人公（A / B / C / 审讯官是谁）没丢 —— 它就写在手机备忘录里。
 func _build_phone_overlay(host_row: HBoxContainer) -> void:
 	intel = IntelDesk.new()
 	add_child(intel)
@@ -586,10 +586,10 @@ func _update_run_label() -> void:
 		RunData.level_number(), RunData.level_count(),
 		model.level_name()]
 
-	# 本局固定卡司：一局之内 A / B / C / 审讯官都不会换人。
+	# 本局固定主人公：一局之内 A / B / C / 审讯官都不会换人。
 	# 命名口径（用户定的）：A = 真身（你本人），B = 马甲（你在扮的那个人），C = 同行人。
 	var c := RunData.cast()
-	run_label.tooltip_text = ("本局卡司（一局之内不会变）\n"
+	run_label.tooltip_text = ("本局主人公（一局之内不会变）\n"
 		+ "  A 真身：%s —— 你本人，%s\n"
 		+ "    「%s」这个名字只在一种时候会被念出来：他认出你的时候。\n"
 		+ "  B 马甲：%s —— 你现在扮的人（%s）\n"

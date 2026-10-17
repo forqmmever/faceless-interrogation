@@ -6,7 +6,7 @@ extends Node
 #  一局（run）：
 #    开始界面（开始 / 继续 / 退出）
 #      ↓
-#    选关面板（4 个入口；目前只开放第一轮，其余锁定 —— OutfitData.OPEN_LEVELS）
+#    选关面板（2 个入口；两轮都可以直接进 —— OutfitData.OPEN_LEVELS）
 #      ↓
 #    随机抽一套背景 + 随机生成 A 的原貌
 #      ↓
@@ -141,12 +141,13 @@ func _on_title_quit() -> void:
 # ============================================================
 #  选关面板
 #
-#  用户口径：「四关不再是点击开始后随机，而是点击开始游戏后出现进入四关的选项，
-#            目前只开放第一轮，其他关暂时锁定，无需删除」
+#  用户口径：「四关不再是点击开始后随机，而是点击开始游戏后出现进入四关的选项」。
+#  ★ 第五十九轮（用户口径）：「现在不再对第一关以外上锁」——
+#    两轮都点得动，面板上不再有灰掉的入口。
 #
-#  · 四行都在、名字都在 —— 锁着的只是按钮（灰、点不动、右侧写「尚未开放」）；
+#  · 每一行都在、名字都在、每一行都能点；
 #  · 哪几轮开放由 OutfitData.OPEN_LEVELS 说了算，这里一行代码都不用改；
-#  · 点开放的那一关 → 按那一关开局（RunData.start_new_run(seed, li)）。
+#  · 点某一轮 → 按那一轮开局（RunData.start_new_run(seed, li)）。
 # ============================================================
 func _build_level_select() -> void:
 	level_select = Control.new()
@@ -191,7 +192,7 @@ func _build_level_select() -> void:
 
 	var sub := Label.new()
 	sub.text = _ut("title.select_sub",
-		"一次一局，从选中的那一关往后走。锁着的轮次还没做完 —— 没有删除。")
+		"一次一局，从选中的那一轮往后走。每一轮都可以直接进入。")
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	sub.add_theme_font_size_override("font_size", 12)

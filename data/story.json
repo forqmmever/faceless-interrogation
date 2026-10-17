@@ -60,7 +60,7 @@
 			"continue_btn": "⏩  继续游戏",
 			"quit_btn": "✖  退出游戏",
 			"select_title": "选择从哪一轮开始",
-			"select_sub": "一次一局，从选中的那一轮往后走。锁着的轮次还没做完 —— 没有删除。",
+			"select_sub": "一次一局，从选中的那一轮往后走。每一轮都可以直接进入。",
 			"select_bg_title": "本局背景（默认每局随机抽一套）",
 			"select_bg_random": "随机",
 			"select_open_note": "可以进入",

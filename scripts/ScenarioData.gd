@@ -2107,7 +2107,7 @@ const DEFAULT_UI := {
 		#   其余几颗按 `ScenarioData.enabled_backgrounds()` **动态生成**，
 		#   所以这里只有标题与「随机」这两句是文案；背景名直接用背景自己的 name。
 		"select_title": "选择从哪一轮开始",
-		"select_sub": "一次一局，从选中的那一轮往后走。锁着的轮次还没做完 —— 没有删除。",
+		"select_sub": "一次一局，从选中的那一轮往后走。每一轮都可以直接进入。",
 		"select_bg_title": "本局背景（默认每局随机抽一套）",
 		"select_bg_random": "随机",
 		"select_open_note": "可以进入",

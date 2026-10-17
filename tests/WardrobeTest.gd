@@ -2518,24 +2518,28 @@ func _outfit_covers(a: String, b: String) -> int:
 	return OutfitData.defects().size() - m.exposed_defects().size()
 
 # ------------------------------------------------------------
-#  选关开放状态（第二十一轮）
+#  选关开放状态（第二十一轮；第五十九轮起全部开放）
 #
-#  用户口径：「点击开始游戏后出现进入四关的选项，目前只开放第一轮，
-#            其他关暂时锁定，无需删除」
-#  这里把「锁定 ≠ 删除」钉死：四关的曲线 / 名字一条不少，锁的只是入口。
+#  用户口径（第五十九轮）：「点击开始游戏后的选择界面现在不再对第一关以外上锁」。
+#  这里把「每一轮都点得动」钉死，同时保留「开放表不越界」的检查。
 # ------------------------------------------------------------
 func _test_open_levels() -> void:
-	print("\n-- 选关开放状态（两轮入口，只开放第一轮）--")
+	print("\n-- 选关开放状态（两轮入口，全部开放）--")
 	_check("开放表非空", not OutfitData.OPEN_LEVELS.is_empty())
 	_check("第 1 轮开放", OutfitData.level_unlocked(0))
-	_check("第 2 轮暂时锁定", not OutfitData.level_unlocked(1))
-	_check("开放轮数 = 1", OutfitData.open_level_count() == 1)
+	_check("第 2 轮也开放（第五十九轮起不再上锁）", OutfitData.level_unlocked(1))
+	_check("开放轮数 = 全部轮数", OutfitData.open_level_count() == OutfitData.MAX_LEVELS)
+	var all_open := true
+	for i in OutfitData.MAX_LEVELS:
+		if not OutfitData.level_unlocked(i):
+			all_open = false
+	_check("每一轮都开放", all_open)
 	_check("开放表里没有越界下标",
 		OutfitData.OPEN_LEVELS.all(func(li): return int(li) >= 0 and int(li) < OutfitData.MAX_LEVELS))
 
-	# ★ 锁定不等于删除：两轮的数值曲线与名字全都还在
-	_check("锁定的轮次数值曲线还在（LEVELS 仍是 2 条）", OutfitData.LEVELS.size() == 2)
-	_check("锁定的轮次名字还在", OutfitData.LEVELS[1].get("name", "") != "")
+	# 开放不等于删除：两轮的数值曲线与名字全都还在
+	_check("轮次数值曲线还在（LEVELS 仍是 2 条）", OutfitData.LEVELS.size() == 2)
+	_check("轮次名字还在", OutfitData.LEVELS[1].get("name", "") != "")
 	var all_named := true
 	for lv in OutfitData.LEVELS:
 		if str(lv.get("name", "")) == "" or int(lv.get("contrast_req", -1)) < 0:

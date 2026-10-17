@@ -166,13 +166,13 @@ func _test_boot() -> void:
 	_check("选关面板一共 2 行", main.level_select_rows.size() == OutfitData.MAX_LEVELS
 		and main.level_select_rows.size() == 2)
 	_check("第 1 轮那行点得动", main.level_select_rows[0]["btn"].disabled == false)
-	_check("第 2 轮那行点不动（暂时锁定）",
-		main.level_select_rows[1]["btn"].disabled == true)
-	_check("锁定的行写着「尚未开放」",
-		main.level_select_rows[1]["note"].text.contains("尚未开放"))
-	_check("开放的行写着「可以进入」",
-		main.level_select_rows[0]["note"].text.contains("可以进入"))
-	_check("两轮的名字都还在（锁定不等于删除）",
+	# ★ 第五十九轮（用户口径）：「不再对第一关以外上锁」
+	_check("第 2 轮那行也点得动（不再上锁）",
+		main.level_select_rows[1]["btn"].disabled == false)
+	_check("两行都写着「可以进入」",
+		main.level_select_rows[0]["note"].text.contains("可以进入")
+		and main.level_select_rows[1]["note"].text.contains("可以进入"))
+	_check("两轮的名字都还在",
 		main.level_select_rows[1]["btn"].text.contains(
 			str(OutfitData.LEVELS[1].get("name", ""))))
 	_check("选关时还没开局（准备室仍藏着）", wardrobe.visible == false)
@@ -222,10 +222,17 @@ func _test_boot() -> void:
 	_check("指定不存在的背景 id → 退回随机（不崩）",
 		RunData.background_id == bg_random)
 	main._on_bg_choice("")
-	# 点锁定的那一轮不该有反应
+	# ★ 第五十九轮：第 2 轮不再锁着 —— 点它就按第 2 轮开局
 	main._on_level_selected(1)
-	_check("点锁定轮次无效（面板还在，也没开局）",
-		main._is_level_select_open() and wardrobe.visible == false)
+	_check("点第 2 轮 → 选关面板收起", not main._is_level_select_open())
+	_check("点第 2 轮 → 准备室可见", wardrobe.visible == true)
+	_check("点第 2 轮 → 开局轮次 = 第 2 轮", RunData.level_index == 1)
+	_check("点第 2 轮 → 已通过轮数 = 1", RunData.cleared_levels == 1)
+	_check("点第 2 轮 → 标题栏写着「第 2 / 2 轮」",
+		wardrobe.run_label.text.contains("第 2 / 2 轮"))
+	# 回到选关面板 —— 后面的用例都从第 1 轮开始
+	main._on_title_start()
+	_check("从第 2 轮回到选关面板", main._is_level_select_open())
 
 	# 「返回」把玩家送回开始界面，再点一次「开始游戏」还能回来
 	main._on_level_select_back()
@@ -233,9 +240,8 @@ func _test_boot() -> void:
 		not main._is_level_select_open() and main.title_screen.visible == true)
 	main._on_title_start()
 	_check("再点「开始游戏」还能回到选关面板", main._is_level_select_open())
-
-	# 点第 1 轮 → 进第 1 轮的准备室
 	main._on_level_selected(0)
+
 	print("\n-- 开局：一局已经开始（随机背景 + 随机原貌）--")
 	_check("选关面板收起", not main._is_level_select_open())
 	_check("开始界面收起", main.title_screen.visible == false)

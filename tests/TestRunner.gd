@@ -151,12 +151,27 @@ func _test_boot() -> void:
 	_check("开局先出开始界面", main.title_screen != null and main.title_screen.visible == true)
 	_check("开始界面挡在换装前面", wardrobe.visible == false)
 	_check("盘问也不该露头", interro.visible == false)
-	_check("三个按钮都建出来了",
+	_check("四个按钮都建出来了",
 		main.title_start_btn != null and main.title_continue_btn != null
-		and main.title_quit_btn != null)
+		and main.title_quit_btn != null and main.title_credits_btn != null)
 	_check("「开始游戏」可点", main.title_start_btn.disabled == false)
 	_check("没有存档时「继续游戏」点不动", main.title_continue_btn.disabled == true)
 	_check("开始界面写着本局/账号进度", main.title_info.text.length() > 6)
+
+	# ★ 第六十四轮：制作人名单
+	_check("制作人名单层一开始是收起的",
+		main.credits_layer != null and main.credits_layer.visible == false)
+	main._show_credits()
+	_check("点「制作人名单」→ 名单层出现", main.credits_layer.visible == true)
+	_check("名单正文有美术素材 / 策划 / 文案 / 代码 / 测试",
+		main.credits_body_label.text.contains("dol au美化包")
+		and main.credits_body_label.text.contains("hey_unmu")
+		and main.credits_body_label.text.contains("deepseek-V4-flash"))
+	_check("名单正文有灵感来源",
+		main.credits_body_label.text.contains("灵感来源")
+		and main.credits_body_label.text.contains("Degrees of Lewdity"))
+	main._hide_credits()
+	_check("点「返回」→ 名单层收起", main.credits_layer.visible == false)
 
 	# 点「开始游戏」→ 先出选关面板（第二十一轮）
 	print("\n-- 开局：点「开始游戏」先出选关面板（两轮入口）--")

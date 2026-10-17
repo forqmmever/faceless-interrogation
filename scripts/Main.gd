@@ -37,6 +37,9 @@ extends Node
 @onready var wardrobe: Control = $Wardrobe
 @onready var interrogation: Control = $Interrogation
 
+# 制作人名单的出厂兜底（真身在 story.json 的 ui.title.credits_body，编辑器可改）
+const DEFAULT_CREDITS := "美术素材：dol au美化包\n策划：hey_unmu  deepseek-V4-flash\n文案：hey_unmu\n代码 deepseek-V4-flash\n测试 deepseek-V4-flash\n\n灵感来源 千面人在此，Degrees of Lewdity，一诺千劫阿雅篇"
+
 var overlay: Control
 var overlay_title: Label
 var overlay_body: RichTextLabel
@@ -48,6 +51,12 @@ var title_info: Label
 var title_start_btn: Button
 var title_continue_btn: Button
 var title_quit_btn: Button
+var title_credits_btn: Button
+
+# ---- 制作人名单（第六十四轮）----
+var credits_layer: Control
+var credits_body_label: Label
+var credits_back_btn: Button
 
 # ---- 选关面板（第二十一轮）----
 # 「开始游戏」之后先出这一层：本局背景 + 各轮入口，只有开放的那几轮点得动。
@@ -110,6 +119,7 @@ func _show_title() -> void:
 	_hide_overlay()
 	_hide_intro()
 	_hide_level_select()
+	_hide_credits()
 	if help_overlay != null and help_overlay.is_open():
 		help_overlay.close()
 	wardrobe.hide()
@@ -587,11 +597,89 @@ func _build_title() -> void:
 	title_continue_btn.pressed.connect(_on_title_continue)
 	vb.add_child(title_continue_btn)
 
+	# ★ 第六十四轮：制作人名单（从开始界面点进去，盖在标题面板上）
+	title_credits_btn = _title_button(_ut("title.credits_btn", "制作人名单"), Color(0.24, 0.27, 0.34))
+	title_credits_btn.pressed.connect(_show_credits)
+	vb.add_child(title_credits_btn)
+
 	title_quit_btn = _title_button(_ut("title.quit_btn", "✖  退出游戏"), Color(0.34, 0.24, 0.26))
 	title_quit_btn.pressed.connect(_on_title_quit)
 	vb.add_child(title_quit_btn)
 
+	_build_credits()
 	title_screen.hide()
+
+# 制作人名单：一层压暗 + 一块居中的面板，正文一行一条。
+func _build_credits() -> void:
+	credits_layer = Control.new()
+	credits_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	credits_layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	credits_layer.hide()
+	title_screen.add_child(credits_layer)
+
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.03, 0.035, 0.045, 0.90)
+	credits_layer.add_child(dim)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	credits_layer.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(760, 0)
+	center.add_child(panel)
+	var ps := StyleBoxFlat.new()
+	ps.bg_color = Color(0.075, 0.082, 0.100)
+	ps.set_corner_radius_all(14)
+	ps.set_border_width_all(1)
+	ps.border_color = Color(0.28, 0.30, 0.36)
+	panel.add_theme_stylebox_override("panel", ps)
+
+	var m := MarginContainer.new()
+	for s in ["left", "right", "top", "bottom"]:
+		m.add_theme_constant_override("margin_" + s, 28)
+	panel.add_child(m)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 14)
+	m.add_child(vb)
+
+	var t := Label.new()
+	t.text = _ut("title.credits_title", "制作人名单")
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	t.add_theme_font_size_override("font_size", 26)
+	t.add_theme_color_override("font_color", Color(0.95, 0.86, 0.68))
+	vb.add_child(t)
+
+	vb.add_child(HSeparator.new())
+
+	credits_body_label = Label.new()
+	credits_body_label.text = _ut("title.credits_body", DEFAULT_CREDITS)
+	credits_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	credits_body_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	credits_body_label.add_theme_font_size_override("font_size", 15)
+	credits_body_label.add_theme_color_override("font_color", Color(0.84, 0.87, 0.92))
+	credits_body_label.add_theme_constant_override("line_spacing", 8)
+	credits_body_label.custom_minimum_size = Vector2(620, 0)
+	vb.add_child(credits_body_label)
+
+	var back_row := HBoxContainer.new()
+	back_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vb.add_child(back_row)
+	credits_back_btn = _title_button(_ut("title.credits_back", "←  返回"), Color(0.30, 0.30, 0.36))
+	credits_back_btn.custom_minimum_size = Vector2(220, 44)
+	credits_back_btn.pressed.connect(_hide_credits)
+	back_row.add_child(credits_back_btn)
+
+func _show_credits() -> void:
+	if credits_layer == null:
+		return
+	credits_layer.show()
+
+func _hide_credits() -> void:
+	if credits_layer != null:
+		credits_layer.hide()
 
 func _title_button(text: String, col: Color) -> Button:
 	var b := Button.new()

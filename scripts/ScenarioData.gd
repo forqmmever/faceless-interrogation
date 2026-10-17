@@ -2101,6 +2101,11 @@ const DEFAULT_UI := {
 		"start_btn": "▶  开始游戏",
 		"continue_btn": "⏩  继续游戏",
 		"quit_btn": "✖  退出游戏",
+		# ★ 第六十四轮：开始界面的「制作人名单」。
+		"credits_btn": "制作人名单",
+		"credits_title": "制作人名单",
+		"credits_body": "美术素材：dol au美化包\n策划：hey_unmu  deepseek-V4-flash\n文案：hey_unmu\n代码 deepseek-V4-flash\n测试 deepseek-V4-flash\n\n灵感来源 千面人在此，Degrees of Lewdity，一诺千劫阿雅篇",
+		"credits_back": "←  返回",
 		# ---- 选关面板（第二十一轮）----
 		# 点「开始游戏」之后先出这一层。轮次都在，锁着的只是按钮。
 		# ★ 第五十三轮：上面多了「本局背景」一组按钮 —— 默认「随机」，

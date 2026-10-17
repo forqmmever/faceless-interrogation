@@ -116,6 +116,8 @@ func _ready() -> void:
 	_tick("盲区题")
 	_test_manual_question_options()
 	_tick("自行编辑的题")
+	_test_option_echo()
+	_tick("选项回应")
 	_test_new_mechanics()
 	_tick("新机制")
 	_test_title_and_save()
@@ -630,6 +632,78 @@ func _test_manual_question_options() -> void:
 		str((opts[2] as Dictionary).get("ending", "")) == "leak")
 	bg.erase("questions_source")
 	_check("删掉那个键就退回自动生成", not RunData.questions_are_manual())
+
+# ------------------------------------------------------------
+# 选项回应：选完的那句话，会和下一题的题面一起出现
+#
+#  用户口径（第五十七轮）：「选项选择后，对应的选项文本和下一个题面一起出现」。
+#  选项可以自带 `echo`（编辑器里「接在下一题题面前的回应」），
+#  留空就用选项文本本身 —— 所以出厂数据一条都不用补。
+# ------------------------------------------------------------
+func _test_option_echo() -> void:
+	print("\n-- 选项回应：选完的那句接到下一题题面前 --")
+	_run_a_clean_level()
+	_check("开新的一轮 → 上一轮的回应不会带进来", interro.last_choice_text == "")
+	interro._ended = false
+	interro._running = true
+	interro.is_qte_active = false
+	interro.qte_needed = false
+	interro.qte_container.hide()
+	interro.intf_container.hide()
+	interro._load_question(0)
+	_check("第 1 题题面前没有「你：」（还没选过）",
+		not interro.dialogue_label.text.begins_with("你："))
+
+	# 挑一个「照实答」的选项 —— 它不会当场收场，最能看清下一题的样子。
+	var pick := -1
+	for i in interro.current_options.size():
+		var o: Dictionary = interro.current_options[i]
+		if str(o.get("kind", "")) == "ok" and str(o.get("echo", "")) != "":
+			pick = i
+			break
+	if pick < 0:
+		for i in interro.current_options.size():
+			if str((interro.current_options[i] as Dictionary).get("echo", "")) != "":
+				pick = i
+				break
+	_check("第 1 题至少有一个带回应文本的选项", pick >= 0)
+	if pick < 0 or interro.level_questions().size() < 2:
+		return
+
+	var echo := str((interro.current_options[pick] as Dictionary).get("echo", ""))
+	_check("回应文本默认 = 选项原文（不带 A. 前缀）",
+		echo != "" and not echo.begins_with("A. "))
+	interro._select_option(pick)
+	_check("选完之后记下了这句回应", interro.last_choice_text == echo)
+
+	interro._ended = false
+	interro._running = true
+	interro._load_question(1)
+	_check("下一题题面前接上了「你：<上一题选的>」",
+		interro.dialogue_label.text.begins_with("你：" + echo + "\n"))
+	_check("下一题的题面照旧跟在后面",
+		interro.dialogue_label.text.contains(_q_text_of(interro.level_questions()[1])))
+
+	# ---- 选项自带 echo 时优先用它；没写就回落 ----
+	var opts: Array = interro._build_unified_options({
+		"id": "t_echo", "text": "测试题面",
+		"options": [
+			{"text": "甲回答", "tone": "correct", "echo": "（测试专用回应）"},
+			{"text": "乙回答", "tone": "bluff"},
+		]})
+	_check("选项自带 echo → 用自带的那句",
+		str((opts[0] as Dictionary).get("echo", "")) == "（测试专用回应）")
+	_check("选项没写 echo → 回落成选项文本",
+		str((opts[1] as Dictionary).get("echo", "")) == "乙回答")
+	_check("按钮文字仍然是选项文本（带 A. 前缀）",
+		str((opts[0] as Dictionary).get("text", "")) == "A. 甲回答")
+	# 「⚠」是读过情报后给按钮加的雷区标记 —— 屏幕上是「你：<这句话>」，不能把标记念出来。
+	var warn_opts: Array = interro._letterize([{"_label": "⚠ 测试危险项"}])
+	_check("回应文本里不带「⚠」这个按钮标记",
+		str((warn_opts[0] as Dictionary).get("echo", "")) == "测试危险项")
+
+	# 收掉 _select_option 留下的「1.8 秒后自动下一题」——别让它跨到后面的用例里。
+	interro._ended = true
 
 func _test_fact_consistency() -> void:
 	print("\n-- 说法题：同一件事，前后必须一致 --")

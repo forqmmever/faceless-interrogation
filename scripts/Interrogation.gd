@@ -170,6 +170,10 @@ var combo_index: int = 0                   # 组合干扰：已经敲对了几�
 var interference_line: String = ""         # 他这一次递的那句话（显示在干扰条上）
 
 var current_options: Array = []
+# ★ 第五十七轮：上一题选中的那句话 —— 下一题的题面之前会接一行「你：<这句>」，
+#   让「你答了什么 → 他又问什么」在屏幕上连起来。
+#   选项自己写了 `echo` 就用它（编辑器可改），没写就落回选项文本（去掉 A. 前缀）。
+var last_choice_text: String = ""
 var _questions: Array = []               # 本轮实际要问的题（从背景题库里抽出来的）
 var _ended: bool = false
 var _running: bool = false               # 只有开局后才驱动计时器，避免未开局时干扰抢跑
@@ -734,6 +738,8 @@ func start_interrogation() -> void:
 	_success = false
 	_end_reason = ""
 	_running = true
+	# 新的一轮从干净的一句话开始 —— 上一轮最后那句不能带进来。
+	last_choice_text = ""
 	current_question_index = 0
 	interference_count = 0
 	interference_blocked = 0
@@ -1122,6 +1128,9 @@ func _build_unified_options(q: Dictionary) -> Array:
 		var eid := str(d.get("ending", ""))
 		if eid != "":
 			item["ending"] = eid
+		# ★ 第五十七轮：选项可以自带一句「接在下一题题面前的回应」。
+		#   留空 = 用选项文本（_letterize 负责回落）。
+		item["echo"] = str(d.get("echo", ""))
 		item["_label"] = text
 		out.append(item)
 	return _letterize(out)
@@ -1206,6 +1215,13 @@ func _letterize(opts: Array) -> Array:
 		var o: Dictionary = opts[i]
 		var lab := str(o.get("_label", ""))
 		o.erase("_label")
+		# ★ 第五十七轮：`echo` = 选完这句之后、下一题题面前接的那行「你：<echo>」。
+		#   选项自己写了就用它；没写就落回按钮上的原话（去掉 A. 前缀）。
+		var echo := str(o.get("echo", ""))
+		if echo.strip_edges() == "":
+			echo = lab
+		# 「⚠」是读过情报后给按钮加的雷区标记，不该跟着念出来。
+		o["echo"] = echo.trim_prefix("⚠ ")
 		o["text"] = str(letters[i % letters.size()]) + lab
 	return opts
 
@@ -1279,6 +1295,7 @@ func _build_fact_options(q: Dictionary) -> Array:
 		var o: Dictionary = raw[i]
 		out.append({
 			"text": str(letters[i % letters.size()]) + str(o.get("label", "")),
+			"echo": str(o.get("echo", "")),
 			"value": str(o.get("id", "")),
 			"fact": fid,
 			"kind": "fact",
@@ -1299,6 +1316,7 @@ func _build_companion_options(q: Dictionary) -> Array:
 		var o: Dictionary = raw[i]
 		out.append({
 			"text": str(letters[i % letters.size()]) + str(o.get("text", "")),
+			"echo": str(o.get("echo", "")),
 			"delta": float(o.get("delta", 0.0)),
 			"value": str(o.get("value", "")),
 			"fact": fid,
@@ -1334,7 +1352,17 @@ func _load_question(index: int) -> void:
 	var is_comp := _q_is_companion(q)
 	var speaker := _ut("interrogation.speaker_companion", "同行者") if is_comp \
 		else _ut("interrogation.speaker_interrogator", "审讯官")
-	dialogue_label.text = speaker + "：" + _q_text(q)
+	# ★ 第五十七轮（用户口径）：「选项选择后，对应的选项文本和下一个题面一起出现」。
+	#   把上一题选中的那句接在题面前面 —— 于是屏幕上读到的是：
+	#       你：散不掉。码头往上数第三条巷子……
+	#       审讯官：你刚才说码头第三条巷子 —— 那巷子口是家什么铺子？
+	#   选项自带 `echo` 时用它（编辑器里「接在下一题题面前的回应」），
+	#   没写就用选项文本本身。第 1 题前面当然没有「你：」——
+	#   last_choice_text 在 start_interrogation() 里清过。
+	var echo_head := ""
+	if index > 0 and last_choice_text.strip_edges() != "":
+		echo_head = _ut("interrogation.speaker_you", "你") + "：" + last_choice_text + "\n"
+	dialogue_label.text = echo_head + speaker + "：" + _q_text(q)
 
 	if is_comp:
 		GameData.companion_asked += 1
@@ -1505,6 +1533,10 @@ func _select_option(opt_index: int) -> void:
 	_record_answer(opt_index)
 
 	var opt: Dictionary = current_options[opt_index]
+	# ★ 第五十七轮：把「你刚说的这句」记下来 —— 下一题的题面会把它接在前面。
+	#   放在所有结算分支之前：不管这一答是照实答、撒谎、说漏嘴还是直接收场，
+	#   这句话都已经出口了。
+	last_choice_text = str(opt.get("echo", ""))
 	var kind := str(opt["kind"])
 	var owner := str(opt["owner"])
 

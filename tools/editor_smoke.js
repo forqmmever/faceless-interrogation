@@ -439,9 +439,11 @@ try {
     ok(manOpt.indexOf("tone") < 0, "自行编辑：选项里没有「这句话算哪一种」");
     ok(manOpt.indexOf("value") < 0, "自行编辑：选项里没有「代表哪个说法」");
     ok(manOpt.indexOf("text") >= 0 && manOpt.indexOf("suspicion") >= 0 && manOpt.indexOf("ending") >= 0,
-      "自行编辑：选项只剩 文本 / 怀疑值 / 触发结局（实际 " + manOpt.join(",") + "）");
+      "自行编辑：选项只剩 文本 / 回应 / 怀疑值 / 触发结局（实际 " + manOpt.join(",") + "）");
+    ok(manOpt.indexOf("echo") >= 0, "自行编辑：选项里有「接在下一题题面前的回应」");
     const autoOpt = P.optionFields(false).map(f => f.k);
     ok(autoOpt.indexOf("tone") >= 0 && autoOpt.indexOf("value") >= 0, "自动生成：tone / value 都在");
+    ok(autoOpt.indexOf("echo") >= 0, "自动生成：选项里也有「接在下一题题面前的回应」");
     ok(!P.optionTitle({suspicion:3}, 0).includes("?"), "没有 tone 的选项标题不显示「?」：" + P.optionTitle({suspicion:3}, 0));
 
     // 切回自动生成 → 这些检查必须回来（否则等于把校验删了）
@@ -592,7 +594,8 @@ try {
     ok(typeof R.contrast_req_base === "number" && typeof R.contrast_req_step === "number",
       "反差值曲线的 base / step 都在（" + R.contrast_req_base + " / " + R.contrast_req_step + "）");
     // ★ 第五十三轮：选关面板新增两条（select_bg_title / select_bg_random）→ 79 → 81
-  ok(P.uiLeafCount() === 81, "story.ui 共 81 条文案，实际 " + P.uiLeafCount());
+    // ★ 第五十七轮：盘问界面新增「你」的说话人名牌（speaker_you）→ 81 → 82
+  ok(P.uiLeafCount() === 82, "story.ui 共 82 条文案，实际 " + P.uiLeafCount());
     const rs = P.rulesSections(), us = P.uiSections(), es = P.endingsSections();
     // ★ 第三十三轮：删 3 项（exposure_qte_threshold / interference_min / interference_per_exposure）
     //   加 2 项（exposure_qte_min / exposure_qte_full）→ 31 − 3 + 2 = 30
@@ -606,7 +609,7 @@ try {
     ok(qteFieldKeys.includes("prompt"), "全局 QTE 页也有该字段（实际：" + qteFieldKeys.join(",") + "）");
     ok(qFieldKeys.includes("qte") && qFieldKeys.includes("delay"),
       "每题仍能改 QTE 类型与出现时间");
-    ok(us.reduce((a, s) => a + (s.fields || []).length, 0) === 79, "文案页覆盖 79 条");
+    ok(us.reduce((a, s) => a + (s.fields || []).length, 0) === 80, "文案页覆盖 80 条");
     ok(es.reduce((a, s) => a + (s.fields || []).length, 0) === 27, "结局页覆盖 27 条");
     ok(rs.every(s => s.host && s.host() === P.story.rules), "全部数值区块都写在 story.rules 上（全局一套）");
     ok(us.every(s => s.host && s.host() === P.story.ui[s.seg]), "每个文案区块挂在对应的 ui 子段上");

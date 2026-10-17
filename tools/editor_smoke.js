@@ -117,7 +117,7 @@ try {
 
   console.log("\n-- 1. 数据载入 --");
   ok(P.story && Array.isArray(P.story.backgrounds), "story 载入成功");
-  ok(P.story.backgrounds.length === 4, "4 套背景，实际 " + P.story.backgrounds.length);
+  ok(P.story.backgrounds.length === 5, "5 套背景（4 套启用 + 1 套草稿），实际 " + P.story.backgrounds.length);
   ok(P.story.traits.length === 5, "5 种性情，实际 " + P.story.traits.length);
   ok(P.index.length > 200, "搜索索引建好，实际 " + P.index.length + " 条");
   console.log("   背景:", P.story.backgrounds.map(b => b.name).join(" / "));
@@ -135,9 +135,15 @@ try {
   //   其余是「数据现状说明」被塞进了问题面板（出厂就有，不是用户改坏的）。
   //   ★ 这条断言是**这次的守门人**：以后谁再往校验器里加「出厂必然触发」的规则，
   //     冒烟立刻挂 —— 而不是等用户又看到一片红字。
-  ok(warns.length === 0,
-    "出厂数据下 0 条提醒（实际 " + warns.length + " 条）"
-    + (warns.length ? "：\n      " + warns.slice(0, 8).map(i => i.m).join("\n      ") : ""));
+  //   ★ 第五十八轮：新增的「情景一」是**草稿**，校验器按设计只给它一条「还是草稿」提醒。
+  //     所以把这一条单独认下来，其余提醒仍然是 0 —— 守门人没有被放松。
+  const draftWarns = warns.filter(i => i.m.includes("还是草稿"));
+  const otherWarns = warns.filter(i => !i.m.includes("还是草稿"));
+  ok(otherWarns.length === 0,
+    "除了草稿说明，出厂数据下 0 条提醒（实际 " + otherWarns.length + " 条）"
+    + (otherWarns.length ? "：\n      " + otherWarns.slice(0, 8).map(i => i.m).join("\n      ") : ""));
+  ok(draftWarns.length === 1,
+    "新增的草稿「情景一」只报一条「还是草稿」提醒（实际 " + draftWarns.length + " 条）");
   console.log("   错误 " + errs.length + " / 提醒 " + warns.length);
 
   console.log("\n-- 3. 全部视图渲染 --");
@@ -212,7 +218,8 @@ try {
   console.log("\n-- 7b. 主人公 / 性别 / 短信关卡（本轮新增字段）--");
   const GN = P.GENDERS.map(g => g.v);
   const badGender = [], badComp = [], badLevel = [], badAlign = [], badDup = [];
-  P.story.backgrounds.forEach(bg => {
+  // ★ 第五十八轮：新建的「情景一」是草稿 —— 草稿不进内容校验（它还没有 facts / 短信配齐）。
+  P.enabledBgs().forEach(bg => {
     if (GN.indexOf(bg.interrogator_gender) < 0) badGender.push(bg.id + " 审讯官");
     const cp = bg.companion;
     if (!cp || !cp.name || GN.indexOf(cp.gender) < 0) badComp.push(bg.id);
@@ -235,8 +242,8 @@ try {
     });
     order.forEach((fid, i) => { if (!seenLv.has(i)) badDup.push(bg.id + " 第" + (i + 1) + "关无短信"); });
   });
-  ok(badGender.length === 0, "4 套背景的审讯官性别都合法" + (badGender.length ? " —— " + badGender.join("; ") : ""));
-  ok(badComp.length === 0, "4 套背景都带 companion（C 的名字 + 性别）" + (badComp.length ? " —— " + badComp.join("; ") : ""));
+  ok(badGender.length === 0, "已启用的背景：审讯官性别都合法" + (badGender.length ? " —— " + badGender.join("; ") : ""));
+  ok(badComp.length === 0, "已启用的背景：都带 companion（C 的名字 + 性别）" + (badComp.length ? " —— " + badComp.join("; ") : ""));
   ok(badLevel.length === 0, "每条短信的 level 都是合法整数" + (badLevel.length ? " —— " + badLevel.join("; ") : ""));
   ok(badDup.length === 0, "每关恰好一条短信解锁" + (badDup.length ? " —— " + badDup.join("; ") : ""));
   ok(badAlign.length === 0, "短信 level 与 facts 顺序逐关对齐" + (badAlign.length ? " —— " + badAlign.join("; ") : ""));
@@ -294,7 +301,7 @@ try {
   const noBlind = [], badBlind = [];
   const SMOKE_TONES = new Set(["correct","leak","version","bluff","evade","silence","made_up"]);
   const blindOf = (bg) => (bg.questions || []).filter(q => !q.card && !q.fact && q.speaker !== "companion");
-  P.story.backgrounds.forEach(bg => {
+  P.enabledBgs().forEach(bg => {
     const blind = blindOf(bg);
     if (!blind.length) { noBlind.push(bg.id); return; }
     blind.forEach((q, i) => {
@@ -312,7 +319,7 @@ try {
     const ids = blind.map(x => x.id);
     if (new Set(ids).size !== ids.length) badBlind.push(bg.id + " 盲区题 id 重复");
   });
-  ok(noBlind.length === 0, "4 套背景都有盲区题" + (noBlind.length ? " —— 缺 " + noBlind.join("、") : ""));
+  ok(noBlind.length === 0, "已启用的背景都有盲区题" + (noBlind.length ? " —— 缺 " + noBlind.join("、") : ""));
   ok(badBlind.length === 0, "盲区题字段齐全、不指向任何卡 / 事实" + (badBlind.length ? " —— " + badBlind.join("; ") : ""));
   console.log("   盲区题：" + P.story.backgrounds.map(bg => bg.id + "=" + blindOf(bg).length).join("  "));
   // ★ 第四十二轮：这个「已迁移」的占位节被删掉了（它只剩一个只读字段，没有编辑价值）。
@@ -325,8 +332,21 @@ try {
     "每套背景的 bgSections 里有「⑦ 题目」一节（含逐题字段）");
   const qLv = (qSec.fields || []).find(f => f.k === "level");
   ok(!!qLv, "背景页的题目节里能指定「属于哪一轮」");
-  ok(P.enabledBgs().length === P.story.backgrounds.length,
-    "出厂四套背景都算「已启用」（没写 enabled 字段 = 启用）");
+  ok(P.enabledBgs().length === 4,
+    "出厂四套背景已启用（没写 enabled 字段 = 启用），实际 " + P.enabledBgs().length);
+  // ★ 第五十八轮：从 docx 新增的「情景一」—— 草稿，内容先填，缺的地方是 void。
+  const scene1 = P.story.backgrounds.find(b => b.id === "scene_1");
+  ok(!!scene1, "新增的「情景一」在 story.json 里");
+  ok(!!scene1 && scene1.enabled === false, "「情景一」是草稿（不进抽取 / 自动化测试）");
+  ok(!!scene1 && scene1.name === "情景一", "「情景一」的名字");
+  ok(!!scene1 && scene1.questions.length === 15,
+    "「情景一」的 15 道题已经填进去（第一轮 8 + 第二轮 7），实际 " + (scene1 ? scene1.questions.length : "?"));
+  ok(!!scene1 && scene1.questions_source === "manual",
+    "「情景一」是自行编辑模式（判定只看怀疑值）");
+  ok(!!scene1 && scene1.forced_rules[0].rules[0].items.join(",") === "top_school_navy,bottom_school_navy",
+    "「情景一」第一轮强制校服上下装");
+  ok(!!scene1 && scene1.companion.name === "陈虎" && scene1.interrogator === "空太郎",
+    "「情景一」的人物：审讯官空太郎 / 同行人陈虎");
   const blank = P.blankBackground();
   ok(blank.enabled === false && Array.isArray(blank.questions) && blank.questions.length === 0,
     "空白新建的骨架是草稿（enabled:false）且内容为空");
@@ -335,7 +355,7 @@ try {
 
   console.log("\n-- 7h. 开场介绍 intro（第十三轮新增）--");
   const noIntro = P.story.backgrounds.filter(bg => !bg.intro);
-  ok(noIntro.length === 0, "4 套背景都带 intro（开场浮窗的正文）" + (noIntro.length ? " —— 缺 " + noIntro.map(b => b.id).join("、") : ""));
+  ok(noIntro.length === 0, "每套背景都带 intro（开场浮窗的正文）" + (noIntro.length ? " —— 缺 " + noIntro.map(b => b.id).join("、") : ""));
   ok(P.story.backgrounds.every(bg => bg.intro && bg.intro.length > 40),
     "每套背景的 intro 都写得够长（够撑起一个浮窗）");
   const metaSec3 = P.bgSections(P.story.backgrounds[0]).find(s => s.key === "meta");
@@ -396,7 +416,8 @@ try {
   console.log("\n-- 7i. 题目来源开关（第五十五轮）--");
   {
     const bgs = P.story.backgrounds;
-    ok(bgs.every(b => P.bgQuestionsSource(b) === "auto"), "出厂四套都是「自动生成」（没写这个键就是它）");
+    ok(P.enabledBgs().every(b => P.bgQuestionsSource(b) === "auto"),
+      "出厂四套启用的背景都是「自动生成」（没写这个键就是它）");
     const autoKeys = P.questionFields(false).map(f => f.k);
     const manKeys = P.questionFields(true).map(f => f.k);
     ok(autoKeys.includes("card") && autoKeys.includes("fact"), "自动生成：题目里能选档案卡与事实");
@@ -618,7 +639,7 @@ try {
     const allFields = [].concat(rs, us, es).reduce((a, s) => a.concat(s.fields || []), []);
     ok(allFields.every(f => f.k && f.label), "所有字段都有 k 和 label");
     ok(allFields.every(f => ["num", "text", "area", "strlist"].includes(f.t)), "字段类型都在支持范围内（num / text / area / strlist）");
-    P.story.backgrounds.forEach((b, i) =>
+    P.enabledBgs().forEach((b, i) =>
       ok(Object.keys(b.endings || {}).length === 27, "背景" + (i + 1) + " 有 27 条结局文案，实际 " + Object.keys(b.endings || {}).length));
 
     // 字段真的能写进去（renderField 的 host 链：section.host() → 字段）

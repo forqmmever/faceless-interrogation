@@ -5811,6 +5811,415 @@
 					]
 				}
 			]
+		},
+		{
+			"id": "scene_1",
+			"name": "情景一",
+			"venue": "void",
+			"intro": "我不记得和陈虎的第一次相遇，但记得第二次是在他知道了我和空太郎交往后，找到了我，说找到了一些在我妨碍了他妹妹与空太郎恋情的证据，虽然我本意不是如此，但空太郎和米芙露会怎么想。\n\n在犹豫的时候，被陈虎强迫了，并以此要挟，让我进一步屈从于他，一直到了今日。\n\n任务说明：陈虎通过我得知了空太郎今天下班后要去桌游店采购，不仅让我拒绝了空太郎的一起去的邀请，还准备带我去偶遇。\n\n几天后陈虎的生日宴：我用「陈虎是导致空太郎退学的元凶」为理由拒绝了空太郎的邀请，但空太郎说，既然答应了陈虎和他女朋友的邀请，而且陈虎的女朋友原先和我同校、转校后说不定一个朋友也没有，希望让我和她见见。我心一软便答应了。只好在聚会前半段以阳乃的身份亮相，中途借口离开，然后变装。\n\n强制要求着装校服上下装。原貌为暴露值小于三。",
+			"interrogator": "空太郎",
+			"interrogator_gender": "男",
+			"companion": {
+				"name": "陈虎",
+				"relation": "胁迫我的同班同学",
+				"gender": "男",
+				"desc": "黄毛。同班同学。知道我和空太郎在交往，拿「我妨碍了他妹妹米芙露与空太郎的恋情」当把柄要挟我，让我一直屈从于他。今天他带我去桌游店偶遇空太郎，生日宴上又让我扮他的女友。"
+			},
+			"cover_role": "陈虎的女友",
+			"true_role": "空太郎的女友",
+			"true_name": "阳乃",
+			"questions_schema": "faceless-questions-v1",
+			"questions_source": "manual",
+			"cards": [],
+			"facts": [],
+			"sms": [
+				{
+					"id": "sms_scene1_0",
+					"level": 0,
+					"contact": "void",
+					"avatar": "void",
+					"reveals": [],
+					"messages": [
+						{
+							"me": false,
+							"text": "void"
+						},
+						{
+							"me": true,
+							"text": "是少女的秘密啦"
+						}
+					]
+				}
+			],
+			"companion_sms": [
+				{
+					"id": "c_scene1_0",
+					"level": 0,
+					"contact": "陈虎",
+					"avatar": "void",
+					"messages": [
+						{
+							"me": false,
+							"text": "void"
+						}
+					]
+				}
+			],
+			"interrogator_sms": [
+				{
+					"id": "intr_scene1_0",
+					"level": 0,
+					"contact": "空太郎",
+					"avatar": "void",
+					"messages": [
+						{
+							"me": false,
+							"text": "void"
+						}
+					]
+				}
+			],
+			"questions": [
+				{
+					"id": "s1_q1",
+					"level": 0,
+					"speaker": "interrogator",
+					"text": "初次见面，你就是陈虎经常和我吹嘘新交到的漂亮女友吗？你和陈虎一个班级，怎么会不知道他的为人，怎么会喜欢上他这种人。",
+					"options": [
+						{
+							"text": "因为他器大活好",
+							"tone": "correct",
+							"suspicion": 0
+						},
+						{
+							"text": "喜欢是不需要理由的",
+							"tone": "evade",
+							"suspicion": 6
+						},
+						{
+							"text": "我是阳乃，我被他抓住了把柄",
+							"tone": "leak",
+							"ending": "leak"
+						}
+					],
+					"note": "原文结果：因为他器大活好 → 空太郎不理解为什么会有这样的女孩；喜欢是不需要理由的 → 怀疑度略微上升；我是阳乃，我被他抓住了把柄 → 空太郎愣住、陈虎逃跑、你流泪，游戏结束。"
+				},
+				{
+					"id": "s1_q2",
+					"level": 0,
+					"speaker": "interrogator",
+					"text": "真巧啊，你们怎么会在这里？陈虎不是对桌游没什么兴趣吗。",
+					"options": [
+						{
+							"text": "其实是因为我很喜欢桌游，是我强行把他拉过来的，之前也拉他去过桌游店",
+							"tone": "correct",
+							"suspicion": 0
+						},
+						{
+							"text": "听说你正好来采购桌游",
+							"tone": "leak",
+							"ending": "leak"
+						}
+					],
+					"note": "原文结果：第一句 → 空太郎点头又摇头，觉得可惜；第二句 → 空太郎皱眉追问「你怎么知道」，然后说出「难不成你是…」，进入结局。"
+				},
+				{
+					"id": "s1_q3",
+					"level": 0,
+					"speaker": "companion",
+					"text": "喂，老兄，怎么不讲讲我是怎么吹嘘的？我可是把她的各种照片视频发给你，让你知道她有多棒。先不说这些了，你那位贵族学校的女友阳乃呢？我这位女友之前还和我说想见见她，和她说说话。你要说什么来着，要不要让空太郎转告一下？",
+					"options": [
+						{
+							"text": "之前我和阳乃小姐偶遇过一回，已经成朋友啦，没什么话需要转告的了",
+							"tone": "bluff",
+							"suspicion": 10
+						},
+						{
+							"text": "阳乃同学其实是我失散多年的姐姐",
+							"tone": "bluff",
+							"suspicion": 6
+						},
+						{
+							"text": "我非常憧憬阳乃小姐，想要和她做朋友",
+							"tone": "bluff",
+							"suspicion": 4
+						}
+					],
+					"note": "原文结果：第一句 → 空太郎「我从没听阳乃小姐说过有这么个朋友」，怀疑值上升；第二句 → 空太郎「何意味」；第三句 → 空太郎「那下次有机会我介绍你们认识吧」。"
+				},
+				{
+					"id": "s1_q4",
+					"level": 0,
+					"speaker": "interrogator",
+					"text": "其实刚才我一直在回忆，对你一点印象也没有。校服也不合身，最主要是你的气质和阳乃真的很像。难不成你是刚从贵族学校转到我们学校的吗？",
+					"options": [
+						{
+							"text": "家道中落desuwa",
+							"tone": "bluff",
+							"suspicion": 6
+						},
+						{
+							"text": "是的，我是你退学后才转来的",
+							"tone": "correct",
+							"suspicion": 0
+						}
+					],
+					"note": "原文结果：家道中落desuwa → 空太郎「竟然是 desuwa，原来是高纯度的大小姐」；是的，我是你退学后才转来的 → 空太郎继续端详你。"
+				},
+				{
+					"id": "s1_q5",
+					"level": 0,
+					"speaker": "interrogator",
+					"text": "过几天，我的生日宴会你来参加吗？带上阳乃一起来，我们好久没有聚过了。（他拍了拍你的屁股）之前让你定的 KTV 怎么样了？",
+					"options": [
+						{
+							"text": "15号下午的cdd",
+							"tone": "bluff",
+							"suspicion": 8
+						},
+						{
+							"text": "14号下午的abd",
+							"tone": "bluff",
+							"suspicion": 8
+						},
+						{
+							"text": "15号下午的pca",
+							"tone": "bluff",
+							"suspicion": 8
+						}
+					],
+					"note": "原文结果：空太郎「刚才还说的那么恩爱，真的会有不记得自己男友生日的女友」，怀疑度上升。随后空太郎答应带阳乃赴宴：「行吧，正好带阳乃见一下你的新女友，我再参加一次」。"
+				},
+				{
+					"id": "s1_q6",
+					"level": 0,
+					"speaker": "interrogator",
+					"text": "小姐平时在哪里玩桌游？咱们这附近的桌游店不多，和其他桌游店都有些联系。我可以给他们打个招呼，下次去店里玩，让他们帮忙打个折。",
+					"options": [
+						{
+							"text": "kotoneiro",
+							"tone": "evade",
+							"suspicion": 16
+						},
+						{
+							"text": "yuri&claire",
+							"tone": "correct",
+							"suspicion": 0
+						}
+					],
+					"note": "原文结果：kotoneiro → 空太郎更加仔细地端详你，你害怕被认出赶紧低头，怀疑度大幅上升；yuri&claire → 空太郎「好的，我记下了，下次去那里，说是我的朋友就可以」。"
+				},
+				{
+					"id": "s1_q7",
+					"level": 0,
+					"speaker": "interrogator",
+					"text": "void",
+					"options": [
+						{
+							"text": "void",
+							"tone": "correct",
+							"suspicion": 0
+						}
+					],
+					"note": "原文第 7 段为空。"
+				},
+				{
+					"id": "s1_q8",
+					"level": 0,
+					"speaker": "interrogator",
+					"text": "void",
+					"options": [
+						{
+							"text": "void",
+							"tone": "correct",
+							"suspicion": 0
+						}
+					],
+					"note": "原文第 8 段为空。"
+				},
+				{
+					"id": "s1b_q1",
+					"level": 1,
+					"speaker": "interrogator",
+					"text": "两位好，你们看见阳乃了吗？刚才说出去打个电话，马上就回来，之后已经过了好长时间了，联系她也不回复。刚才有人说，见到阳乃和你们说话了。",
+					"options": [
+						{
+							"text": "阳乃说电话没电了，她有事先回家了",
+							"tone": "bluff",
+							"suspicion": 10
+						},
+						{
+							"text": "我就是阳乃，你有什么事",
+							"tone": "correct",
+							"suspicion": 0
+						},
+						{
+							"text": "她说她等会回来。",
+							"tone": "bluff",
+							"suspicion": 10
+						},
+						{
+							"text": "不清楚，也许她在你不知道的地方被别的男生勾搭走了……因为你没有保护好她。",
+							"tone": "bluff",
+							"suspicion": 6
+						}
+					],
+					"note": "原文结果：A / C → 空太郎「阳乃为什么不给我说，专门跑过来让你们转达呢」，怀疑值增加；B → 空太郎愣住，你看着他的傻样笑出了声；D → 空太郎惊讶，觉得你不像会说这种话的人。"
+				},
+				{
+					"id": "s1b_q2",
+					"level": 1,
+					"speaker": "interrogator",
+					"text": "（陈虎）老兄，行了，反正你女友天天见，我们好容易聚这一回，今天还是我生日，陪我们说几句话呗。\n（空太郎）说起来，你们最近去的哪家桌游店啊？之前和其他店的人聊天时，提起了你们，他们都说没什么印象。",
+					"options": [
+						{
+							"text": "其实我对桌游没什么兴趣。",
+							"tone": "bluff",
+							"suspicion": 12
+						},
+						{
+							"text": "我们最近很忙的",
+							"tone": "evade",
+							"suspicion": 6
+						},
+						{
+							"text": "是少女的秘密啦",
+							"tone": "bluff",
+							"suspicion": 12
+						}
+					],
+					"note": "原文结果：第一句 → 空太郎「上次在采购桌游的地方见面时，还说因为有兴趣才偶遇，这次怎么就改口了」，怀疑度上升；第二句 → 空太郎「我越来越觉得你们俩般配了」；第三句 → 空太郎「这套说辞和腔调好熟悉」，怀疑度上升，短信要写这段。"
+				},
+				{
+					"id": "s1b_q3",
+					"level": 1,
+					"speaker": "interrogator",
+					"text": "再过几天就是校园祭了，你们班里的要举行什么活动？",
+					"options": [
+						{
+							"text": "女仆咖啡馆",
+							"tone": "correct",
+							"suspicion": 0
+						},
+						{
+							"text": "鬼屋",
+							"tone": "correct",
+							"suspicion": 0
+						}
+					],
+					"note": "原文给了两个选项；第三个选项缺失。"
+				},
+				{
+					"id": "s1b_q4",
+					"level": 1,
+					"speaker": "interrogator",
+					"text": "（空太郎沉默了，不想再搭理你们，开始玩手机。你装在手提包里的电话响了起来 —— 不是陈虎送的那部，而是阳乃的。空太郎听到恋人熟悉的铃声，四处张望，最终锁定到你的手提包上，然后把视线转向你，眼神分明在问着为什么。）",
+					"options": [
+						{
+							"text": "阳乃和我们说完话后，走得匆忙，把手机落在这儿了。我们刚还在想着等碰见你就把它给你，刚才光顾着说话，忘记了这事。",
+							"tone": "bluff",
+							"suspicion": 20
+						},
+						{
+							"text": "刚才我们说话时，手机都放桌上，阳乃走得匆忙，拿错手机，把我的拿走了。",
+							"tone": "bluff",
+							"suspicion": 12
+						}
+					],
+					"note": "原文结果：第一句 → 怀疑度大上升；第二句 → 怀疑度上升。"
+				},
+				{
+					"id": "s1b_q5",
+					"level": 1,
+					"speaker": "interrogator",
+					"text": "阳乃什么时候来找你们的？",
+					"options": [
+						{
+							"text": "18.30",
+							"tone": "correct",
+							"suspicion": 0
+						},
+						{
+							"text": "18.15",
+							"tone": "correct",
+							"suspicion": 0
+						},
+						{
+							"text": "18.45",
+							"tone": "correct",
+							"suspicion": 0
+						},
+						{
+							"text": "18.00",
+							"tone": "correct",
+							"suspicion": 0
+						}
+					],
+					"note": "原文只给了四个时间，没有标注哪个是真的。"
+				},
+				{
+					"id": "s1b_q6",
+					"level": 1,
+					"speaker": "interrogator",
+					"text": "void",
+					"options": [
+						{
+							"text": "void",
+							"tone": "correct",
+							"suspicion": 0
+						}
+					],
+					"note": "原文第 6 问缺失。"
+				},
+				{
+					"id": "s1b_q7",
+					"level": 1,
+					"speaker": "companion",
+					"text": "（空太郎问完后便要离开去找阳乃，陈虎叫住了他，对你说）阳乃走前让你捎的话，你不会忘记了吧？",
+					"options": [
+						{
+							"text": "她说今晚的约会取消了",
+							"tone": "bluff",
+							"suspicion": 16
+						}
+					],
+					"note": "原文结果：空太郎「阳乃不是不会把我们的约会随便告诉别人的人，况且是没认识多久的女生，她到底和阳乃有什么关系」。"
+				}
+			],
+			"interference_lines": [
+				"void"
+			],
+			"endings": {},
+			"levels": [
+				{
+					"name": "第一轮 · 桌游店偶遇"
+				},
+				{
+					"name": "第二轮 · 生日宴"
+				}
+			],
+			"forced_rules": [
+				{
+					"mode": "fixed",
+					"rules": [
+						{
+							"pick": "all",
+							"items": [
+								"top_school_navy",
+								"bottom_school_navy"
+							]
+						}
+					]
+				},
+				{
+					"mode": "none",
+					"rules": []
+				}
+			],
+			"qte_plan": [],
+			"defects": [],
+			"true_presets": {},
+			"enabled": false
 		}
 	],
 	"traits": [

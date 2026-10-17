@@ -837,6 +837,22 @@ func _test_true_presets() -> void:
 		by_lv.size() == OutfitData.level_count()
 		and by_lv.all(func(x): return not (x as Dictionary).is_empty()))
 
+	# ---- ★ 第六十二轮：背景里存了「空的原貌覆写」不能把全局那套盖掉 ----
+	#   编辑器把空的覆写保存成 `{"pool": [], "by_level": [null, null]}`；
+	#   如果按 `is_empty()` 判，抽到这套背景时原貌会退回随机、曲线全乱。
+	var pb: Dictionary = ScenarioData.get_background("border_post")
+	var keep_bp: Variant = pb.get("true_presets", null)
+	pb["true_presets"] = {"pool": [], "by_level": [null, null]}
+	ScenarioData.apply_run_true_presets("border_post")
+	_check("空的原貌覆写 = 没覆写（回落到全局）",
+		ScenarioData._run_true_presets.is_empty()
+		and ScenarioData.true_presets_override() == ScenarioData._true_presets)
+	if keep_bp == null:
+		pb.erase("true_presets")
+	else:
+		pb["true_presets"] = keep_bp
+	ScenarioData.clear_run_overrides()
+
 	# ---- 一套里只写几件也算数 ----
 	ProfileData.reset_all()
 	RunData.start_new_run(20261011)

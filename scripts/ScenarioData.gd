@@ -2537,7 +2537,20 @@ func apply_run_qte_plan(bg_id: String) -> void:
 	_run_qte_ov = bg_qte_plan(bg_id)
 
 func apply_run_true_presets(bg_id: String) -> void:
-	_run_true_presets = bg_true_presets(bg_id)
+	var d := bg_true_presets(bg_id)
+	# ★ 第六十二轮：编辑器把「空的原貌覆写」存成 `{"pool": [], "by_level": [null, null]}`。
+	#   如果只判 `is_empty()`，它会当成「这套背景覆写了原貌」，把全局那套整段盖掉 ——
+	#   抽到这套背景时原貌变成随机、曲线全乱。空池 + 全是空项 = 没覆写。
+	_run_true_presets = d if _presets_have_effect(d) else {}
+
+# 这份原貌预设里到底有没有真东西（池子有项，或某一轮写了非空 slots）
+func _presets_have_effect(d: Dictionary) -> bool:
+	if not _as_array(d.get("pool", null)).is_empty():
+		return true
+	for e in _as_array(d.get("by_level", null)):
+		if typeof(e) == TYPE_DICTIONARY and not (e as Dictionary).is_empty():
+			return true
+	return false
 
 # 回到「没有本局覆写」的状态（测试 / 退出局时用）
 func clear_run_overrides() -> void:

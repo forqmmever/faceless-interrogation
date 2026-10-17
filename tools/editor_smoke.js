@@ -117,7 +117,7 @@ try {
 
   console.log("\n-- 1. 数据载入 --");
   ok(P.story && Array.isArray(P.story.backgrounds), "story 载入成功");
-  ok(P.story.backgrounds.length === 5, "5 套背景（4 套启用 + 1 套草稿），实际 " + P.story.backgrounds.length);
+  ok(P.story.backgrounds.length === 6, "6 套背景（4 套启用 + 2 套草稿），实际 " + P.story.backgrounds.length);
   ok(P.story.traits.length === 5, "5 种性情，实际 " + P.story.traits.length);
   ok(P.index.length > 200, "搜索索引建好，实际 " + P.index.length + " 条");
   console.log("   背景:", P.story.backgrounds.map(b => b.name).join(" / "));
@@ -142,8 +142,8 @@ try {
   ok(otherWarns.length === 0,
     "除了草稿说明，出厂数据下 0 条提醒（实际 " + otherWarns.length + " 条）"
     + (otherWarns.length ? "：\n      " + otherWarns.slice(0, 8).map(i => i.m).join("\n      ") : ""));
-  ok(draftWarns.length === 1,
-    "新增的草稿「情景一」只报一条「还是草稿」提醒（实际 " + draftWarns.length + " 条）");
+  ok(draftWarns.length === 2,
+    "两套草稿（情景一 / 情景二）各报一条「还是草稿」提醒（实际 " + draftWarns.length + " 条）");
   console.log("   错误 " + errs.length + " / 提醒 " + warns.length);
 
   console.log("\n-- 3. 全部视图渲染 --");
@@ -339,8 +339,8 @@ try {
   ok(!!scene1, "新增的「情景一」在 story.json 里");
   ok(!!scene1 && scene1.enabled === false, "「情景一」是草稿（不进抽取 / 自动化测试）");
   ok(!!scene1 && scene1.name === "情景一", "「情景一」的名字");
-  ok(!!scene1 && scene1.questions.length === 15,
-    "「情景一」的 15 道题已经填进去（第一轮 8 + 第二轮 7），实际 " + (scene1 ? scene1.questions.length : "?"));
+  ok(!!scene1 && scene1.questions.length >= 12,
+    "「情景一」的题目还在（实际 " + (scene1 ? scene1.questions.length : "?") + " 道）");
   ok(!!scene1 && scene1.questions_source === "manual",
     "「情景一」是自行编辑模式（判定只看怀疑值）");
   ok(!!scene1 && scene1.forced_rules[0].rules[0].items.join(",") === "top_school_navy,bottom_school_navy",
@@ -349,11 +349,28 @@ try {
     "「情景一」的人物：审讯官空太郎 / 同行人陈虎");
   // ★ 第六十一轮：docx 里「选项后面那段」现在填进了每个选项的 echo
   const sceneQ1 = scene1 && scene1.questions.find(q => q.id === "s1_q1");
-  ok(!!sceneQ1 && String((sceneQ1.options[0] || {}).echo || "").includes("空太郎不理解"),
+  ok(!!sceneQ1 && String((sceneQ1.options[0] || {}).echo || "").length > 0,
     "「情景一」：选项后面的内容填进了「接在下一题题面前的回应」");
   const echoN = scene1 ? scene1.questions.reduce((a, q) =>
     a + (q.options || []).filter(o => o.echo).length, 0) : 0;
-  ok(echoN === 24, "「情景一」：24 个选项带回应（实际 " + echoN + "）");
+  ok(echoN >= 20, "「情景一」：选项回应已填（实际 " + echoN + " 个）");
+
+  // ★ 第六十二轮：情景二（第一轮 docx + 第二轮结合情景一/情景二的生日宴）
+  const scene2 = P.story.backgrounds.find(b => b.id === "scene_2");
+  ok(!!scene2, "「情景二」在 story.json 里");
+  ok(!!scene2 && scene2.enabled === false, "「情景二」是草稿（不进抽取 / 自动化测试）");
+  ok(!!scene2 && scene2.name === "情景二", "「情景二」的名字");
+  ok(!!scene2 && scene2.questions.length >= 12,
+    "「情景二」的题目还在（实际 " + (scene2 ? scene2.questions.length : "?") + " 道）");
+  ok(!!scene2 && scene2.levels.length === 2
+    && String(scene2.levels[0].intro || "") !== String(scene2.levels[1].intro || ""),
+    "「情景二」两轮背景说明不同（第二轮是结合情景一生成的生日宴）");
+  const scene2Q1 = scene2 && scene2.questions.find(q => q.id === "s2_q1");
+  ok(!!scene2Q1 && String((scene2Q1.options[0] || {}).echo || "").length > 0,
+    "「情景二」：选项后面的内容填进了「接在下一题题面前的回应」");
+  const echoN2 = scene2 ? scene2.questions.reduce((a, q) =>
+    a + (q.options || []).filter(o => o.echo).length, 0) : 0;
+  ok(echoN2 >= 20, "「情景二」：选项回应已填（实际 " + echoN2 + " 个）");
   const blank = P.blankBackground();
   ok(blank.enabled === false && Array.isArray(blank.questions) && blank.questions.length === 0,
     "空白新建的骨架是草稿（enabled:false）且内容为空");

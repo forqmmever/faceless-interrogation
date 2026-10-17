@@ -1519,6 +1519,15 @@ func _test_scenario_data() -> void:
 		#   （0 = 回落全局通用名，这是出厂状态）。
 		_check("[%s] 轮次名覆写不超轮数（0 = 回落全局）" % nm,
 			(bg["levels"] as Array).size() <= OutfitData.MAX_LEVELS)
+		# ★ 第六十轮：每轮都要有自己的背景说明，第二轮不能和第一轮一样。
+		var lv_arr: Array = bg["levels"] as Array
+		_check("[%s] 每轮都有背景说明" % nm,
+			lv_arr.size() == OutfitData.MAX_LEVELS
+			and str(lv_arr[0].get("intro", "")).length() > 40
+			and str(lv_arr[1].get("intro", "")).length() > 40)
+		_check("[%s] 第二轮说明与第一轮不同" % nm,
+			lv_arr.size() >= 2
+			and str(lv_arr[0].get("intro", "")) != str(lv_arr[1].get("intro", "")))
 		_check("[%s] 身份情报 12 条" % nm, (bg["cards"] as Array).size() == 12)
 		_check("[%s] 其中 B 的档案 5 条" % nm, _count_owner(bg, "B") == 5)
 		_check("[%s] 其中 A 的禁区 7 条" % nm, _count_owner(bg, "A") == 7)

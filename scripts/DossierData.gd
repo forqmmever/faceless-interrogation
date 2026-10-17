@@ -204,7 +204,13 @@ func companion_question_at(n: int) -> Dictionary:
 	return RunData.companion_question_at(n)
 
 # ---------------- 开场介绍（浮动窗口用）----------------
+# ★ 第六十轮：每一轮可以写自己的说明（背景的 `levels[i].intro`）。
+#   本轮写了就用本轮的；没写才回落到这套背景的总说明 `intro`。
+#   这样第二轮的浮窗既会再弹一次，内容也和第一轮不一样。
 func intro_text() -> String:
+	var own := str(RunData.current_level().get("intro", ""))
+	if own.strip_edges() != "":
+		return own
 	return ScenarioData.intro_of(RunData.background())
 
 func venue_text() -> String:

@@ -2549,6 +2549,30 @@ func _test_intro_and_help() -> void:
 		ScenarioData.intro_of(ScenarioData.get_background("border_post")) != ""
 		and ScenarioData.intro_of(ScenarioData.get_background("town_inn")) != "")
 
+	# ★ 第六十轮：第二轮也要弹浮窗，而且用**这一轮自己的**说明（与第一轮不同）
+	var r1_intro: String = main.intro_body.text
+	var keep_li: int = RunData.level_index
+	var keep_cleared: int = RunData.cleared_levels
+	main._close_intro()
+	RunData.level_index = 1
+	RunData.cleared_levels = 1
+	main._start_level()
+	_check("★ 进入第 2 轮时浮窗再次弹出", main.intro_layer.visible == true)
+	var r2_intro: String = main.intro_body.text
+	_check("★ 第 2 轮的介绍与第 1 轮不同",
+		r1_intro != r2_intro and r2_intro.length() > 40)
+	_check("第 2 轮的介绍就是这一轮 levels[].intro",
+		r2_intro == str(RunData.current_level().get("intro", "")))
+	_check("DossierData 按当前轮取说明", DossierData.intro_text() == r2_intro)
+	_check("两轮都写了说明（不是拿空串凑数）",
+		str(RunData.levels()[0].get("intro", "")).length() > 40
+		and str(RunData.levels()[1].get("intro", "")).length() > 40)
+	# 回到第 1 轮，后面的用例仍按第 1 轮的状态跑
+	main._close_intro()
+	RunData.level_index = keep_li
+	RunData.cleared_levels = keep_cleared
+	main._start_level()
+
 	main._close_intro()
 	_check("关掉之后收起来", main.intro_layer.visible == false)
 

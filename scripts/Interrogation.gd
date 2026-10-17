@@ -172,8 +172,11 @@ var interference_line: String = ""         # 他这一次递的那句话（显�
 var current_options: Array = []
 # ★ 第五十七轮：上一题选中的那句话 —— 下一题的题面之前会接一行「你：<这句>」，
 #   让「你答了什么 → 他又问什么」在屏幕上连起来。
-#   选项自己写了 `echo` 就用它（编辑器可改），没写就落回选项文本（去掉 A. 前缀）。
+# ★ 第六十一轮：选项可以自带 `echo`（选完之后接在下一题前的那段）。自带时**原样显示**，
+#   不再自动加「你：」—— 所以它可以写「你说了什么」，也可以写「这句话的后果 / 旁白」。
+#   没写才回落选项文本，并加「你：」。
 var last_choice_text: String = ""
+var last_choice_is_custom: bool = false
 var _questions: Array = []               # 本轮实际要问的题（从背景题库里抽出来的）
 var _ended: bool = false
 var _running: bool = false               # 只有开局后才驱动计时器，避免未开局时干扰抢跑
@@ -740,6 +743,7 @@ func start_interrogation() -> void:
 	_running = true
 	# 新的一轮从干净的一句话开始 —— 上一轮最后那句不能带进来。
 	last_choice_text = ""
+	last_choice_is_custom = false
 	current_question_index = 0
 	interference_count = 0
 	interference_blocked = 0
@@ -1215,11 +1219,15 @@ func _letterize(opts: Array) -> Array:
 		var o: Dictionary = opts[i]
 		var lab := str(o.get("_label", ""))
 		o.erase("_label")
-		# ★ 第五十七轮：`echo` = 选完这句之后、下一题题面前接的那行「你：<echo>」。
+		# ★ 第五十七轮：`echo` = 选完这句之后、下一题题面前接的那段。
 		#   选项自己写了就用它；没写就落回按钮上的原话（去掉 A. 前缀）。
+		# ★ 第六十一轮：区分「自带」与「回落」—— 自带的那段原样显示，不自动加「你：」。
 		var echo := str(o.get("echo", ""))
 		if echo.strip_edges() == "":
 			echo = lab
+			o["echo_custom"] = false
+		else:
+			o["echo_custom"] = true
 		# 「⚠」是读过情报后给按钮加的雷区标记，不该跟着念出来。
 		o["echo"] = echo.trim_prefix("⚠ ")
 		o["text"] = str(letters[i % letters.size()]) + lab
@@ -1356,12 +1364,17 @@ func _load_question(index: int) -> void:
 	#   把上一题选中的那句接在题面前面 —— 于是屏幕上读到的是：
 	#       你：散不掉。码头往上数第三条巷子……
 	#       审讯官：你刚才说码头第三条巷子 —— 那巷子口是家什么铺子？
-	#   选项自带 `echo` 时用它（编辑器里「接在下一题题面前的回应」），
-	#   没写就用选项文本本身。第 1 题前面当然没有「你：」——
-	#   last_choice_text 在 start_interrogation() 里清过。
+	# ★ 第六十一轮：选项自带 `echo` 时**原样显示**（不加「你：」）——
+	#   因为自带的那段常常是「选完之后的后果」，不是你说的话：
+	#       空太郎：「我从没听阳乃小姐说过有这么个朋友。」怀疑值上升。
+	#       审讯官：……
+	#   没写 `echo` 才回落选项文本，并加「你：」。
 	var echo_head := ""
 	if index > 0 and last_choice_text.strip_edges() != "":
-		echo_head = _ut("interrogation.speaker_you", "你") + "：" + last_choice_text + "\n"
+		if last_choice_is_custom:
+			echo_head = last_choice_text + "\n"
+		else:
+			echo_head = _ut("interrogation.speaker_you", "你") + "：" + last_choice_text + "\n"
 	dialogue_label.text = echo_head + speaker + "：" + _q_text(q)
 
 	if is_comp:
@@ -1537,6 +1550,7 @@ func _select_option(opt_index: int) -> void:
 	#   放在所有结算分支之前：不管这一答是照实答、撒谎、说漏嘴还是直接收场，
 	#   这句话都已经出口了。
 	last_choice_text = str(opt.get("echo", ""))
+	last_choice_is_custom = bool(opt.get("echo_custom", false))
 	var kind := str(opt["kind"])
 	var owner := str(opt["owner"])
 

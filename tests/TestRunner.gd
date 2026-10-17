@@ -681,6 +681,8 @@ func _test_option_echo() -> void:
 		echo != "" and not echo.begins_with("A. "))
 	interro._select_option(pick)
 	_check("选完之后记下了这句回应", interro.last_choice_text == echo)
+	_check("默认回应不是「自带」——下一题前会自动加「你：」",
+		interro.last_choice_is_custom == false)
 
 	interro._ended = false
 	interro._running = true
@@ -703,6 +705,16 @@ func _test_option_echo() -> void:
 		str((opts[1] as Dictionary).get("echo", "")) == "乙回答")
 	_check("按钮文字仍然是选项文本（带 A. 前缀）",
 		str((opts[0] as Dictionary).get("text", "")) == "A. 甲回答")
+	_check("自带 echo → 标记为「原样显示」",
+		bool((opts[0] as Dictionary).get("echo_custom", false)))
+	_check("没写 echo → 标记为「回落」",
+		not bool((opts[1] as Dictionary).get("echo_custom", true)))
+	# ★ 第六十一轮：自带的那段原样显示 —— 它可以是「选完之后的后果」，不能自动加「你：」
+	interro.last_choice_text = "（测试后果）"
+	interro.last_choice_is_custom = true
+	interro._load_question(1)
+	_check("自带回应原样显示（不自动加「你：」）",
+		interro.dialogue_label.text.begins_with("（测试后果）\n"))
 	# 「⚠」是读过情报后给按钮加的雷区标记 —— 屏幕上是「你：<这句话>」，不能把标记念出来。
 	var warn_opts: Array = interro._letterize([{"_label": "⚠ 测试危险项"}])
 	_check("回应文本里不带「⚠」这个按钮标记",

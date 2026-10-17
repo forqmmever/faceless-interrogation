@@ -347,6 +347,13 @@ try {
     "「情景一」第一轮强制校服上下装");
   ok(!!scene1 && scene1.companion.name === "陈虎" && scene1.interrogator === "空太郎",
     "「情景一」的人物：审讯官空太郎 / 同行人陈虎");
+  // ★ 第六十一轮：docx 里「选项后面那段」现在填进了每个选项的 echo
+  const sceneQ1 = scene1 && scene1.questions.find(q => q.id === "s1_q1");
+  ok(!!sceneQ1 && String((sceneQ1.options[0] || {}).echo || "").includes("空太郎不理解"),
+    "「情景一」：选项后面的内容填进了「接在下一题题面前的回应」");
+  const echoN = scene1 ? scene1.questions.reduce((a, q) =>
+    a + (q.options || []).filter(o => o.echo).length, 0) : 0;
+  ok(echoN === 24, "「情景一」：24 个选项带回应（实际 " + echoN + "）");
   const blank = P.blankBackground();
   ok(blank.enabled === false && Array.isArray(blank.questions) && blank.questions.length === 0,
     "空白新建的骨架是草稿（enabled:false）且内容为空");

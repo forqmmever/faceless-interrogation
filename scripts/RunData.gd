@@ -705,6 +705,10 @@ func interrogator_trait_name() -> String:
 func cover_role() -> String:
 	return str(background().get("cover_role", ""))
 
+# ★ 第五十六轮：「自行编辑」模式的背景（题目不绑档案卡与事实）
+func questions_are_manual() -> bool:
+	return ScenarioData.questions_source_of(background()) == "manual"
+
 func true_role() -> String:
 	return str(background().get("true_role", ""))
 

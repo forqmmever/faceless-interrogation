@@ -96,6 +96,7 @@ mainJs += `
   // ★ 第五十五轮：手机并入本编辑器 + 题目来源开关
   phoneSections, smsSection, smsThreadFields, SMS_GROUPS, PHONE_PAGES, PHONE_SEGS,
   PH_EXPECT, PH_MEANING, phone, phoneSec, bgQuestionsSource, countPh, questionTitle,
+  optionFields, optionTitle, MANUAL_HIDDEN_META, MANUAL_HIDDEN_COMPANION,
 };
 `;
 
@@ -364,6 +365,10 @@ try {
   ok(toneOpts.some(o => o.v === "version"), "选项类型里有「某个版本」");
   const suspField = (optField && optField.fields || []).find(f => f.k === "suspicion");
   ok(!!suspField, "每个选项都能单独设「怀疑值加多少」");
+  // ★ 第五十六轮：清空必须**删掉这个键**（否则空框写回 0，「留空 = 用默认」做不到）
+  ok(suspField && suspField.blankDelete === true,
+    "怀疑值清空 = 删掉这个键（不是写回 0），「留空」才真的等于「用默认」");
+  ok(!suspField || !!suspField.placeholder, "怀疑值空着时有灰字说明默认怎么算");
   const lvField = qFields.find(f => f.k === "level");
   const lvOpts = lvField && lvField.opts ? lvField.opts() : [];
   ok(lvOpts.some(o => o.v === "-1"), "题目能指定「属于哪一关」（含通用池）");
@@ -413,6 +418,32 @@ try {
     const manErrs = P.issues.filter(i => i.lv === "e" && /档案卡|事实|雷区/.test(i.m));
     ok(manErrs.length === 0, "自行编辑：没有卡片 / 事实时不再报雷区与事实绑定（实际 " + manErrs.length + " 条"
       + (manErrs.length ? "：" + manErrs.slice(0, 2).map(x => x.m).join(" | ") : "") + "）");
+    // ---- 第五十六轮：自行编辑下「用不到的字段全部不显示」----
+    const manSecs = P.bgSections(Object.assign({}, bgs[0], {questions_source:"manual"}));
+    const autoSecs = P.bgSections(Object.assign({}, bgs[0], {questions_source:"auto"}));
+    ok(!manSecs.some(s => s.key === "cards"), "自行编辑：没有「身份档案卡」整节");
+    ok(!manSecs.some(s => s.key === "facts"), "自行编辑：没有「事实与版本」整节");
+    ok(autoSecs.some(s => s.key === "cards") && autoSecs.some(s => s.key === "facts"),
+      "自动生成：两节都还在");
+    const manMeta = manSecs.find(s => s.key === "meta").fields.map(f => f.k);
+    const autoMeta = autoSecs.find(s => s.key === "meta").fields.map(f => f.k);
+    P.MANUAL_HIDDEN_META.forEach(k => ok(manMeta.indexOf(k) < 0, "自行编辑：没有 " + k));
+    P.MANUAL_HIDDEN_META.forEach(k => ok(autoMeta.indexOf(k) >= 0, "自动生成：仍有 " + k));
+    ok(manMeta.indexOf("interrogator") >= 0, "★ 审讯官的**称呼**两模式都留（用户口径：审讯官的名字不删）");
+    ok(manMeta.indexOf("name") >= 0 && manMeta.indexOf("intro") >= 0, "自行编辑：背景名与开场介绍照旧在");
+    const manComp = manSecs.find(s => s.key === "companion").fields.map(f => f.k);
+    ok(manComp.length === 1 && manComp[0] === "name", "自行编辑：同行人只剩称呼（实际 " + manComp.join(",") + "）");
+    const manQ = P.questionFields(true).map(f => f.k);
+    ok(manQ.indexOf("recall") < 0, "自行编辑：没有「跨关复问」（靠事实表）");
+    const manOpt = P.optionFields(true).map(f => f.k);
+    ok(manOpt.indexOf("tone") < 0, "自行编辑：选项里没有「这句话算哪一种」");
+    ok(manOpt.indexOf("value") < 0, "自行编辑：选项里没有「代表哪个说法」");
+    ok(manOpt.indexOf("text") >= 0 && manOpt.indexOf("suspicion") >= 0 && manOpt.indexOf("ending") >= 0,
+      "自行编辑：选项只剩 文本 / 怀疑值 / 触发结局（实际 " + manOpt.join(",") + "）");
+    const autoOpt = P.optionFields(false).map(f => f.k);
+    ok(autoOpt.indexOf("tone") >= 0 && autoOpt.indexOf("value") >= 0, "自动生成：tone / value 都在");
+    ok(!P.optionTitle({suspicion:3}, 0).includes("?"), "没有 tone 的选项标题不显示「?」：" + P.optionTitle({suspicion:3}, 0));
+
     // 切回自动生成 → 这些检查必须回来（否则等于把校验删了）
     bg.questions_source = "auto";
     P.loadStory(JSON.parse(snap), "t.json", false);
@@ -540,6 +571,11 @@ try {
     s => { s.backgrounds[0].interrogator_sms[1].id = s.backgrounds[0].interrogator_sms[0].id; }, "id 重复");
   negCase("审问官短信 level 越界",
     s => { s.backgrounds[0].interrogator_sms[0].level = 7; }, "越界");
+  // ---- 第五十六轮：自行编辑模式的校验口径 ----
+  negCase("自动生成：缺 cover_role 会提醒",
+    s => { delete s.backgrounds[0].cover_role; }, "没有 cover_role");
+  negCase("自动生成：选项 tone 非法会报错",
+    s => { s.backgrounds[0].questions[0].options[0].tone = "shout"; }, "不是合法的七种之一");
   P.loadStory(JSON.parse(JSON.stringify(pristine)), "t.json", false);
 
   console.log("\n-- 8b. 数值 / 界面文案 / 结局文案（本轮新增）--");

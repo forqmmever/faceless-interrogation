@@ -585,6 +585,17 @@ function bgEnabled(b){ return !(b && b.enabled === false); }
 //   那种情况下再要求「每题必须挂卡」「必须有一张 A 卡」就是无意义的拦截。
 //   ★ 缺省（不写这个键）= auto，所以出厂那四套一个字都不用补。
 function bgQuestionsSource(b){ return (b && b.questions_source === "manual") ? "manual" : "auto"; }
+
+// ★★ 第五十六轮：「自行编辑」模式下**用不到的字段直接不显示**（数据不动，切回自动生成就回来）。
+//   用户口径：「在用户自己编辑的背景时，用不到的空全部删去，如审讯官的名字，身份档案卡，
+//   选项中的「这句话算哪种」」+ 追问时补充的「审讯官的性别 / 同行人的性别 / 你伪装的身份 /
+//   你的真实身份 / A 的真身名字」。
+//   ★ 为什么这些在自行编辑下用不到：它们全是**档案卡与事实那套结构**的配套设定 ——
+//     A 的真身名只在「阶段二被认出来」时念，而那条戏要靠「雷区题」触发；
+//     B/A 两个身份是档案卡归属判定的依据；性别只用在顶栏与备忘录的括号里。
+//     不建卡片与事实的背景，这四栏就是纯负担。
+const MANUAL_HIDDEN_META = ["interrogator_gender", "cover_role", "true_role", "true_name"];
+const MANUAL_HIDDEN_COMPANION = ["gender"];
 function enabledBgs(){ return (story.backgrounds || []).filter(bgEnabled); }
 
 // 全部背景一共多少道题（首页统计与冒烟用）
@@ -867,25 +878,47 @@ function pickFactOpts(){
   return [{v:"", l:"（不挂事实 —— 不参与跨关一致性检查）"}].concat(
     (bg.facts || []).map(f => ({v:f.id, l:f.id + "（" + ((f.values || []).length) + " 个版本）"})));
 }
-function optionFields(){
-  return [
+function optionFields(manual){
+  // ★★ 第五十六轮：「自行编辑」模式下**只留三样** —— 选项文本 / 怀疑值 / 触发结局。
+  //   用户口径：「选项中的「这句话算哪种」去掉」，追问时确认连「代表哪个说法」一起去掉。
+  //   ★ 为什么：`tone` 里那七种有一半是给档案卡与事实用的 ——
+  //     「某个版本」要挂事实才判得了、「说漏嘴」的语义是「说了只有 A 知道的事」。
+  //     不建卡片与事实的背景，这些分类就成了必须猜的负担。
+  //   ★ 判定改成**只看怀疑值**：留空 = 用「照实答」的出厂值（rules.correct_delta，默认 -6）。
+  //     运行时那边也改了 —— tone 为空不再打印警告，直接按这个口径结算。
+  const fields = [
     {k:"text", label:"选项文本", t:"area", rows:2,
-      hint:"类型选「沉默」时可以留空 —— 那就用出厂那句通用文案。"},
-    {k:"tone", label:"这句话算哪一种（判定只看它）", t:"select", opts:()=>TONE_OPTS},
-    {k:"suspicion", label:"选了它，怀疑值加多少", t:"num",
-      hint:"留空 = 用全局默认（照实答看 rules.correct_delta、撒谎 / 回避按性情现算、硬编看 rules.blind_made_up_delta）。填了就硬覆盖这道题。"},
-    {k:"value", label:"代表哪个说法（可空）", t:"text",
-      hint:"只有「某个版本」要填 —— 写事实表里的版本 id（如 harbor）。跨关「不许改口」的比对就靠它。"},
-    {k:"ending", label:"触发什么结局（可空）", t:"text",
-      hint:"填 leak = 当场暴露收场（**和「类型」分开**，所以「照实答」也能被写成一句话把人送走）；留空 = 只按上面的怀疑值结算。"},
-    {k:"shake", label:"选完震屏的力度（0 = 不震）", t:"num",
-      hint:"填了就让屏幕晃一下 —— 用在「这句话一说出来，气氛就变了」的选项上。出厂那几处抖动是 18（重）/ 10（QTE 失败）/ 7（掏手机被抓）。"},
+      hint: manual ? "沉默也可以留空 —— 那就用出厂那句通用文案。"
+        : "类型选「沉默」时可以留空 —— 那就用出厂那句通用文案。"},
   ];
+  if (!manual){
+    fields.push({k:"tone", label:"这句话算哪一种（判定只看它）", t:"select", opts:()=>TONE_OPTS});
+  }
+  // ★ 第五十六轮：`blankDelete` —— **清空 = 删掉这个键**。
+  //   不加的话空框会写回 0（`num("", 0)`），于是「留空 = 用默认」在界面上根本做不到：
+  //   用户看到 0，改一下就成了「0 怀疑值」，和 hint 上写的「留空 = -6」对不上。
+  //   （这条对两种模式都成立：自动生成的「留空 = 用全局默认」也是同一个坑。）
+  fields.push({k:"suspicion", label:"选了它，怀疑值加多少", t:"num", blankDelete:true,
+    placeholder: manual ? "留空 = 按「照实答」算（-6）" : "留空 = 用全局默认",
+    hint: manual
+      ? "留空 = 按「照实答」算（rules.correct_delta，默认 -6）。填了就按这个数结算 —— 自行编辑模式下判定**只看这一栏**。"
+      : "留空 = 用全局默认（照实答看 rules.correct_delta、撒谎 / 回避按性情现算、硬编看 rules.blind_made_up_delta）。填了就硬覆盖这道题。"});
+  if (!manual){
+    fields.push({k:"value", label:"代表哪个说法（可空）", t:"text",
+      hint:"只有「某个版本」要填 —— 写事实表里的版本 id（如 harbor）。跨关「不许改口」的比对就靠它。"});
+  }
+  fields.push({k:"ending", label:"触发什么结局（可空）", t:"text",
+    hint:"填 leak = 当场暴露收场（**和「类型」分开**，所以「照实答」也能被写成一句话把人送走）；留空 = 只按上面的怀疑值结算。"});
+  fields.push({k:"shake", label:"选完震屏的力度（0 = 不震）", t:"num",
+    hint:"填了就让屏幕晃一下 —— 用在「这句话一说出来，气氛就变了」的选项上。出厂那几处抖动是 18（重）/ 10（QTE 失败）/ 7（掏手机被抓）。"});
+  return fields;
 }
 function optionTitle(o, i){
-  const t = (o || {}).tone || "?";
+  const t = (o || {}).tone;
   const s = (o || {}).suspicion;
-  return "选项 " + (i + 1) + " · " + t +
+  // ★ 第五十六轮：自行编辑的题没有 tone —— 标题就只报怀疑值，别显示一个「?」
+  const head = "选项 " + (i + 1) + (t ? " · " + t : "");
+  return head +
     (typeof s === "number" ? "　怀疑 " + (s > 0 ? "+" + s : s) : "　（默认代价）");
 }
 function questionFields(manual){
@@ -908,7 +941,7 @@ function questionFields(manual){
     //   只是编辑器不再让你改。（全部当审讯官问的话，把数据里的 speaker 键删掉即可。）
     {k:"text", label:"题面", t:"area", rows:2},
     {k:"setup", label:"前置说明（可空）", t:"area", rows:2,
-      hint:"盲区题用它交代「档案里没有这件事」。"},
+      hint: manual ? "写在这道题前面的一句铺垫（可选）。" : "盲区题用它交代「档案里没有这件事」。"},
   ];
   if (!manual){
     fields.push(
@@ -917,9 +950,12 @@ function questionFields(manual){
     {k:"fact", label:"挂到哪条事实（可空）", t:"select", opts:pickFactOpts,
       hint:"挂了事实 → 选项用「某个版本」时参与跨关一致性检查。"});
   }
+  // ★ 第五十六轮：「跨关复问」靠的是**事实表**（按旧说法挑题），自行编辑没有事实 → 不显示。
+  if (!manual){
+    fields.push({k:"recall", label:"用作跨关复问", t:"bool",
+      hint:"打开后：每关按本关抽到的「旧说法」挑对应的一道出来问。不打开就只是普通题。"});
+  }
   fields.push(
-    {k:"recall", label:"用作跨关复问", t:"bool",
-      hint:"打开后：每关按本关抽到的「旧说法」挑对应的一道出来问。不打开就只是普通题。"},
     {k:"plant", label:"同行者种下的话（可空）", t:"area", rows:2},
     {k:"qte", label:"QTE 类型", t:"select", sub:"qte", opts:()=>QUESTION_QTE_OPTS},
     {k:"delay", label:"QTE 几秒后出现", t:"num", sub:"qte", step:"0.5",
@@ -927,8 +963,8 @@ function questionFields(manual){
     {k:"prompt", label:"QTE 上方的提示文字（可空）", t:"area", sub:"qte", rows:3,
       hint:"留空就用全局那句（界面文案 → 盘问 → 「表情 QTE 的提示条文字」）；"
         + "填了就这一道题专用 —— 比如把这题改成「他在盯着你的手」。只在表情 QTE 上显示。"},
-    {k:"options", label:"选项（判定只看每项的「类型」）", t:"objlist",
-      fields:optionFields(), titleOf:optionTitle});
+    {k:"options", label: manual ? "选项（判定只看「怀疑值」）" : "选项（判定只看每项的「类型」）",
+      t:"objlist", fields:optionFields(manual), titleOf:optionTitle});
   return fields;
 }
 function questionTitle(q, i){
@@ -1166,17 +1202,18 @@ function bgSections(bg){
       + "★ 自行编辑：这两栏不再出现，也**不再检查**雷区 / 事实绑定 —— "
       + "适合「题目全自己写、不需要档案卡与事实表」的背景。\n"
       + "切换只影响**编辑器显示与校验**，已经写进数据里的 card / fact 字段不会被删。"},
-  ]},
+  // ★ 第五十六轮：自行编辑下这四栏不显示（它们只服务「档案卡 + 事实」那套判定）
+  ].filter(f => !manual || MANUAL_HIDDEN_META.indexOf(f.k) < 0) },
 
   // ★★ 第五十五轮：**「他和你的关系」「他是谁、知道什么」两栏删掉了**。
   //   用户口径：「编辑器同行人一栏 他和你的关系去掉 他是谁、知道什么去掉」。
   //   ★ 只删编辑器里的输入框，**数据还在**（`companion.relation` / `companion.desc`）——
   //     运行时要读它们：准备室顶栏那行、手机备忘录第二条（%s 与你的关系）。
   //     所以这两栏现在是「出厂写死的配角设定」，要改只能直接改 story.json。
-  { key:"companion", title:"② 同行人 C（他的称呼与性别）", kind:"object", fields:[
+  { key:"companion", title: manual ? "② 同行人 C" : "② 同行人 C（他的称呼与性别）", kind:"object", fields:[
     {k:"name", sub:"companion", label:"同行人的称呼（C）", t:"text"},
     {k:"gender", sub:"companion", label:"同行人的性别", t:"select", opts:()=>GENDERS},
-  ]},
+  ].filter(f => !manual || MANUAL_HIDDEN_COMPANION.indexOf(f.k) < 0) },
 
   { key:"cards", title:"③ 身份档案卡（归类环节用）", kind:"objlist", arr:()=>bg.cards,
     blank:()=>({id:"new_card", topic:"新主题", owner:"B", text:""}),
@@ -1227,8 +1264,11 @@ function bgSections(bg){
     blank:()=>({id:"new_q", level:-1, text:"", options:[]}),
     hint:"每轮出几道题 = 那一轮的固定题（「属于哪一轮」选具体轮次）+ 从通用池补足到「数值规则」里的 questions_per_level。"
       + "想精确控制就把题分配下去，想保留随机就留在通用池。顺序就是这份清单的顺序：固定题先出、然后是复问、最后是通用池抽来的。"
-      + "「怀疑值」留空是常态 —— 那表示「用全局默认」，这样「换个人来问、代价完全不同」的性情机制才生效。"
-      + "选项类型共七种：照实答 / 说漏嘴 / 某个版本 / 撒谎 / 回避 / 沉默 / 硬编。一个选项都没有的题会在校验面板里报警。",
+      + (manual
+        ? "「怀疑值」留空 = 按「照实答」算（-6）。自行编辑模式**不区分选项类型**，每项只按这一栏结算。"
+          + "一个选项都没有的题会在校验面板里报警。"
+        : "「怀疑值」留空是常态 —— 那表示「用全局默认」，这样「换个人来问、代价完全不同」的性情机制才生效。"
+          + "选项类型共七种：照实答 / 说漏嘴 / 某个版本 / 撒谎 / 回避 / 沉默 / 硬编。一个选项都没有的题会在校验面板里报警。"),
     titleOf:questionTitle,
     // ★★ 第五十五轮：「题目来源 = 自行编辑」时不出现「来源档案卡 / 挂到哪条事实」两栏
     fields:questionFields(manual) },
@@ -1270,7 +1310,10 @@ function bgSections(bg){
     blank:()=>({id:"new_defect", name:"新缺陷", slot_hint:"", cover_tags:[]}),
     fields:defectFields(),
     titleOf:(d,i)=>(d.name || d.id || ("缺陷 " + (i + 1))) + "　·　遮它需要：" + ((d.cover_tags || []).join(" / ") || "（没写 → 永远露着）")},
-  ];
+  // ★★ 第五十六轮：自行编辑模式下「③ 身份档案卡」「④ 事实与版本」两整节不出现 ——
+  //   它们就是题目要挂的那套结构，不绑卡片与事实的背景建了也没人用。
+  //   数据不动：切回「自动生成」，已有的卡片与事实照旧在那里。
+  ].filter(s => !manual || (s.key !== "cards" && s.key !== "facts"));
 }
 
 // ============================================================
@@ -3065,9 +3108,14 @@ function validateNow(){
     const manual = bgQuestionsSource(bg) === "manual";
 
     if (!bg.name) warn(tag + " 没有背景名", v);
-    if (!bg.cover_role) warn(tag + " 没有 cover_role（B 伪装的身份）", v);
-    if (!bg.true_role) warn(tag + " 没有 true_role（A 的真实身份）", v);
-    if (!bg.true_name) warn(tag + " 没有 true_name（A 的真身名字）—— 阶段二被认出来时会退回念 true_role", v);
+    // ★ 第五十六轮：自行编辑下 B / A 两个身份与 A 的真身名都不显示 —— 也就不再要求填。
+    //   （它们只服务「档案卡归属判定」和「阶段二被认出」。）审讯官的**称呼**两模式都要 ——
+    //   准备室顶栏、手机备忘录、短信联系人都靠它。
+    if (!manual){
+      if (!bg.cover_role) warn(tag + " 没有 cover_role（B 伪装的身份）", v);
+      if (!bg.true_role) warn(tag + " 没有 true_role（A 的真实身份）", v);
+      if (!bg.true_name) warn(tag + " 没有 true_name（A 的真身名字）—— 阶段二被认出来时会退回念 true_role", v);
+    }
     if (!bg.intro) warn(tag + " 没有 intro（开场介绍）—— 开局那个浮动窗口会退回显示一行场景描写", v);
         // ★★ 第五十四轮：这里原来有一条「没有自己的关卡表 —— 会回落到全局那一份」的提醒。
     //   **删掉了** —— 空 = 回落全局是出厂常态（第 52 轮起每套背景的 `levels` 就是空的），
@@ -3163,13 +3211,18 @@ function validateNow(){
       if (!opts.length) err(label + " 一个选项都没有 —— 盘问时它摆不出任何按钮", v);
       opts.forEach((o, oi) => {
         const ol = label + " 的第 " + (oi + 1) + " 个选项";
-        if (!TONES.has(o.tone))
-          err(ol + " 的类型「" + (o.tone || "（空）") + "」不是合法的七种之一（correct / leak / version / bluff / evade / silence / made_up）", v);
-        if (!o.text && o.tone !== "silence")
-          err(ol + " 没有文本（只有「沉默」允许留空 —— 那会用出厂那句）", v);
+        // ★ 第五十六轮：manual 模式没有「这句话算哪一种」—— 不查类型，只看文本与怀疑值。
+        if (!manual){
+          if (!TONES.has(o.tone))
+            err(ol + " 的类型「" + (o.tone || "（空）") + "」不是合法的七种之一（correct / leak / version / bluff / evade / silence / made_up）", v);
+          if (!o.text && o.tone !== "silence")
+            err(ol + " 没有文本（只有「沉默」允许留空 —— 那会用出厂那句）", v);
+        } else if (!o.text){
+          warn(ol + " 没有文本 —— 盘问时这个按钮会是空的（想写「沉默」就给个「（沉默）」）", v);
+        }
         if (o.suspicion != null && typeof o.suspicion !== "number")
-          err(ol + " 的怀疑值必须是数字（留空 = 用全局默认）", v);
-        if (o.tone === "version"){
+          err(ol + " 的怀疑值必须是数字（留空 = 用「照实答」的出厂值）", v);
+        if (!manual && o.tone === "version"){
           if (!o.value) err(ol + " 类型是「某个版本」却没写 value", v);
           // ★ 第五十五轮：manual 模式本来就不挂事实 —— 那就不查版本表（也没表可查）
           else if (!q.fact){ if (!manual) err(ol + " 是「某个版本」但整道题没挂事实 —— 它无法参与跨关一致性检查", v); }
@@ -3198,14 +3251,16 @@ function validateNow(){
     if (!perLevel[-1])
       warn(tag + " 通用池是空的 —— 每关出了固定题之后没有可补的题", v);
 
-    // ---- 主人公性别 ----
-    if (GENDERS.every(g => g.v !== bg.interrogator_gender))
+    // ---- 主人公 ----
+    if (!bg.interrogator) warn(tag + " 审讯官没有称呼 —— 准备室顶栏、手机备忘录、短信联系人都要用它", v);
+    // ★ 第五十六轮：自行编辑下「审讯官的性别」这一栏不显示 —— 也就不查它的取值。
+    if (!manual && GENDERS.every(g => g.v !== bg.interrogator_gender))
       err(tag + " 审讯官的性别必须是「男」或「女」（现在是「" + (bg.interrogator_gender || "空") + "」）", v);
     const cp = bg.companion;
     if (!cp || typeof cp !== "object") err(tag + " 缺少 companion —— 同行人 C 的信息整块没了", v);
     else {
       if (!cp.name) err(tag + " companion 没有 name", v);
-      if (GENDERS.every(g => g.v !== cp.gender)) err(tag + " companion.gender 必须是「男」或「女」", v);
+      if (!manual && GENDERS.every(g => g.v !== cp.gender)) err(tag + " companion.gender 必须是「男」或「女」", v);
       // ★ 第五十五轮：「他和你的关系」「他是谁、知道什么」已从编辑器下线，
       //   空着也不再提醒 —— 提醒了也没有地方改（数据出厂就写好了）。
     }

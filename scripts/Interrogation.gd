@@ -1016,7 +1016,13 @@ func _is_unified_question(q: Dictionary) -> bool:
 	var raw: Array = q.get("options", [])
 	if raw.is_empty():
 		return false
-	return (raw[0] as Dictionary).has("tone")
+	var first: Dictionary = raw[0]
+	# ★★ 第五十六轮：判据从「有 tone」放宽成「这是选项数组」——
+	#   自行编辑的题**没有 tone**（用户口径：选项里不要「这句话算哪一种」），
+	#   但它照样是 options[] 格式。只看 tone 的话它会掉进旧格式那条路，
+	#   被当成「档案题」，然后**完全不读你写的选项**（只摆固定四个）。
+	#   旧格式（内置常量）的题根本没有 options 字段，所以放宽不会误伤。
+	return first.has("tone") or first.has("text")
 
 func _build_unified_options(q: Dictionary) -> Array:
 	var raw: Array = q.get("options", [])
@@ -1027,7 +1033,12 @@ func _build_unified_options(q: Dictionary) -> Array:
 	# 所以判定不能比内容，只能比「有没有按他的脾性选」（见 _answer_blind）。
 	# ★ 注意这不是「题目分类」，而是从题目挂了什么**推**出来的：
 	#   你把一道题的事实引用删掉，它自然就变成盲区题。
-	var is_blind := fid == "" and cid == "" and not is_companion
+	# ★ 第五十六轮：自行编辑的背景没有档案卡与事实 —— 那道「盲区」也就不存在了。
+	#   原来不挂卡不挂事实就等于盲区题（判定改成「按他的脾性选对没选对」），
+	#   而自行编辑的题**每一道**都不挂卡不挂事实 → 会全部变成盲区题。
+	#   这里一并关掉：自行编辑的题只按选项自己的怀疑值结算。
+	var is_blind := fid == "" and cid == "" and not is_companion \
+		and not RunData.questions_are_manual()
 
 	var owner := "B"
 	if cid != "":
@@ -1091,7 +1102,15 @@ func _build_unified_options(q: Dictionary) -> Array:
 			_:
 				# tone 写错了也别让这道题空着 —— 当成「照实答」处理，并留个痕。
 				item["kind"] = "ok"
-				push_warning("未知的 tone「%s」（题 %s）" % [tone, str(q.get("id", "?"))])
+				# ★★ 第五十六轮：**代价也要按「照实答」算**。
+				#   原来这里只把 kind 改成 "ok"，delta 仍是 0.0 —— 于是「没写 tone」
+				#   等于「不涨不跌」，和编辑器上那句「留空 = 按照实答算（-6）」对不上。
+				#   现在统一取 correct_delta（显式写了 suspicion 仍然优先）。
+				delta = float(d.get("suspicion", _rf("correct_delta", -6.0)))
+				# 自行编辑的题本来就没有 tone，不算「写错了」——
+				# 只有真的写了个不认识的值才报。
+				if tone != "":
+					push_warning("未知的 tone「%s」（题 %s）" % [tone, str(q.get("id", "?"))])
 		if is_blind:
 			item["blind"] = true
 		item["delta"] = delta

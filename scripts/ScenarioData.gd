@@ -2854,6 +2854,13 @@ func blind_question_for_level(bg: Dictionary, li: int) -> Dictionary:
 func interrogator_of(bg: Dictionary) -> String:
 	return str(bg.get("interrogator", "审讯官"))
 
+# 题目来源（★ 第五十六轮）："manual" = 用户自己写题、不建档案卡与事实。
+#   缺省 "auto" —— 出厂那四套不写这个键，行为与以前一模一样。
+#   ★ 运行时只有两处读它：① 判定「盲区题」时要关掉（没有档案就没有盲区）；
+#     ② 选项没有 tone 时按「照实答」结算。其余一切都还是数据驱动。
+func questions_source_of(bg: Dictionary) -> String:
+	return "manual" if str(bg.get("questions_source", "")) == "manual" else "auto"
+
 func true_role_of(bg: Dictionary) -> String:
 	return str(bg.get("true_role", ""))
 

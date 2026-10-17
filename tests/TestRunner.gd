@@ -114,6 +114,8 @@ func _ready() -> void:
 	_tick("审讯官情报")
 	_test_blind_question()
 	_tick("盲区题")
+	_test_manual_question_options()
+	_tick("自行编辑的题")
 	_test_new_mechanics()
 	_tick("新机制")
 	_test_title_and_save()
@@ -557,6 +559,78 @@ func _test_enter_interrogation() -> void:
 # ------------------------------------------------------------
 # 说法题：前后矛盾
 # ------------------------------------------------------------
+# ------------------------------------------------------------
+#  自行编辑模式（★ 第五十六轮）
+#
+#  用户口径：「在用户自己编辑的背景时，用不到的空全部删去」——
+#  编辑器那边把档案卡 / 事实 / 「这句话算哪一种」都收起来了。
+#  这一段测的是**运行时**跟着改对了没有，三件事：
+#    ① 没有 tone 的题仍然走统一格式（否则会掉进旧「档案题」那条路，
+#       只摆固定四个选项、完全不读你写的内容）；
+#    ② 没有 tone 时代价按「照实答」算（以前是 0，等于不涨不跌）；
+#    ③ 不再是「盲区题」（不挂卡不挂事实的题在自动生成下就是盲区）。
+# ------------------------------------------------------------
+func _test_manual_question_options() -> void:
+	print("\n-- 自行编辑模式：选项没有「算哪种」也能跑 --")
+	# ★ 只开一局就够 —— 这段全是纯函数断言（拿自己拼的 q 走 `_build_unified_options`），
+	#   不需要 `_run_a_clean_level()` 里「先过一轮再重开」那套。
+	#   （实测那样要 13.8 秒，占整套 7.8%；换成和「盲区题」一样的轻开局只要几秒。）
+	main._start_new_run(20261011)
+	_prepare_and_enter()
+	interro.set_process(false)
+	var bg := RunData.background()
+
+	# ---- 纯函数：缺省 = auto ----
+	_check("不写这个键 = 自动生成",
+		ScenarioData.questions_source_of({}) == "auto")
+	_check("写了 manual 就是自行编辑",
+		ScenarioData.questions_source_of({"questions_source": "manual"}) == "manual")
+	_check("写了个不认识的值 → 退回自动生成",
+		ScenarioData.questions_source_of({"questions_source": "xx"}) == "auto")
+	_check("出厂四套都是自动生成", not RunData.questions_are_manual())
+
+	# ---- 一道典型的「自行编辑」题：没有 tone、不挂卡不挂事实 ----
+	var q := {
+		"id": "manual_probe", "level": 0, "text": "你从哪儿来？",
+		"options": [
+			{"text": "从北边来的。", "suspicion": -6},
+			{"text": "……", "suspicion": 3},
+			{"text": "干你什么事。", "suspicion": 15, "ending": "leak"},
+			{},
+		],
+	}
+	_check("没有 tone 的题仍走统一格式（不会掉进旧「档案题」那条路）",
+		interro._is_unified_question(q))
+
+	# ---- 自动生成下：不挂卡不挂事实 = 盲区题（这是原来就有的行为） ----
+	# ★ interro 声明成 Control，动态调用拿回来是 Variant —— 必须写显式类型，
+	#   否则 `:=` 会报 "Cannot infer the type"（整份脚本连解析都过不去）。
+	var opts_auto: Array = interro._build_unified_options(q)
+	_check("自动生成：不挂卡不挂事实 → 判成盲区题",
+		bool((opts_auto[0] as Dictionary).get("blind", false)))
+
+	# ---- 改成自行编辑：不再是盲区 ----
+	bg["questions_source"] = "manual"
+	_check("自行编辑：questions_are_manual() 为真", RunData.questions_are_manual())
+	var opts: Array = interro._build_unified_options(q)
+	_check("自行编辑：四个选项都读出来了（实际 %d）" % opts.size(), opts.size() == 4)
+	_check("自行编辑：不再判成盲区题（否则每道题都会走「按脾性选对没选对」）",
+		not bool((opts[0] as Dictionary).get("blind", false)))
+	_check("自行编辑：文本原样保留",
+		str((opts[0] as Dictionary).get("text", "")).ends_with("从北边来的。"))
+	_check("自行编辑：显式写的怀疑值生效",
+		is_equal_approx(float((opts[1] as Dictionary).get("delta", 99.0)), 3.0))
+	_check("自行编辑：没写怀疑值也没有 tone → 按「照实答」算，不是 0（实际 %.1f）"
+		% float((opts[3] as Dictionary).get("delta", 99.0)),
+		is_equal_approx(float((opts[3] as Dictionary).get("delta", 99.0)),
+			float(ScenarioData.RULES.get("correct_delta", -6.0))))
+	_check("自行编辑：没写 tone 的选项按「照实答」结算（kind = ok）",
+		str((opts[0] as Dictionary).get("kind", "")) == "ok")
+	_check("自行编辑：选项自己写的 ending 照样生效",
+		str((opts[2] as Dictionary).get("ending", "")) == "leak")
+	bg.erase("questions_source")
+	_check("删掉那个键就退回自动生成", not RunData.questions_are_manual())
+
 func _test_fact_consistency() -> void:
 	print("\n-- 说法题：同一件事，前后必须一致 --")
 	_run_a_clean_level()
@@ -3413,6 +3487,14 @@ func _test_leak_and_fail_restart() -> void:
 	var app_before := RunData.true_appearance().duplicate()
 	var run_before := RunData.run_index
 	var acc_before := RunData.acceptance
+	# ★ 第五十六轮：这里原来写死「重来后回到第 1 轮」—— 但这一局是从上一个测试
+	#   （`_test_multi_level_flow`，用 `_start_new_run()` **随机种子**）继承来的，
+	#   第 1 轮偶尔抽不到 A 类档案题，本测试就会先 `_goto_level_with_card_owner()`
+	#   跳到后面某一轮，于是「回到第 1 轮」自然不成立 —— 一条时好时坏的假失败
+	#   （本轮跑第一次挂、第二次过，两次代码完全一样，靠诊断打印才认出来）。
+	#   契约本身是「回到**本轮**开始」，所以判据改成「和失败时那一轮相同」；
+	#   「从第 2 轮重来仍停在第 2 轮」由 `_test_retry_level_semantics` 钉着。
+	var lvl_before := RunData.level_number()
 
 	interro._on_result_pressed()
 	_check("失败 → 结果覆盖层出现", main.overlay.visible == true)
@@ -3421,7 +3503,8 @@ func _test_leak_and_fail_restart() -> void:
 
 	main._on_overlay_pressed()
 	_check("重来本轮 → 局号不变（还是同一局）", RunData.run_index == run_before)
-	_check("重来本轮 → 回到第 1 轮", RunData.level_number() == 1)
+	_check("重来本轮 → 回到本轮开始（失败在第 %d 轮）" % lvl_before,
+		RunData.level_number() == lvl_before)
 	_check("重来本轮 → 接受度不退",
 		RunData.acceptance == acc_before and RunData.acceptance == OutfitData.START_ACCEPTANCE + ProfileData.bonus())
 	_check("重来本轮 → 已通过关数不变", RunData.cleared_levels == 0)

@@ -63,8 +63,11 @@ const BLIND_MADE_UP_DELTA := 24.0
 const EXPR_QTE_TIME := 4.0
 const EXPR_QTE_DECAY := 35.0
 const EXPR_QTE_BOOST := 80.0
-const EXPR_QTE_PASS := 60.0
+const EXPR_QTE_PASS := 80.0
 const EXPR_QTE_FAIL := 24.0          # 表情没绷住 → 怀疑度 +24（调高）
+# ★ 第六十七轮（用户口径）：「只能用空格控制」。
+#   不再读鼠标左键，也不读 ui_accept（那个还包含回车）—— 单独注册一个只映射空格的动作。
+const QTE_ACTION := "qte_space"
 # ★ 第六十三轮：表情 QTE 旁边那块「换装 · 下腹部」小图。
 #   截图由 SubViewport 按 BODY_CROP 从当前换装渲染，BodyPreview 再画屁股轮廓 + 五指手。
 #   BODY_CROP 是 DolDoll 取景框（68×203）里的坐标，按 1:1 铺满 BODY_BOX。
@@ -148,6 +151,12 @@ var is_qte_active: bool = false          # 表情 QTE（保留旧字段名，测
 var qte_progress: float = 0.0
 var qte_timer: float = 0.0
 var qte_needed: bool = false             # 这一题需不需要压表情（在 _load_question 里算好）
+# ★ 第六十七轮：QTE 未到通过线 / 尚未结束时，选项锁着。
+#   「通过」与「条顶过 80%」是同一个时刻 —— 顶到 80% 就解锁；QTE 失败 / 超时收掉后也解锁，
+#   否则玩家会卡在「选项永远点不动」的死局里。
+var _options_locked_by_qte: bool = false
+# ★ 第六十七轮：条一旦顶过 80% 就记为「已通过」—— 之后松手回落也不改判。
+var _qte_passed: bool = false
 var qte_delay_left: float = 0.0          # 延迟倒计时（EXPR_QTE_DELAY 起数到 0 才弹出来）
 # ★ 第三十三轮：这一题的 QTE 提示文字。题目自带（qte.prompt）优先，留空则用全局那句。
 var qte_prompt_used: String = ""
@@ -238,6 +247,12 @@ var phone_notice: Label
 
 func _ready() -> void:
 	_build_ui()
+	# 表情 QTE 只认空格：运行时注册一个只映射 Space 的动作，不依赖 ui_accept 里的回车 / 手柄。
+	if not InputMap.has_action(QTE_ACTION):
+		InputMap.add_action(QTE_ACTION)
+		var ev := InputEventKey.new()
+		ev.physical_keycode = KEY_SPACE
+		InputMap.action_add_event(QTE_ACTION, ev)
 
 # ============================================================
 #  配置读取助手
@@ -1076,12 +1091,19 @@ func _process(delta: float) -> void:
 
 func _process_expression_qte(delta: float) -> void:
 	qte_timer -= delta
-	if Input.is_action_pressed("ui_accept") or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+	# ★ 第六十七轮：只认空格（QTE_ACTION 只映射 Space）。
+	if Input.is_action_pressed(QTE_ACTION):
 		qte_progress += _rf("expr_qte_boost", EXPR_QTE_BOOST) * delta
 	else:
 		qte_progress -= _rf("expr_qte_decay", EXPR_QTE_DECAY) * delta
 	qte_progress = clampf(qte_progress, 0.0, 100.0)
 	qte_bar.value = qte_progress
+	# 顶到通过线 → 立刻解锁选项（不用等 QTE 整段结束），并记为已通过。
+	if qte_progress >= _rf("expr_qte_pass", EXPR_QTE_PASS):
+		_qte_passed = true
+	if _options_locked_by_qte and _qte_passed:
+		_options_locked_by_qte = false
+		_set_options_enabled(true)
 	if qte_timer <= 0.0:
 		# 窗口走完 —— 本题的 QTE 就到此为止（单阶段，不再续下一轮）。
 		_finish_qte_for_question()
@@ -1636,7 +1658,8 @@ func _refresh_option_buttons() -> void:
 		if i < n:
 			var o: Dictionary = current_options[i]
 			b.text = str(o["text"])
-			b.disabled = false
+			# ★ 第六十七轮：QTE 没到通过线时，选项是锁着的（不是没画出来）。
+			b.disabled = _options_locked_by_qte
 			b.show()
 			# 「读过情报才知道的雷区」用暖红标出来
 			if bool(o.get("danger", false)):
@@ -1654,10 +1677,10 @@ func _set_options_enabled(on: bool) -> void:
 		b.disabled = not on
 
 func _select_option(opt_index: int) -> void:
-	if _ended or interference_active:
+	if _ended or interference_active or _options_locked_by_qte:
 		return
-	# ★ 按住型 QTE 期间**不拦答题** —— 你可以一边按着空格压表情，一边点选项。
-	#   （手机这时是锁着的，见 _toggle_phone。）答案一落定，本题的 QTE 就结束。
+	# ★ 第六十七轮：QTE 没顶过 80% 之前不能答题（按钮也是灰的）。
+	#   顶过 80% / QTE 收掉之后 _options_locked_by_qte 才会变 false。
 	if opt_index < 0 or opt_index >= current_options.size():
 		return
 	# 回答完毕，手机自动收回 —— 不用先关掉手机才让你答题
@@ -1980,19 +2003,23 @@ func _begin_qte() -> void:
 		return
 	is_qte_active = true
 	qte_progress = 50.0
+	_qte_passed = false
 	qte_timer = _rf("expr_qte_time", EXPR_QTE_TIME)
 	# ★ 第三十三轮：题目自带 `qte.prompt` 优先，否则用全局那句（两者在编辑器里都能改）。
 	if qte_prompt_used.strip_edges() != "":
 		qte_label.text = qte_prompt_used
 	else:
 		qte_label.text = _ut("interrogation.qte_prompt",
-			"按住 [空格 / 鼠标左键] 压制心跳 —— "
-			+ "把表情维持在绿色区间！（照常答题，手机得先收起来）")
+			"按住 [空格] 压制心跳 —— "
+			+ "把进度顶过 80% 才能答题！（手机得先收起来）")
 	qte_bar.value = qte_progress
 	qte_container.show()
 	# ★ 第六十三轮：下腹部小图跟表情 QTE 同生同灭。
 	_ensure_body_preview()
 	_set_body_preview_visible(true)
+	# ★ 第六十七轮：QTE 没顶过 80% 之前，选项锁着。
+	_options_locked_by_qte = true
+	_set_options_enabled(false)
 	# 手机锁上：收回来 + 按钮变灰
 	_set_phone_locked(true)
 
@@ -2001,11 +2028,13 @@ func _begin_qte() -> void:
 func _finish_qte_for_question() -> void:
 	if not is_qte_active and not qte_needed:
 		return
+	# ★ 第六十七轮：QTE 收掉（通过 / 失败 / 超时）→ 选项解锁，别把玩家卡死。
+	_unlock_options_after_qte()
 	if is_qte_active:
 		is_qte_active = false
 		qte_container.hide()
 		_set_body_preview_visible(false)
-		if qte_progress >= _rf("expr_qte_pass", EXPR_QTE_PASS):
+		if _qte_passed or qte_progress >= _rf("expr_qte_pass", EXPR_QTE_PASS):
 			# ★ 压住表情只是「没露破绽」—— 它不把怀疑度往下压。
 			feedback_label.text = _ut("interrogation.qte_pass",
 				"【表情控制成功】你的呼吸稳住了，脸上没有露出破绽。")
@@ -2028,6 +2057,8 @@ func _cancel_qte() -> void:
 	qte_done = true
 	qte_delay_left = 0.0
 	qte_progress = 0.0
+	_qte_passed = false
+	_unlock_options_after_qte()
 	# 被编辑器指定的「准点递话」跟着本题一起收掉 —— 它属于这一道题，
 	# 不能带到下一题去（否则上一题排的那一次会在新题上冒出来）。
 	_intf_scheduled = false
@@ -2039,6 +2070,13 @@ func _cancel_qte() -> void:
 	_set_body_preview_visible(false)
 	if not _ended:
 		_set_phone_locked(false)
+
+func _unlock_options_after_qte() -> void:
+	if not _options_locked_by_qte:
+		return
+	_options_locked_by_qte = false
+	if not _ended:
+		_set_options_enabled(true)
 
 # 兼容旧调用名（测试与截图脚本还在用 _start_expression_qte）：
 # 现在它等价于「立刻把这一题的 QTE 弹出来」。

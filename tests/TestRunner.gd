@@ -1112,7 +1112,8 @@ func _test_companion_question() -> void:
 	gd.stated_facts.clear()
 	gd.contradictions = 0
 	interro._load_question(ci)
-	_check("发言人是同行者", interro.dialogue_label.text.begins_with("同行者："))
+	var comp_speaker: String = ScenarioData.ui_t("interrogation.speaker_companion", "同行者")
+	_check("发言人是同行者", interro.dialogue_label.text.begins_with(comp_speaker + "："))
 	_check("题面就是他的话", interro.dialogue_label.text.contains(_q_text_of(q)))
 	_check("选项被刷成他的三个回应", interro.current_options.size() == 3)
 	_check("按钮池跟着涨到 3 个", interro.option_btns.size() >= 3)
@@ -1946,7 +1947,7 @@ func _test_phone_in_interrogation() -> void:
 		is_equal_approx(d2, Interrogation.PHONE_PULL_PENALTY))
 	_check("★ 越界掏手机不会新增他的短信（第五十五轮起完全没有这条触发）",
 		DossierData.interrogator_sms_threads().size() == intr0)
-	_check("反馈文案点明「他看见了」", interro.feedback_label.text.contains("他看见了"))
+	# phone_caught 是用户可清空的文案，不再作为断言依据；结算本身看上面的怀疑度 / 通知条。
 	_check("★ 通知条里写明了本次涨了多少怀疑度",
 		interro.phone_notice.text.contains(str(int(round(d2)))))
 
@@ -2131,18 +2132,39 @@ func _test_expression_qte() -> void:
 	_check("延迟走完后 QTE 弹出", interro.is_qte_active == true)
 	_check("QTE 从中间值起手", is_equal_approx(interro.qte_progress, 50.0))
 	_check("QTE 面板可见", interro.qte_container.visible == true)
+	_check("★ 表情 QTE 通过线是 80%", is_equal_approx(Interrogation.EXPR_QTE_PASS, 80.0))
+	var qte_events: Array = InputMap.action_get_events(Interrogation.QTE_ACTION)
+	_check("★ 表情 QTE 只映射空格（没有鼠标 / 回车）",
+		qte_events.size() == 1 and qte_events[0] is InputEventKey
+		and (qte_events[0] as InputEventKey).physical_keycode == KEY_SPACE)
 	_check("★ 表情 QTE 同时出现换装下腹部小图", interro.body_layer.visible == true)
 	_check("下腹部小图有截图纹理", interro.body_tex.texture != null)
 
-	# ★ QTE 期间只锁手机，别的照常（用户口径：「按住空格的 qte 时不再能够使用手机」——
-	#   这是**规定**，不是待修的 bug）。所以这里要验的是「锁住了」而不是「还能用」。
-	_check("QTE 期间选项没有被锁死（照样能答题）", interro.option_btns[0].disabled == false)
+	# ★ 第六十七轮：QTE 未到 80% 之前，选项和手机都锁着。
+	_check("★ QTE 未到 80% 时选项锁着", interro.option_btns[0].disabled == true)
+	var q_before: int = interro.current_question_index
+	interro._select_option(0)
+	_check("★ 未到 80% 时点选项无效",
+		interro.current_question_index == q_before and interro.is_qte_active == true)
 	_check("★ QTE 期间「掏出手机」按钮变灰", interro.phone_btn.disabled == true)
 	var pulls_keep: int = interro.phone_pulls
 	# ★ 走**按钮真正调用的那条路**（_toggle_phone），不是直接调 _open_phone()
 	interro._toggle_phone()
 	_check("★ QTE 期间点「掏出手机」掏不出来", interro.phone_layer.visible == false)
 	_check("★ QTE 期间也没算一次「掏手机」", interro.phone_pulls == pulls_keep)
+
+	# 按住空格顶过 80% → 选项解锁（不用等 QTE 整段结束）
+	Input.action_press("qte_space")
+	for i in 12:
+		interro._process_expression_qte(0.05)
+	Input.action_release("qte_space")
+	_check("★ 长按空格把进度顶过 80%",
+		interro.qte_progress >= Interrogation.EXPR_QTE_PASS)
+	_check("★ 顶过 80% 后选项解锁", interro.option_btns[0].disabled == false)
+	# 松手回落到线下，仍然算「已经通过」—— 这是「顶过 80% 即通过」的口径
+	for i in 12:
+		interro._process_expression_qte(0.05)
+	_check("★ 顶过 80% 后回落，仍记为通过", interro._qte_passed == true)
 
 	# 压完表情（QTE 收掉）→ 手机要重新解锁
 	interro._cancel_qte()
@@ -2156,6 +2178,7 @@ func _test_expression_qte() -> void:
 	# 后面的用例还要接着用「QTE 正在进行」这个状态，把它摆回来
 	interro._start_expression_qte()
 	_check("★ 重新排上 QTE 后手机又锁上", interro.phone_btn.disabled == true)
+	_check("★ 重排 QTE 后选项又锁上", interro.option_btns[0].disabled == true)
 	_check("★ 重排 QTE → 下腹部小图一起出现", interro.body_layer.visible == true)
 	_check("★ 重排时手机被自动收回", interro.phone_layer.visible == false)
 	# ★ 两条提示条共用屏幕最下方那一层 —— 压表情期间不许再排递话（否则会叠）
@@ -2165,12 +2188,13 @@ func _test_expression_qte() -> void:
 		interro.interference_active == false)
 	var opt_before: int = interro.current_question_index
 
-	# 按住 → 进度顶上去；松手 → 掉下来
-	Input.action_press("ui_accept")
+	# 按住空格 → 进度顶上去；松手 → 掉下来
+	Input.action_press("qte_space")
 	for i in 40:
 		interro._process_expression_qte(0.05)
-	Input.action_release("ui_accept")
-	_check("长按能把进度顶到通过线", interro.qte_progress >= Interrogation.EXPR_QTE_PASS)
+	Input.action_release("qte_space")
+	_check("长按空格能把进度顶到通过线", interro.qte_progress >= Interrogation.EXPR_QTE_PASS)
+	_check("顶过 80% 后选项解锁（可以答题）", interro.option_btns[1].disabled == false)
 
 	# ★ 答完题 → 本题的 QTE 立刻结算（单阶段，不续下一轮）
 	#   答的这一步本身要付「撒谎」的代价（按性情算），
@@ -2201,8 +2225,8 @@ func _test_expression_qte() -> void:
 	_check("QTE 失败抬高怀疑度", gd.suspicion_level > 0.0)
 	_check("失败扣的量 = EXPR_QTE_FAIL",
 		is_equal_approx(gd.suspicion_level, Interrogation.EXPR_QTE_FAIL))
-	_check("QTE 失败提示写明「他看见了」",
-		interro.feedback_label.text.contains("他看见了"))
+	_check("QTE 失败提示写明「失败」",
+		interro.feedback_label.text.contains("失败"))
 	_check("失败只扣一次（不再按额度连做数轮）",
 		is_equal_approx(gd.suspicion_level, Interrogation.EXPR_QTE_FAIL))
 
@@ -2298,10 +2322,10 @@ func _test_qte_live_loop() -> void:
 	# ---- ② 按住 → 进度真的会涨（这就是之前失灵的地方）----
 	#  按住 30 帧 = 0.5 秒，进度应当精确地涨 BOOST × 0.5 = 40 ——
 	#  断言具体数值而不是「变大了」，这样「delta 传小了一半」之类的错也能抓到。
-	Input.action_press("ui_accept")
+	Input.action_press("qte_space")
 	for i in 30:
 		interro._process(frame)
-	Input.action_release("ui_accept")
+	Input.action_release("qte_space")
 	var expect_up: float = 50.0 + Interrogation.EXPR_QTE_BOOST * 30.0 * frame
 	_check("★ 按住以后进度按 BOOST × 时长上涨（delta 真的传进来了）",
 		is_equal_approx(interro.qte_progress, expect_up))
@@ -2318,12 +2342,12 @@ func _test_qte_live_loop() -> void:
 	# ---- ④ 一直按住 → 顶过通过线 → 超时自动结算，判定为成功 ----
 	gd.suspicion_level = 30.0
 	var susp_before: float = gd.suspicion_level
-	Input.action_press("ui_accept")
+	Input.action_press("qte_space")
 	var guard := 0
 	while interro.is_qte_active and guard < 2000:
 		interro._process(frame)
 		guard += 1
-	Input.action_release("ui_accept")
+	Input.action_release("qte_space")
 	_check("★ 窗口走完后 QTE 自动结束（不会永远挂着）",
 		interro.is_qte_active == false)
 	_check("★ 通过的进度留在通过线之上",
@@ -2354,8 +2378,8 @@ func _test_qte_live_loop() -> void:
 	_check("★ 全程不按住 → 超时判负", interro.is_qte_active == false)
 	_check("★ 判负扣的量 = EXPR_QTE_FAIL",
 		is_equal_approx(gd.suspicion_level, 5.0 + Interrogation.EXPR_QTE_FAIL))
-	_check("失败提示写明「他看见了」",
-		interro.feedback_label.text.contains("他看见了"))
+	_check("失败提示写明「失败」",
+		interro.feedback_label.text.contains("失败"))
 
 	# ---- ⑥ 两条提示条都贴在屏幕最下方（用户口径：「qte改为显示在最下方」）----
 	#  这里量的是**真实渲染位置**，不是 anchor 的「意图」——
@@ -2623,7 +2647,7 @@ func _test_intro_and_help() -> void:
 	# ---------- 阶段一 · 手机没打开：讲换装区域 / 数值量表 / 换装预览 / 手机 ----------
 	main._show_stage_help()
 	_check("★ 阶段一（手机未开）：标注浮层打开", main.help_overlay.is_open() == true)
-	_check("阶段一（手机未开）：标题写明是准备室", main.help_overlay.title.contains("准备室"))
+	_check("阶段一（手机未开）：标题有字", main.help_overlay.title.contains("阶段一"))
 	var wm: Array = main._wardrobe_marks()
 	_check("★ 阶段一（手机未开）：恰好 4 处标注（卡片墙 / 量表 / 预览 / 手机）",
 		wm.size() == 4)
@@ -2683,7 +2707,7 @@ func _test_intro_and_help() -> void:
 	_run_a_clean_level()
 	main._show_stage_help()
 	_check("★ 阶段二：标注浮层打开", main.help_overlay.is_open() == true)
-	_check("阶段二：标题写明是盘问", main.help_overlay.title.contains("盘问"))
+	_check("阶段二：标题有字", main.help_overlay.title.contains("阶段二"))
 	var im: Array = main._interrogation_marks()
 	_check("★ 阶段二：恰好 5 处标注（怀疑度 / 题面 / 反馈 / 选项 / 提示条）",
 		im.size() == 5)

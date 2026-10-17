@@ -927,8 +927,10 @@ func _run() -> void:
 		interro._load_question(a_idx)
 		# 不等延迟，直接弹出来 —— 状态完全由这里定，不受引擎帧影响
 		interro._start_expression_qte()
-		interro.qte_progress = 86.0          # 已经顶过通过线（那道竖线在 60）
+		interro.qte_progress = 86.0          # 已经顶过通过线（那道竖线在 80）
 		interro.qte_bar.value = interro.qte_progress
+		# ★ 第六十七轮：进度是手工设的，得走一次 0 秒的结算才会把选项解锁。
+		interro._process_expression_qte(0.0)
 		_plog("     题目序号 %d ｜ 面板可见 = %s ｜ 进度 = %.0f（通过线 %.0f）" % [
 			a_idx, str(interro.qte_container.visible),
 			interro.qte_progress, Interrogation.EXPR_QTE_PASS])

@@ -71,7 +71,7 @@ const QTE_ACTION := "qte_space"
 # ★ 第六十三轮：表情 QTE 旁边那块「换装 · 下腹部」小图。
 #   截图由 SubViewport 按 BODY_CROP 从当前换装渲染，BodyPreview 再画屁股轮廓 + 五指手。
 #   BODY_CROP 是 DolDoll 取景框（68×203）里的坐标，按 1:1 铺满 BODY_BOX。
-const BODY_BOX := Vector2(232, 232)
+const BODY_BOX := Vector2(64, 64)
 const BODY_CROP := Rect2(18, 90, 32, 32)
 const BODY_PREVIEW_SCRIPT := preload("res://scripts/BodyPreview.gd")
 # 按住型 QTE 在「切到新题」之后延迟这么久才开始 —— 让你先看清题目，
@@ -373,7 +373,7 @@ func _build_ui() -> void:
 	#  ★ 两条都贴在**屏幕最下方**（用户口径：「qte改为显示在最下方」），
 	#    而且是**同一层** —— 它们互斥（压表情时不排递话、递话那 2.6 秒不弹 QTE），
 	#    不会同时出现；共用一层才能让底部占位带做得够矮、塞得进 720 的屏。
-	qte_container = _make_bar_overlay(Color(0.22, 0.54, 0.87), QTE_FROM_BOTTOM)
+	qte_container = _make_bar_overlay(Color(0.22, 0.54, 0.87), QTE_FROM_BOTTOM, true)
 	qte_label = qte_container.get_meta("label")
 	qte_bar = qte_container.get_meta("bar")
 	qte_strip = qte_container.get_meta("strip")
@@ -480,46 +480,23 @@ func _build_phone_layer() -> void:
 #  截图不是抓整屏，而是把当前这一身按 BODY_CROP 重新铺进一个 SubViewport
 #  （和手机相册那条路一样）—— 换装结果改了，图就跟着改，也不会把 UI 拍进去。
 func _build_body_preview() -> void:
-	body_layer = Control.new()
-	body_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	body_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# ★ 第六十八轮：不再往屏幕右侧贴一块大面板 —— 那样会盖住题面 / 选项，
+	#   看起来像界面坏了。改成 QTE 条右侧的 64×64 小图，跟提示条同生同灭。
+	if qte_container == null:
+		return
+	var thumb: Control = qte_container.get_meta("thumb", null)
+	if thumb == null:
+		return
+	body_layer = thumb
 	body_layer.visible = false
-	add_child(body_layer)
 
 	body_sub = SubViewport.new()
 	body_sub.size = Vector2i(int(BODY_BOX.x), int(BODY_BOX.y))
 	body_sub.transparent_bg = true
 	body_sub.disable_3d = true
-	body_sub.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	# 这一身只在进盘问前变一次 —— 用 UPDATE_ONCE，别每帧重渲染一张 64×64。
+	body_sub.render_target_update_mode = SubViewport.UPDATE_ONCE
 	body_layer.add_child(body_sub)
-
-	var panel := PanelContainer.new()
-	panel.anchor_left = 1.0
-	panel.anchor_right = 1.0
-	panel.anchor_top = 0.5
-	panel.anchor_bottom = 0.5
-	panel.offset_left = -BODY_BOX.x - 44.0
-	panel.offset_right = -24.0
-	panel.offset_top = -BODY_BOX.y * 0.5 - 10.0
-	panel.offset_bottom = BODY_BOX.y * 0.5 + 10.0
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.035, 0.040, 0.055, 0.88)
-	sb.set_border_width_all(1)
-	sb.border_color = Color(0.38, 0.41, 0.48, 0.95)
-	sb.set_corner_radius_all(9)
-	panel.add_theme_stylebox_override("panel", sb)
-	body_layer.add_child(panel)
-
-	var m := MarginContainer.new()
-	for s2 in ["left", "right", "top", "bottom"]:
-		m.add_theme_constant_override("margin_" + s2, 10)
-	panel.add_child(m)
-
-	var stack := Control.new()
-	stack.custom_minimum_size = BODY_BOX
-	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	m.add_child(stack)
 
 	body_tex = TextureRect.new()
 	body_tex.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -528,12 +505,24 @@ func _build_body_preview() -> void:
 	body_tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	body_tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	body_tex.texture = body_sub.get_texture()
-	stack.add_child(body_tex)
+	body_layer.add_child(body_tex)
 
 	body_art = BODY_PREVIEW_SCRIPT.new()
 	body_art.set_anchors_preset(Control.PRESET_FULL_RECT)
 	body_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stack.add_child(body_art)
+	body_layer.add_child(body_art)
+
+	# 一圈细边框，让它在 QTE 条里看起来是「一块缩略图」而不是一个黑洞。
+	var frame := Panel.new()
+	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var fs := StyleBoxFlat.new()
+	fs.bg_color = Color(0, 0, 0, 0)
+	fs.draw_center = false
+	fs.set_border_width_all(1)
+	fs.border_color = Color(0.46, 0.50, 0.58, 0.90)
+	frame.add_theme_stylebox_override("panel", fs)
+	body_layer.add_child(frame)
 
 # 换一套打扮 → 重铺这张小图。Main 在「进入盘问」前把 wardrobe.model.equipped 传进来。
 func set_outfit_preview(eq: Dictionary) -> void:
@@ -565,6 +554,7 @@ func _rebuild_body_preview() -> void:
 		tr.size = full
 		tr.texture = DolDoll.tex(str(L["file"]))
 		body_sub.add_child(tr)
+	body_sub.render_target_update_mode = SubViewport.UPDATE_ONCE
 
 func _ensure_body_preview() -> void:
 	if body_sub == null:
@@ -577,6 +567,8 @@ func _ensure_body_preview() -> void:
 func _set_body_preview_visible(on: bool) -> void:
 	if body_layer != null:
 		body_layer.visible = on
+	if on and body_sub != null:
+		body_sub.render_target_update_mode = SubViewport.UPDATE_ONCE
 
 # ---------------- 掏出手机 ----------------
 #  ★ 表情 QTE 期间**手机用不了**（用户口径：「按住空格的 qte 时不再能够使用手机」——
@@ -705,17 +697,18 @@ func _make_bar_panel(parent: VBoxContainer, fill: Color) -> Control:
 #   那是内容的**内边距** —— 它只把内容往上推，容器自身照样贴到屏幕底边，
 #   结果两条提示条都贴死在底边、叠在一起（试过，正是这个现象）。
 #   正确做法是「贴底对齐的 VBox + 底部一个占位块」：占位块多高，面板就抬多高。
-func _make_bar_overlay(fill: Color, from_bottom: int) -> Control:
+func _make_bar_overlay(fill: Color, from_bottom: int, with_thumb: bool = false) -> Control:
 	var host := Control.new()
 	host.set_anchors_preset(Control.PRESET_FULL_RECT)
 	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(host)
 
-	# 左右各留 170 —— 让面板别压住左下角的「掏出手机」按钮
+	# 左右各留 170 —— 让面板别压住左下角的「掏出手机」按钮。
+	# ★ 第六十八轮：QTE 条右侧要塞 64×64 小图，右边距收到 24，否则内容会把缩略图挤出面板。
 	var side := MarginContainer.new()
 	side.set_anchors_preset(Control.PRESET_FULL_RECT)
 	side.add_theme_constant_override("margin_left", 170)
-	side.add_theme_constant_override("margin_right", 170)
+	side.add_theme_constant_override("margin_right", 24 if with_thumb else 170)
 	side.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	host.add_child(side)
 
@@ -732,11 +725,20 @@ func _make_bar_overlay(fill: Color, from_bottom: int) -> Control:
 	var m := MarginContainer.new()
 	for s2 in ["left", "right", "top", "bottom"]:
 		m.add_theme_constant_override("margin_" + s2, 10)
+	m.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.add_child(m)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.add_child(row)
 
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 6)
-	m.add_child(vb)
+	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(vb)
 
 	var lab := Label.new()
 	lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -773,6 +775,14 @@ func _make_bar_overlay(fill: Color, from_bottom: int) -> Control:
 	bar_host.add_child(pass_mark)
 	if fill == Color(0.22, 0.54, 0.87):
 		qte_pass_mark = pass_mark      # 只有表情 QTE 那条才有通过线
+		# ★ 第六十八轮：下腹部小图不再做成悬浮大面板，缩成 64×64 塞进 QTE 条右侧。
+		if with_thumb:
+			var thumb := Control.new()
+			thumb.custom_minimum_size = Vector2(64, 64)
+			thumb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.add_child(thumb)
+			host.set_meta("thumb", thumb)
 
 	col.add_child(panel)
 

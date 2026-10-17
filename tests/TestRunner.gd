@@ -2139,6 +2139,9 @@ func _test_expression_qte() -> void:
 		and (qte_events[0] as InputEventKey).physical_keycode == KEY_SPACE)
 	_check("★ 表情 QTE 同时出现换装下腹部小图", interro.body_layer.visible == true)
 	_check("下腹部小图有截图纹理", interro.body_tex.texture != null)
+	_check("★ 下腹部缩略图塞在 QTE 条里（64×64）",
+		interro.qte_strip.is_ancestor_of(interro.body_layer)
+		and interro.body_layer.custom_minimum_size == Vector2(64, 64))
 
 	# ★ 第六十七轮：QTE 未到 80% 之前，选项和手机都锁着。
 	_check("★ QTE 未到 80% 时选项锁着", interro.option_btns[0].disabled == true)

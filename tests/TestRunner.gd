@@ -672,7 +672,7 @@ func _test_option_echo() -> void:
 	interro.qte_container.hide()
 	interro.intf_container.hide()
 	interro._load_question(0)
-	_check("第 1 题题面前没有「你：」（还没选过）",
+	_check("第 1 题题面前没有上一题的回应",
 		not interro.dialogue_label.text.begins_with("你："))
 
 	# 挑一个「照实答」的选项 —— 它不会当场收场，最能看清下一题的样子。
@@ -730,7 +730,12 @@ func _test_option_echo() -> void:
 	interro._load_question(1)
 	_check("自带回应原样显示（不自动加「你：」）",
 		interro.dialogue_label.text.begins_with("（测试后果）\n"))
-	# 「⚠」是读过情报后给按钮加的雷区标记 —— 屏幕上是「你：<这句话>」，不能把标记念出来。
+	# ★ 第六十九轮：manual 背景全部按原文；auto 背景保留说话人 / 「你：」
+	_check("manual 背景：回应和题面都不加说话人",
+		interro._dialogue_text(true, "苦主", "回应", false, "题面") == "回应\n题面")
+	_check("auto 背景：默认回应加「你：」、题面加说话人",
+		interro._dialogue_text(false, "苦主", "回应", false, "题面") == "你：回应\n苦主：题面")
+	# 「⚠」是读过情报后给按钮加的雷区标记 —— 屏幕上是原句，不能把标记念出来。
 	var warn_opts: Array = interro._letterize([{"_label": "⚠ 测试危险项"}])
 	_check("回应文本里不带「⚠」这个按钮标记",
 		str((warn_opts[0] as Dictionary).get("echo", "")) == "测试危险项")

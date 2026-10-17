@@ -1509,24 +1509,15 @@ func _load_question(index: int) -> void:
 
 	# ★ 第二十九轮：新格式的题目没有 `kind`，改看 `speaker` 字段（见 _q_is_companion）。
 	var is_comp := _q_is_companion(q)
+	# ★ 第六十九轮（用户口径）：「自行编辑的题目不要在前面自动加说话人名牌」。
+	#   manual 背景：题面 / 上一题回应都按原文，不拼「苦主 / 黄毛 / 你」。
+	#   auto 背景：保留原来的说话人名牌与「你：」回应，不动出厂观感。
+	var manual := RunData.questions_are_manual()
 	var speaker := _ut("interrogation.speaker_companion", "同行者") if is_comp \
 		else _ut("interrogation.speaker_interrogator", "审讯官")
-	# ★ 第五十七轮（用户口径）：「选项选择后，对应的选项文本和下一个题面一起出现」。
-	#   把上一题选中的那句接在题面前面 —— 于是屏幕上读到的是：
-	#       你：散不掉。码头往上数第三条巷子……
-	#       审讯官：你刚才说码头第三条巷子 —— 那巷子口是家什么铺子？
-	# ★ 第六十一轮：选项自带 `echo` 时**原样显示**（不加「你：」）——
-	#   因为自带的那段常常是「选完之后的后果」，不是你说的话：
-	#       空太郎：「我从没听阳乃小姐说过有这么个朋友。」怀疑值上升。
-	#       审讯官：……
-	#   没写 `echo` 才回落选项文本，并加「你：」。
-	var echo_head := ""
-	if index > 0 and last_choice_text.strip_edges() != "":
-		if last_choice_is_custom:
-			echo_head = last_choice_text + "\n"
-		else:
-			echo_head = _ut("interrogation.speaker_you", "你") + "：" + last_choice_text + "\n"
-	dialogue_label.text = echo_head + speaker + "：" + _q_text(q)
+	var echo_text := last_choice_text if index > 0 else ""
+	dialogue_label.text = _dialogue_text(manual, speaker, echo_text,
+		last_choice_is_custom, _q_text(q))
 
 	if is_comp:
 		GameData.companion_asked += 1
@@ -1540,6 +1531,18 @@ func _load_question(index: int) -> void:
 	# ★ 第二十九轮：新格式的题目没有 `kind`（传空串），但老的自动判定
 	#   （needs_expression_for）还会遍历选项找 leak / made_up —— 所以照常有效。
 	_apply_qte_plan(index, str(q.get("kind", "")), current_options)
+
+# 拼题面：auto 背景保留「说话人：」与「你：<上一题回应>」；manual 背景全部按原文。
+func _dialogue_text(manual: bool, speaker: String, echo_text: String,
+		custom: bool, qtext: String) -> String:
+	var head := ""
+	if echo_text.strip_edges() != "":
+		if manual or custom:
+			head = echo_text + "\n"
+		else:
+			head = _ut("interrogation.speaker_you", "你") + "：" + echo_text + "\n"
+	var speaker_head := "" if manual else speaker + "："
+	return head + speaker_head + qtext
 
 # ------------------------------------------------------------
 #  每题的 QTE 排期（第二十三轮，编辑器可改）

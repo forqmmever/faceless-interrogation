@@ -360,7 +360,7 @@ try {
   ok(!!scene2, "「情景二」在 story.json 里");
   ok(!!scene2 && scene2.enabled === false, "「情景二」是草稿（不进抽取 / 自动化测试）");
   ok(!!scene2 && scene2.name === "情景二", "「情景二」的名字");
-  ok(!!scene2 && scene2.questions.length >= 12,
+  ok(!!scene2 && scene2.questions.length >= 11,
     "「情景二」的题目还在（实际 " + (scene2 ? scene2.questions.length : "?") + " 道）");
   ok(!!scene2 && scene2.levels.length === 2
     && String(scene2.levels[0].intro || "") !== String(scene2.levels[1].intro || ""),

@@ -427,6 +427,9 @@ func _on_wardrobe_confirmed() -> void:
 	_hide_intro()
 	if help_overlay != null and help_overlay.is_open():
 		help_overlay.close()
+	# ★ 第六十三轮：把这一身打扮交给盘问 —— 表情 QTE 旁边那块「下腹部」小图用它重铺。
+	if wardrobe.model != null:
+		interrogation.set_outfit_preview(wardrobe.model.equipped)
 	wardrobe.hide()
 	interrogation.start_interrogation()
 

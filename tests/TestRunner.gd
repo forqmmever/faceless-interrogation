@@ -2116,6 +2116,8 @@ func _test_expression_qte() -> void:
 	_check("延迟走完后 QTE 弹出", interro.is_qte_active == true)
 	_check("QTE 从中间值起手", is_equal_approx(interro.qte_progress, 50.0))
 	_check("QTE 面板可见", interro.qte_container.visible == true)
+	_check("★ 表情 QTE 同时出现换装下腹部小图", interro.body_layer.visible == true)
+	_check("下腹部小图有截图纹理", interro.body_tex.texture != null)
 
 	# ★ QTE 期间只锁手机，别的照常（用户口径：「按住空格的 qte 时不再能够使用手机」——
 	#   这是**规定**，不是待修的 bug）。所以这里要验的是「锁住了」而不是「还能用」。
@@ -2130,6 +2132,7 @@ func _test_expression_qte() -> void:
 	# 压完表情（QTE 收掉）→ 手机要重新解锁
 	interro._cancel_qte()
 	_check("★ QTE 收掉后手机解锁", interro.phone_btn.disabled == false)
+	_check("★ QTE 收掉 → 下腹部小图一起消失", interro.body_layer.visible == false)
 	interro._toggle_phone()
 	_check("★ QTE 收掉后能正常掏出手机", interro.phone_layer.visible == true)
 	interro._close_phone()
@@ -2138,6 +2141,7 @@ func _test_expression_qte() -> void:
 	# 后面的用例还要接着用「QTE 正在进行」这个状态，把它摆回来
 	interro._start_expression_qte()
 	_check("★ 重新排上 QTE 后手机又锁上", interro.phone_btn.disabled == true)
+	_check("★ 重排 QTE → 下腹部小图一起出现", interro.body_layer.visible == true)
 	_check("★ 重排时手机被自动收回", interro.phone_layer.visible == false)
 	# ★ 两条提示条共用屏幕最下方那一层 —— 压表情期间不许再排递话（否则会叠）
 	interro.interference_active = false
@@ -2161,6 +2165,7 @@ func _test_expression_qte() -> void:
 	interro._select_option(1)
 	_check("答题后 QTE 立刻结束", interro.is_qte_active == false)
 	_check("答题后 QTE 面板收起", interro.qte_container.visible == false)
+	_check("答题结束后下腹部小图一起收起", interro.body_layer.visible == false)
 	_check("★ QTE 成功不加不减（只算了「撒谎」那一笔）",
 		is_equal_approx(gd.suspicion_level - susp_answered, answer_cost))
 	_check("QTE 成功提示写明「没有露出破绽」",

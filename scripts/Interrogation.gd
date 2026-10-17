@@ -65,6 +65,12 @@ const EXPR_QTE_DECAY := 35.0
 const EXPR_QTE_BOOST := 80.0
 const EXPR_QTE_PASS := 60.0
 const EXPR_QTE_FAIL := 24.0          # 表情没绷住 → 怀疑度 +24（调高）
+# ★ 第六十三轮：表情 QTE 旁边那块「换装 · 下腹部」小图。
+#   截图由 SubViewport 按 BODY_CROP 从当前换装渲染，BodyPreview 再画屁股轮廓 + 五指手。
+#   BODY_CROP 是 DolDoll 取景框（68×203）里的坐标，按 1:1 铺满 BODY_BOX。
+const BODY_BOX := Vector2(232, 232)
+const BODY_CROP := Rect2(18, 90, 32, 32)
+const BODY_PREVIEW_SCRIPT := preload("res://scripts/BodyPreview.gd")
 # 按住型 QTE 在「切到新题」之后延迟这么久才开始 —— 让你先看清题目，
 # 而不是题刚蹦出来就被迫按住空格。
 const EXPR_QTE_DELAY := 2.5
@@ -209,6 +215,13 @@ var intf_label: Label
 var strip_band: Control                 # 底部常驻占位带（给两条提示条让位，不压选项）
 var result_hint: Label
 var result_btn: Button
+
+# ---- 换装 · 下腹部小图（随表情 QTE 一起出现 / 消失）----
+var body_layer: Control
+var body_sub: SubViewport
+var body_tex: TextureRect
+var body_art: Control
+var _body_outfit: Dictionary = {}
 
 # 视角晃动
 var shake_target: Control                # 被抖的那一层（整屏内容）
@@ -394,6 +407,7 @@ func _build_ui() -> void:
 	root.add_child(strip_band)
 
 	_build_phone_layer()
+	_build_body_preview()
 
 # ---------------- 掏出手机（覆盖在右侧，左边选项照样能点）----------------
 func _build_phone_layer() -> void:
@@ -443,6 +457,111 @@ func _build_phone_layer() -> void:
 	close.custom_minimum_size = Vector2(0, 32)
 	close.pressed.connect(_close_phone)
 	col.add_child(close)
+
+# ---------------- 换装 · 下腹部小图（第六十三轮）----------------
+#  用户口径：「第二阶段时，把换装的结果下腹部截图，然后画出屁股的形状，
+#  最后在上面画一个张开五指的手，并且随表情 QTE 一起出现和消失」。
+#
+#  截图不是抓整屏，而是把当前这一身按 BODY_CROP 重新铺进一个 SubViewport
+#  （和手机相册那条路一样）—— 换装结果改了，图就跟着改，也不会把 UI 拍进去。
+func _build_body_preview() -> void:
+	body_layer = Control.new()
+	body_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	body_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body_layer.visible = false
+	add_child(body_layer)
+
+	body_sub = SubViewport.new()
+	body_sub.size = Vector2i(int(BODY_BOX.x), int(BODY_BOX.y))
+	body_sub.transparent_bg = true
+	body_sub.disable_3d = true
+	body_sub.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	body_layer.add_child(body_sub)
+
+	var panel := PanelContainer.new()
+	panel.anchor_left = 1.0
+	panel.anchor_right = 1.0
+	panel.anchor_top = 0.5
+	panel.anchor_bottom = 0.5
+	panel.offset_left = -BODY_BOX.x - 44.0
+	panel.offset_right = -24.0
+	panel.offset_top = -BODY_BOX.y * 0.5 - 10.0
+	panel.offset_bottom = BODY_BOX.y * 0.5 + 10.0
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.035, 0.040, 0.055, 0.88)
+	sb.set_border_width_all(1)
+	sb.border_color = Color(0.38, 0.41, 0.48, 0.95)
+	sb.set_corner_radius_all(9)
+	panel.add_theme_stylebox_override("panel", sb)
+	body_layer.add_child(panel)
+
+	var m := MarginContainer.new()
+	for s2 in ["left", "right", "top", "bottom"]:
+		m.add_theme_constant_override("margin_" + s2, 10)
+	panel.add_child(m)
+
+	var stack := Control.new()
+	stack.custom_minimum_size = BODY_BOX
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.add_child(stack)
+
+	body_tex = TextureRect.new()
+	body_tex.set_anchors_preset(Control.PRESET_FULL_RECT)
+	body_tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	body_tex.stretch_mode = TextureRect.STRETCH_SCALE
+	body_tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	body_tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body_tex.texture = body_sub.get_texture()
+	stack.add_child(body_tex)
+
+	body_art = BODY_PREVIEW_SCRIPT.new()
+	body_art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	body_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_child(body_art)
+
+# 换一套打扮 → 重铺这张小图。Main 在「进入盘问」前把 wardrobe.model.equipped 传进来。
+func set_outfit_preview(eq: Dictionary) -> void:
+	_body_outfit = eq.duplicate(true)
+	if body_sub != null:
+		_rebuild_body_preview()
+
+func _rebuild_body_preview() -> void:
+	if body_sub == null:
+		return
+	for c in body_sub.get_children():
+		body_sub.remove_child(c)
+		c.queue_free()
+	var eq := _body_outfit
+	if eq.is_empty():
+		# 测试 / 截图脚本直接调 _start_expression_qte() 时没有换装结果 —— 用 A 的原貌兜底。
+		eq = RunData.true_appearance()
+	if eq.is_empty():
+		return
+	var scale := BODY_BOX.x / BODY_CROP.size.x
+	var off := -BODY_CROP.position * scale
+	var full := DolDoll.frame_size() * scale
+	for L in DolDoll.plan(eq):
+		var tr := TextureRect.new()
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_SCALE
+		tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		tr.position = off
+		tr.size = full
+		tr.texture = DolDoll.tex(str(L["file"]))
+		body_sub.add_child(tr)
+
+func _ensure_body_preview() -> void:
+	if body_sub == null:
+		return
+	if _body_outfit.is_empty():
+		_body_outfit = RunData.true_appearance().duplicate(true)
+	if body_sub.get_child_count() == 0:
+		_rebuild_body_preview()
+
+func _set_body_preview_visible(on: bool) -> void:
+	if body_layer != null:
+		body_layer.visible = on
 
 # ---------------- 掏出手机 ----------------
 #  ★ 表情 QTE 期间**手机用不了**（用户口径：「按住空格的 qte 时不再能够使用手机」——
@@ -1871,6 +1990,9 @@ func _begin_qte() -> void:
 			+ "把表情维持在绿色区间！（照常答题，手机得先收起来）")
 	qte_bar.value = qte_progress
 	qte_container.show()
+	# ★ 第六十三轮：下腹部小图跟表情 QTE 同生同灭。
+	_ensure_body_preview()
+	_set_body_preview_visible(true)
 	# 手机锁上：收回来 + 按钮变灰
 	_set_phone_locked(true)
 
@@ -1882,6 +2004,7 @@ func _finish_qte_for_question() -> void:
 	if is_qte_active:
 		is_qte_active = false
 		qte_container.hide()
+		_set_body_preview_visible(false)
 		if qte_progress >= _rf("expr_qte_pass", EXPR_QTE_PASS):
 			# ★ 压住表情只是「没露破绽」—— 它不把怀疑度往下压。
 			feedback_label.text = _ut("interrogation.qte_pass",
@@ -1913,6 +2036,7 @@ func _cancel_qte() -> void:
 	_intf_planned_used = false
 	if qte_container != null:
 		qte_container.hide()
+	_set_body_preview_visible(false)
 	if not _ended:
 		_set_phone_locked(false)
 

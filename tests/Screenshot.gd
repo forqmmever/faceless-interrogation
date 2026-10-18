@@ -1008,12 +1008,28 @@ func _run() -> void:
 	interro._running = true
 	interro.is_qte_active = false
 	interro.qte_container.hide()
+	# ★ 第六十九轮：和第 20 号那屏是同一个坑 —— `_select_option()` 开头有三道闸：
+	#   `_ended` / `interference_active` / `_options_locked_by_qte`。
+	#   这一屏原来只复位了前两样里的一半（_ended / _running / QTE），
+	#   第 67 轮新加的「QTE 锁选项」与递话干扰都还挂着 → 「制造矛盾」那一步
+	#   被整题跳过，拍出来是一张「题目还在、什么都没发生」的图（22 号）。
+	interro.interference_active = false
+	interro.interference_timer = 999.0
+	interro._options_locked_by_qte = false
 	var rf := _find_fact_question_index(1)
 	if rf < 0:
 		rf = _find_fact_question_index(0)
 	var rfid := str((interro.level_questions()[rf] as Dictionary).get("fact", ""))
 	gd.stated_facts[rfid] = DossierData.canonical_value(rfid)
 	gd.contradictions = Interrogation.CONTRADICTION_LIMIT - 1
+	# ★★ 第六十九轮：这里还有个**异步**的坑（比布尔状态更隐蔽）——
+	#   上一屏答完题会走 `_after_answer()` → `_next_question_delay()`，
+	#   而后者是 `await create_timer(1.8)` 再 `_load_question(idx + 1)`。
+	#   这个定时器**不受 `set_process(false)` 影响**，会在本屏加载完第 0 题之后
+	#   才到点，把题推成第 1 题（同行者题）→ 说法题的选项找不着（下标 -1）→
+	#   `_select_option` 直接 return → 拍出来是「题目还在、什么都没发生」。
+	#   先等它过期（2 秒 = 120 帧），再加载要拍的那道题。
+	await _wait(120)
 	interro._load_question(rf)
 	await _wait(12)
 	interro._select_option(_option_index_of_value_not(DossierData.canonical_value(rfid)))

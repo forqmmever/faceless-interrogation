@@ -116,6 +116,8 @@ func _ready() -> void:
 	_tick("盲区题")
 	_test_manual_question_options()
 	_tick("自行编辑的题")
+	await _test_option_button_layout()
+	_tick("选项按钮布局（协程）")
 	_test_option_echo()
 	_tick("选项回应")
 	_test_new_mechanics()
@@ -742,6 +744,74 @@ func _test_option_echo() -> void:
 
 	# 收掉 _select_option 留下的「1.8 秒后自动下一题」——别让它跨到后面的用例里。
 	interro._ended = true
+
+# ------------------------------------------------------------
+#  选项按钮的布局（★ 第六十九轮）
+#
+#  用户报的现象：「第二局第一轮第四问」选项显示不正常。
+#  根因：从 3 个选项**第一次**切到 4 个选项时，第 4 个按钮是这一刻才创建的，
+#  它刚 add_child 时宽度还是 0，而按钮开着自动换行 —— Button 的最小高度是按
+#  **当前宽度**算的，宽度 0 时长文本被当成「一个字一行」，最小高度直接 510。
+#  这个错误的最小尺寸之后再没有任何东西触发重算，于是：
+#    选项区被撑到整屏高 → 第 4 个选项被拉成 510 高 → 左下角「掏出手机」被挤出屏幕。
+#  而且**不会自己恢复**（等 227 帧还是坏的）。
+#  为什么偏偏是「第一轮第四问」：题库顺序是 3 道 3 选项 + 3 道 4 选项，
+#  第 4 道正好是第一次出现 4 个选项。
+# ------------------------------------------------------------
+func _test_option_button_layout() -> void:
+	print("\n-- 选项按钮的布局：3 个选项切到 4 个时不能撑爆 --")
+	RunData.start_new_run(20261018, 0, "town_inn")
+	gd.outfit_passed = true
+	interro.set_process(false)
+	interro._options_locked_by_qte = false
+	interro.start_interrogation()
+
+	var qs: Array = interro.level_questions()
+	var i3 := -1
+	var i4 := -1
+	for i in qs.size():
+		var n: int = (qs[i].get("options", []) as Array).size()
+		if n == 3 and i3 < 0:
+			i3 = i
+		elif n == 4 and i4 < 0:
+			i4 = i
+	_check("本轮里有 3 个选项的题", i3 >= 0)
+	_check("本轮里有 4 个选项的题", i4 >= 0)
+	if i3 < 0 or i4 < 0:
+		return
+
+	# 必须从「一个按钮都没有」开始 —— 这个 bug 只在**新建**第 4 个按钮时出现
+	for b in interro.option_btns:
+		b.free()
+	interro.option_btns.clear()
+	await get_tree().process_frame
+
+	# ★ 判据一律用**相对量**，不写死像素：
+	#   headless 下按钮实测 47 高（字体行高），视口尺寸也不可信（手机按钮底边能报到 10126）。
+	#   硬编码 154 / 208 会变成「换个字体就红」的假失败。
+	interro._load_question(i3)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check("3 个选项：按钮池是 3 个", interro.option_btns.size() == 3)
+	var h3: float = interro.opts_box.get_global_rect().size.y
+	_check("3 个选项：选项区没被撑爆（%.0f ≤ 3×80 + 2×8）" % h3, h3 <= 3.0 * 80.0 + 2.0 * 8.0)
+
+	# ★ 这一步就是 bug 的现场：第 4 个按钮在此刻才被创建
+	interro._load_question(i4)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var h4: float = interro.opts_box.get_global_rect().size.y
+	_check("4 个选项：选项区没被撑爆（%.0f ≤ 4×80 + 3×8）" % h4, h4 <= 4.0 * 80.0 + 3.0 * 8.0)
+	var tallest := 0.0
+	var shortest := 9999.0
+	for j in interro.current_options.size():
+		var bh: float = (interro.option_btns[j] as Button).size.y
+		tallest = maxf(tallest, bh)
+		shortest = minf(shortest, bh)
+	_check("4 个选项：每个按钮都没被拉长（最高 %.0f，上限 80）" % tallest, tallest <= 80.0)
+	# ★ 这一条才是那个 bug 的指纹：坏的时候只有**第 4 个**是 510，前三个仍是 46。
+	_check("4 个选项：最高与最矮的按钮差不到两行（%.0f vs %.0f）" % [tallest, shortest],
+		tallest - shortest <= 2.0)
 
 func _test_fact_consistency() -> void:
 	print("\n-- 说法题：同一件事，前后必须一致 --")

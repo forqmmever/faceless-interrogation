@@ -90,6 +90,13 @@ const SILENCE_DELTA := 6.0
 const SILENCE_TEXT := "（你什么也没说 —— 沉默着，没有接这个话头。）"
 const OPTION_LETTERS := ["A. ", "B. ", "C. ", "D. "]
 
+# --- 选项按钮的尺寸 ---
+#  OPTION_BTN_H 是常规高度（一行放得下时）。文本长到要换行会自己长高 ——
+#  但**必须按真实宽度算**：新按钮刚加进容器时宽度是 0，自动换行会把最小高度
+#  算成「一个字一行」（实测 510），见 _refresh_option_buttons() 里的注释。
+const OPTION_BTN_H := 46.0
+const OPTION_BTN_WIDTH_FALLBACK := 320.0
+
 # --- 视角晃动 ---
 #  有冲击的时候镜头抖一下：QTE 失败、被识破、掏手机被发现。
 #  幅度（像素）与时长（秒）由调用点给，这里只放几档常用值。
@@ -857,7 +864,9 @@ func _build_left(parent: HBoxContainer) -> void:
 # 选项按钮：统一工厂。数量可变，索引固定绑定到 _select_option。
 func _make_option_button(index: int) -> Button:
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(0, 46)
+	b.custom_minimum_size = Vector2(0, OPTION_BTN_H)
+	# ★ 别让容器把按钮在竖直方向拉长 —— 高度由「文本 + 自动换行」决定。
+	b.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	b.focus_mode = Control.FOCUS_NONE
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -1665,6 +1674,15 @@ func _refresh_option_buttons() -> void:
 	while option_btns.size() < n:
 		var nb := _make_option_button(option_btns.size())
 		opts_box.add_child(nb)
+		# ★★ 第六十九轮修的 bug：新按钮此刻宽度还是 0，而它开着自动换行 ——
+		#   Button 的最小高度是**按当前宽度**算的，宽度 0 时长文本会被当成
+		#   「一个字一行」，最小高度直接飙到 500 多像素（实测「（你什么也没说
+		#   —— 沉默着，没有接这个话头。）」= 510）。这个错误的最小尺寸之后
+		#   **没有任何东西触发重算**（只有 text 再变一次才会），于是第一次
+		#   从 3 个选项切到 4 个选项时：选项区被撑到整屏高、第 4 个选项被拉成
+		#   510 高、左下角「掏出手机」被挤到屏幕外 —— 而且不会自己恢复。
+		#   先按容器宽度定个尺寸再写文本，最小高度才会按真实宽度算。
+		nb.size = Vector2(maxf(opts_box.size.x, OPTION_BTN_WIDTH_FALLBACK), OPTION_BTN_H)
 		option_btns.append(nb)
 	for i in option_btns.size():
 		var b: Button = option_btns[i]
@@ -1684,6 +1702,10 @@ func _refresh_option_buttons() -> void:
 			b.disabled = true
 			b.hide()
 			b.remove_theme_color_override("font_color")
+	# ★ 同上：文本换过之后让按钮按**当前宽度**重算一次最小高度。
+	#   新按钮是「先定宽、后写文本」，老按钮是「宽度没变、文本变了」——
+	#   两种都靠这一行把缓存的最小尺寸对齐。
+	opts_box.update_minimum_size()
 
 func _set_options_enabled(on: bool) -> void:
 	for b in option_btns:

@@ -31,8 +31,15 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 （`GET/POST /api/story`，127.0.0.1:8765）；`file://` 打开 = **只读**。**别改回 File System Access / 下载**。
 ★ **改完 `data/story.json` 要跑 `python tools/build_story_editor.py` 重建内置快照** ——
 编辑器冒烟读的是 HTML 里那份快照，不同步就报旧数据的提醒（第 77 轮踩过）。
+★ **`open_story_editor.bat` 必须纯 ASCII + CRLF**（第 77 轮续）：cmd 按 OEM 代码页读它，
+存 UTF-8 的中文是乱码，再被「按 UTF-8 读」的编辑器（含本工具）存一次就变成一串 `?`。
+用 Read/Edit 改它会按 UTF-8 重写 —— 改完**用 Python 转回 ascii + CRLF** 并验证 `all(b<128)`。
+★ **Python 侧实测坑**：`sys.exit("一句话")` **写不进** `--log` 文件（那是解释器退出时打到 stderr 的，
+文件没 flush）→ 用 `print` + `flush` 再 `exit`。
+★ **Windows 的 `SO_REUSEADDR` 让两次 bind 都成功** —— 判断端口占用只能**主动 connect 一次**。
 ★ 用户 2026-10-15：「没动代码不用跑四套验证」—— 纯文档 / 清点 / 加工具**跳过**。
 ★ **后台跑长测试时不要同时改它读得到的资源**；长测试用 `run_in_background` + 重定向到 `.workbuddy-ai/tmp/*.log`（`| tail` 会吞输出）。
+★ 本沙箱里 `start` 起的子进程会随命令结束被清掉 —— 验证「服务是否存活」必须和 `curl` 写**同一条命令**。
 
 ### 术语（用户 2026-10-15 定义）
 

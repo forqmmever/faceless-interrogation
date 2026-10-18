@@ -12,6 +12,11 @@
     python tools/story_server.py              # 127.0.0.1:8765，并自动开浏览器
     python tools/story_server.py --no-open    # 只起服务（bat 里用这个）
     python tools/story_server.py --port 9000
+    python tools/story_server.py --log x.log  # 把启动信息 / 报错写进文件（bat 里用这个）
+
+★ 第七十七轮（续）：`--log` 是为「双击 bat 起不来、但最小化的窗口一闪就没了」加的 ——
+  服务被 `start /min` 起来时，`sys.exit("端口起不来…")` 那句话根本没人看得见，
+  用户只看到浏览器报「127.0.0.1 拒绝访问」。现在这些话都落进日志，bat 会把它打出来。
 
 接口：
     GET  /             → tools/story_editor.html（不缓存）
@@ -28,6 +33,7 @@ import io
 import json
 import os
 import shutil
+import socket
 import sys
 import threading
 import webbrowser
@@ -40,6 +46,28 @@ STORY_BAK = STORY + ".bak"
 EDITOR = os.path.join(HERE, "story_editor.html")
 
 DEFAULT_PORT = 8765
+
+
+def port_in_use(host, port):
+    """这个端口上已经有东西在听吗？
+
+    ★ 第七十七轮（续）：**不能用「bind 失败」来判断占用** —— Windows 的
+      `HTTPServer` 默认带 SO_REUSEADDR，而它在 Windows 上的语义是「允许绑到
+      已经被占用的端口」：bind 会成功，两个进程同时监听同一个端口，
+      请求落到谁手上不确定。所以先主动连一下，连得上就是有人在。
+    """
+    s = socket.socket()
+    s.settimeout(0.25)
+    try:
+        s.connect((host, port))
+        return True
+    except OSError:
+        return False
+    finally:
+        try:
+            s.close()
+        except OSError:
+            pass
 
 
 def read_story_bytes():
@@ -182,32 +210,98 @@ class Handler(BaseHTTPRequestHandler):
                          "backgrounds": len(obj["backgrounds"])})
 
 
+class Server(ThreadingHTTPServer):
+    """把「客户端提前断开」这类噪声从日志里滤掉。
+
+    ★ 第七十七轮（续）：浏览器切页 / curl 超时都会让写回线程抛
+      ConnectionAbortedError，默认实现会把整段 traceback 打进日志 ——
+      而日志是给人看「服务为什么没起来」的，被这种噪声刷屏就没用了。
+    """
+
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (ConnectionAbortedError, ConnectionResetError, BrokenPipeError)):
+            return
+        super().handle_error(request, client_address)
+
+
 def main():
     ap = argparse.ArgumentParser(description="story.json 本地编辑服务")
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--no-open", action="store_true", help="不自动开浏览器")
+    ap.add_argument("--log", default="", help="把启动信息与报错写进这个文件（双击 bat 时用）")
+    ap.add_argument("--auto-port", type=int, default=0,
+                    help="主端口被占时，往后顺延几个端口试试（bat 里用 3）")
     args = ap.parse_args()
 
+    # ★ 先把输出接进日志，**再**做可能失败的检查 —— 否则失败原因直接丢进关闭的窗口。
+    # ★ 别用 `sys.exit("一句话")` 报错：那是靠解释器在退出时把它打到 sys.stderr 上，
+    #   而这时日志文件可能还没被完整 flush —— 实测 `--log` 里一个字都留不下。
+    #   统一走 die()：先写、先 flush、再退出。
+    logf = None
+    if args.log:
+        try:
+            logf = open(args.log, "w", encoding="utf-8", buffering=1)
+            sys.stdout = logf
+            sys.stderr = logf
+        except OSError:
+            logf = None
+
+    def die(msg):
+        print(msg)
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except Exception:
+            pass
+        sys.exit(1)
+
+    def note(msg):
+        print(msg)
+        try:
+            sys.stdout.flush()
+        except Exception:
+            pass
+
     if not os.path.exists(EDITOR):
-        sys.exit("找不到编辑器：%s" % EDITOR)
+        die("找不到编辑器：%s" % EDITOR)
 
-    try:
-        srv = ThreadingHTTPServer((args.host, args.port), Handler)
-    except OSError as e:
-        sys.exit("端口 %d 起不来（%s）—— 可能已经有一个在跑了，或者换 --port" % (args.port, e))
+    # 端口：主端口被占就往后顺延（最多 --auto-port 个）。
+    # 每一行都写一条 `URL=`，bat 就靠它知道最终开哪个地址 ——
+    # 顺延之后浏览器不能还去敲原来的端口。
+    srv = None
+    port = args.port
+    for cand in range(args.port, args.port + max(0, args.auto_port) + 1):
+        if port_in_use(args.host, cand):
+            note("端口 %d 上已经有东西在听 —— 换下一个" % cand)
+            continue
+        try:
+            srv = Server((args.host, cand), Handler)
+            port = cand
+            break
+        except OSError as e:
+            note("端口 %d 起不来（%s）—— 换下一个" % (cand, e))
+            continue
 
-    url = "http://%s:%d/" % (args.host, args.port)
-    print("story 编辑器：%s" % url)
-    print("  读 / 写：%s" % STORY)
-    print("  关掉这个窗口就停服务。Ctrl+C 也可以。")
+    if srv is None:
+        die("端口 %d~%d 全都不可用 —— 关掉占用它们的程序，或者用 --port 换一个"
+            % (args.port, args.port + max(0, args.auto_port)))
+
+    url = "http://%s:%d/" % (args.host, port)
+    print("URL=%s" % url)          # ← bat 找的就是这一行
+    note("story 编辑器：%s" % url)
+    note("  读 / 写：%s" % STORY)
+    note("  关掉这个窗口就停服务。Ctrl+C 也可以。")
     if not args.no_open:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
 
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
-        print("\n[story-server] 停止")
+        note("\n[story-server] 停止")
     finally:
         srv.server_close()
 

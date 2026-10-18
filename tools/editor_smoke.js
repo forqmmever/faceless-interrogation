@@ -97,6 +97,9 @@ mainJs += `
   phoneSections, smsSection, smsThreadFields, SMS_GROUPS, PHONE_PAGES, PHONE_SEGS,
   PH_EXPECT, PH_MEANING, phone, phoneSec, bgQuestionsSource, countPh, questionTitle,
   optionFields, optionTitle, MANUAL_HIDDEN_META, MANUAL_HIDDEN_COMPANION,
+  // ★ 第七十六轮：编辑器改成「直接编辑 data/story.json」—— 保存通道要能验
+  get canSave(){ return canSave; }, set canSave(v){ canSave = v; },
+  save, API_STORY,
 };
 `;
 
@@ -1248,6 +1251,37 @@ try {
 
     P.loadStory(JSON.parse(JSON.stringify(pristine)), "t.json", false);
     ok(true, "恢复原始数据");
+  }
+
+  console.log("\n-- 16. 保存通道：直接写回 data/story.json（第七十六轮）--");
+  // 编辑器不再「打开文件」：它只认 data/story.json，靠 tools/story_server.py 读写。
+  // 这一段验两件事 —— ① 没连上服务时是只读（不许偷偷发请求）；
+  // ② 连上时 POST 到 /api/story，正文就是 toJSON()。
+  ok(P.canSave === false, "冒烟环境没有本地服务 → canSave 应为 false（只读）");
+  {
+    let posted = null;
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = () => Promise.reject(new Error("offline"));
+    await P.save();
+    ok(posted === null, "只读模式下点保存不会发任何请求");
+
+    globalThis.fetch = (u, opt) => {
+      if (String(u) === P.API_STORY && opt && opt.method === "POST"){
+        posted = opt.body;
+        return Promise.resolve({ ok: true, status: 200,
+          json: () => Promise.resolve({ ok: true, bytes: opt.body.length }) });
+      }
+      return Promise.reject(new Error("unexpected " + u));
+    };
+    P.canSave = true;
+    const before = P.toJSON();
+    await P.save();
+    ok(posted !== null, "连上服务后点保存会 POST 到 " + P.API_STORY);
+    ok(posted === before, "POST 的正文就是 toJSON()（没有被改写）");
+    ok(JSON.parse(posted).backgrounds.length === 6, "正文里 6 套背景都在");
+    ok(P.toJSON() === before, "保存不改数据本身");
+    globalThis.fetch = realFetch;
+    P.canSave = false;
   }
 
   console.log("\n================================");

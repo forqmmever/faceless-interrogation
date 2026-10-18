@@ -40,6 +40,9 @@ signal interrogation_finished(success: bool)
 #   通用池里能抽的档案题一共 8 道，四轮各 2 道正好对齐。
 const QUESTIONS_PER_LEVEL := 6
 const PASS_SUSPICION := 100.0       # ★ 第七十五轮：过关线 60 → 100（用户口径）
+# ★ 第七十六轮：`correct_delta` 原来在三个调用点各写一个 `-6.0` 兜底，
+#   而 `DEFAULT_RULES` 里是 0.0 —— 两处早就对不上了。收成一个常量。
+const CORRECT_DELTA := 0.0           # B 卡照答（轮内只涨不跌，负数会被归零 → 写 0 更直白）
 
 # --- 说法题（前后矛盾）---
 const CONTRADICTION_LIMIT := 2        # 累计矛盾到这个数 → 当场被识破
@@ -1244,7 +1247,7 @@ func _build_unified_options(q: Dictionary) -> Array:
 				delta = float(d.get("suspicion", 0.0))
 			TONE_CORRECT:
 				item["kind"] = "ok"
-				delta = float(d.get("suspicion", _rf("correct_delta", -6.0)))
+				delta = float(d.get("suspicion", _rf("correct_delta", CORRECT_DELTA)))
 			TONE_LEAK:
 				item["kind"] = "leak"
 				delta = float(d.get("suspicion", _rf("leak_delta", 100.0)))
@@ -1276,7 +1279,7 @@ func _build_unified_options(q: Dictionary) -> Array:
 				#   原来这里只把 kind 改成 "ok"，delta 仍是 0.0 —— 于是「没写 tone」
 				#   等于「不涨不跌」，和编辑器上那句「留空 = 按照实答算（-6）」对不上。
 				#   现在统一取 correct_delta（显式写了 suspicion 仍然优先）。
-				delta = float(d.get("suspicion", _rf("correct_delta", -6.0)))
+				delta = float(d.get("suspicion", _rf("correct_delta", CORRECT_DELTA)))
 				# 自行编辑的题本来就没有 tone，不算「写错了」——
 				# 只有真的写了个不认识的值才报。
 				if tone != "":
@@ -1345,7 +1348,7 @@ func _build_options(q: Dictionary) -> Array:
 		primary = str(q.get("answer", ""))
 		if primary == "":
 			primary = _ut("interrogation.default_b_answer", "（你照着「B」的档案，把细节对上了。）")
-		delta = _rf("correct_delta", -6.0)
+		delta = _rf("correct_delta", CORRECT_DELTA)
 		kind = "ok"
 
 	# 撒谎（B）/ 回避（C）的代价由「审问者的情报」决定 ——

@@ -14,8 +14,7 @@
 
 ★ **memory 权威目录 = `D:\workbuddy\2026-10-11-09-19-59\.workbuddy-ai\memory\`（进版本库）**；
 但系统注入读的是旧工作区 `C:\Users\...\WorkBuddy AI\2026-10-11-09-19-59\.workbuddy-ai\memory\MEMORY.md`
-—— **`MEMORY.md` 改完必须同步一份到 C:**（只同步这一个文件，明细仍只在 D:）。
-C: 那份**超过约 17KB 会被截断**，`MEMORY.md` 控制在 **16KB 以内**。
+—— **`MEMORY.md` 改完必须同步一份到 C:**（只同步这一个文件，明细仍只在 D:）。C: 那份**超过约 17KB 会被截断**。
 
 ### 四套验证（只在动了 `scripts/` `data/` `tests/` `tools/*_editor.html` 时跑）
 
@@ -28,9 +27,12 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 
 ★ **只有一个编辑器** `tools/story_editor.html`（背景 / 题目 / 手机 / 文案 / 数值 / 服装全在里面）；
 `phone_editor.*` 那套第 55 轮已删。★ 两套 Godot 测试**跑完都打印「耗时合计」+「最耗时的前 8 段」** —— 提速**先看那个**。
+★ **第 76 轮起编辑器直接读写 `data/story.json`**：`open_story_editor.bat` 起 `tools/story_server.py`
+（`GET/POST /api/story`，127.0.0.1:8765）；`file://` 打开 = **只读**（`canSave=false`）。
+**别改回 File System Access / 下载** —— 浏览器指定不了路径。细则见 `REFERENCE.md`。
 ★ 用户 2026-10-15：「没动代码不用跑四套验证」—— 纯文档 / 清点 / 加工具**跳过**。
 ★ **后台跑长测试时不要同时改它读得到的资源**（第 49 轮 E2E 那 3 分钟里换贴图 → 结论作废）。
-★ 长测试用 `run_in_background` + 重定向到 `.workbuddy-ai/tmp/*.log`（`| tail` 会吞掉中间输出）。
+★ 长测试用 `run_in_background` + 重定向到 `.workbuddy-ai/tmp/*.log`（`| tail` 会吞输出）。
 
 ### 术语（用户 2026-10-15 定义）
 
@@ -38,7 +40,6 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 ★ 替换用**精确模式 + SKIP 词表**：改「本关→本轮 / 每关→每轮 / 第 N 关→第 N 轮 / 关卡→轮次」，
 **不动**「关口 / 关隘 / 通关 / 进关 / 过关 / 关心 / 关键 / 相关 / 关闭」；改完复查 diff。
 ★ 脚本里别用 `line.split('#')[0]` 切注释 —— BBCode 的 `[color=#8a919c]` 会被当注释起点。
-★ **改全局常量（轮数 / 槽位数）时夹具里的「下标访问」会越界** —— 越界会跳过「还原现场」，导致一整片假红。
 
 ## 二、改数据的几条链路
 
@@ -66,6 +67,9 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 **后果**：改 GDScript 里那几段 `DEFAULT_*`，story.json 旧值会**整段盖掉** —— 光改常量没用。
 **同步办法**：备份 → 目标段置空写回 → 跑 `DumpStory` → 对比备份（**备份独有的键**应恰好是这轮删掉的那些）→ 重建两个快照。
 ★ **`DumpStory` 不能无条件重跑**：`backgrounds[].questions[]` 里第 29 轮迁移的题目**只存在于 story.json**，重跑就全冲掉。只改 `rules` / `levels` / `true_presets` 这类段**不用重导**。
+★★ **改 `rules` 的数值光改常量没用** —— story.json 是**逐键覆盖**。第 75 轮漏了
+`pass_suspicion`(60) / `correct_delta`(−6)，整轮还在用旧过关线，测试却全绿（验的是常量）。
+第 76 轮补了守卫：`TestRunner` 用 `ScenarioData.rule_f(...)` 比常量（8 项）。
 
 ### ★ 派生数据不会自己跟上来
 
@@ -80,13 +84,14 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 ### 加新物品的固定顺序
 
 `改代码 → 烘图 → godot --headless --path . --import → 导出 story.json → 重建快照 → 跑测试`
-漏 `--import` → WardrobeTest 报「每件物品都有卡片图标」挂；漏重建快照 → `editor_smoke.js` 报 catalog 件数旧值。删物品靠烘焙脚本 `prune_stale()` 自动清产物。
+漏 `--import` → WardrobeTest 报「每件物品都有卡片图标」挂；漏重建快照 → `editor_smoke.js` 报 catalog 件数旧值。
+删物品靠烘焙脚本 `prune_stale()` 自动清产物。
 
 ### ★★ 加「会被随机抽到 / 会被测试遍历」的内容型数据 → 先想草稿标志（第 53 轮）
 
 先问两句：**① 半成品会不会被抽到？② 测试会不会遍历它？** 两个「会」→ 需要 `enabled`（草稿）标志。
 **判断式 `b.get("enabled", true) != false`（缺省 = 启用）**。
-★ 过滤只放在**产生新选择**的地方（抽局 / 列按钮 / 校验）；**按 id 取对象的地方不过滤**（存档里可能有后来被停用的背景）。
+★ 过滤只放在**产生新选择**的地方（抽局 / 列按钮 / 校验）；**按 id 取对象的地方不过滤**。
 
 ### ★★ 「自行编辑」模式（`questions_source = manual`）：编辑器收字段，运行时**三处**必须同步
 
@@ -157,5 +162,5 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 
 ### 五条硬规矩（展开见 `REFERENCE.md`）
 
-**① 凡「N / M」的显示，分子分母必须同一个集合**。**② 改「初始化顺序」前先 grep 谁依赖它**。
-**③ 结构约束优于概率约束**。**④ 稳定随机用确定性哈希**，不能用 `RandomNumberGenerator`。**⑤ DP 去重的键用归一化字段**，不能用 `tags` / `gate` 原文。
+① 「N / M」的分子分母必须同一个集合。② 改「初始化顺序」前先 grep 谁依赖它。③ 结构约束优于概率约束。
+④ 稳定随机用确定性哈希，不能用 `RandomNumberGenerator`。⑤ DP 去重的键用归一化字段，不能用 `tags` / `gate` 原文。

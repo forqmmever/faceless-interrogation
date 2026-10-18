@@ -1308,6 +1308,43 @@
 - 另：逐轮覆写的期望值要按**互斥归一化之后**算 —— `scene_1` 第 2 轮同时写了晚礼服与校服上下装，
   成装优先会把上下装归零（`EXCLUSIVE_GROUPS`）。
 
+### 第 76 轮：编辑器直接编辑 data/story.json，去掉「打开 / 另存为」
+
+- 用户口径：「编辑器现在直接编辑 data 中的 story.json，不要打开功能」。
+- **为什么需要一个本地小服务**：浏览器不许网页写本地磁盘 —— `file://` 下连 `fetch` 都被拦，
+  `showSaveFilePicker` 只能让用户手挑文件、也指定不了「就写 data/story.json」。
+  所以新增 `tools/story_server.py`：`GET /api/story` 返回原文、`POST /api/story` 校验后写回。
+- 页面改动：顶栏只剩「💾 保存到 data/story.json / 📋 回退常量 / ↶ ↷」；
+  「📂 打开」「另存为…」、隐藏的 `input[type=file]`、以及第 41 轮那套
+  **File System Access + IndexedDB 记句柄**的代码整段删除（`openFile` / `writableHandle` /
+  `idbPut` / `idbGet` / `PICKER_ID` 都没了）。`Ctrl+O` 也一并去掉。
+- 启动流程：`/api/story` → （失败）静态服务读 `data/story.json` → （失败）页面内置快照。
+  只有第一条能保存；后两条是**只读**，点保存会提示去用 `open_story_editor.bat`，不再偷偷下载文件。
+- `open_story_editor.bat`：刷完内置快照 → `start /min python tools\story_server.py --no-open`
+  → 打开 `http://127.0.0.1:8765/`。没有 python 时退回 `file://` 只读并给出警告。
+- 写入是**原子**的（写 `.tmp` 再 `os.replace`），旧版留 `data/story.json.bak`（已进 `.gitignore`）；
+  服务只监听 `127.0.0.1`；拒收「没有 `backgrounds` 数组」的请求，防止把数据写废。
+- 测试：编辑器冒烟 **367** 条（新增第 16 节「保存通道」6 条：只读模式下不发请求、
+  连上后 POST 到 `/api/story`、正文就是 `toJSON()`、6 套背景都在）。失败仍是那 12 条用户数据。
+- 验证：用 `curl` 跑了一遍真链路 —— GET 212918 字节 → POST 原样写回 → `git diff data/story.json`
+  **为空**（往返无损）；缺 `backgrounds` 的请求返回 400。
+
+### 第 76 轮（续）：抓到「过关线还是 60」—— story.json 逐键覆盖把常量盖掉了
+
+- **现象**：第 75 轮把 `pass_suspicion` 改成 100、`correct_delta` 归零，常量、编辑器、文档都改了，
+  测试也全绿 —— 但 `data/story.json` 里那两键**还是 60 / −6**。而 `rules` 是**逐键覆盖**，
+  所以游戏实际跑的仍是旧过关线。（其余 6 项增量倒是都对，只有这两键漏了。）
+- **为什么测试没抓到**：`TestRunner` 验的是 `Interrogation.PASS_SUSPICION` 这个**常量**，
+  不是「运行时读到的值」。常量对了、数据错了，照样全绿。
+- **修法**：`story.json` 改成 `100` / `0`；`Interrogation` 新增 `const CORRECT_DELTA := 0.0`
+  （原来三个调用点各写一个 `-6.0` 兜底，和 `DEFAULT_RULES` 的 0 早就对不上）。
+- **补的守卫**（这才是关键）：`TestRunner` 新增一节「story.json 与常量必须一致」，
+  用 `ScenarioData.rule_f(...)` 逐个比 8 个关键项 —— **验的是运行时读到的值，不是常量**。
+  以后再有人只改常量不改 json，这一节会当场挂。
+- 顺带：「B 类题正面回应降低怀疑度」改成「不涨怀疑值」—— `correct_delta` 归零之后
+  「降」已经不成立了（轮内只涨不跌）。
+- 重跑：换装 **633 / 34**、端到端 **952 / 0**、编辑器冒烟 **367 / 12**（失败全是用户数据）。
+
 ## 测试规模的变化（只有实测过的数据点）| 轮次 | WardrobeTest | TestRunner | 编辑器冒烟 | 手机冒烟 |
 
 |---|---|---|---|---|  
@@ -1341,6 +1378,7 @@
 | 第 57 轮末 | 596 | **886** | **341** | — |
 | 第 74 轮末 | **606** | **937** | **371** | —（第 58～73 轮未记入本表）|
 | 第 75 轮末 | **633** | **944** | **361** | —（34 / 12 条失败全部来自用户数据改动）|
+| 第 76 轮末 | 633 | **952** | **367** | —（34 / 12 条失败仍是用户数据）|
 
 ## 测试耗时的变化（第五十二轮起，两套测试跑完都会打印）
 

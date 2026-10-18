@@ -104,6 +104,44 @@ print('CRLF=%d 单独LF=%d %s' % (crlf, lone, '✓' if lone == 0 else '★ 混�
    报的是 `ReferenceError: xxx is not defined`（因为对象简写会去求值那个标识符），
    而不是「属性不存在」。
 
+### ★★ 编辑器现在直接读写 `data/story.json`（第 76 轮定稿）
+
+用户口径：「编辑器现在直接编辑 data 中的 story.json，不要打开功能」。
+
+链路：
+
+```
+open_story_editor.bat
+  → python tools\build_story_editor.py         （刷内置快照，只读退路用）
+  → start /min python tools\story_server.py --no-open
+  → 浏览器开 http://127.0.0.1:8765/
+```
+
+服务（标准库，无依赖，只监听 127.0.0.1）：
+
+| 路由 | 作用 |
+|---|---|
+| `GET /` | `tools/story_editor.html`（`no-store`） |
+| `GET /api/story` | `data/story.json` 原文 |
+| `POST /api/story` | 校验 → 备份 `data/story.json.bak` → 写 `.tmp` → `os.replace` |
+| 其他 | 项目根下的静态文件（防目录穿越） |
+
+页面启动三条路，**只有第一条能保存**：
+
+1. `GET /api/story` 成功 → `canSave = true`（正常路径）
+2. 静态服务能读到 `data/story.json` → 只读
+3. 页面内置快照 → 只读
+
+★ 第 41 轮那套 **File System Access + IndexedDB 记句柄**已整段删除
+（`openFile` / `writableHandle` / `idbPut` / `idbGet` / `PICKER_ID` / `rememberedHandle`）。
+**别改回去**：`showSaveFilePicker` 只能让用户手挑文件、指定不了路径，
+`file://` 下连 `fetch` 都被拦 —— 那个方案天生做不到「就写这一个文件」。
+★ 保存**不再有「下载一份」的回退**：只读模式下点保存只弹提示。
+以前那条下载路会让人误以为存好了。
+
+★ 结构守卫：`POST` 的 JSON 必须有非空 `backgrounds` 数组，否则 400 —— 防手滑写废整份数据。
+★ 往返无损验证法：`curl` GET 到临时文件 → 原样 POST 回去 → `git diff data/story.json` 必须为空。
+
 ### 改两个编辑器快照（内嵌 seed）—— 不用重跑 `DumpStory`
 
 `rules` / `ui` / `phone` 段是**逐键覆盖**语义，所以只改 `story.json` 里那几键时，

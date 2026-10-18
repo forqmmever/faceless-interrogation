@@ -19,5 +19,9 @@ Thumbs.db
 desktop.ini
 .DS_Store
 
+# 编辑器保存时留的上一版备份（tools/story_server.py 生成）
+data/story.json.bak
+data/story.json.tmp
+
 # 日志
 *.log

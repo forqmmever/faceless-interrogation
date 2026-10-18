@@ -582,7 +582,9 @@ func _test_enter_interrogation() -> void:
 		b_text_ok = b_answer != "" and str(interro.current_options[0]["text"]).contains(b_answer)
 	_check("档案题摆出 4 个选项（全篇最多四个）", b_opt_count == 4)
 	_check("B 类题正面回应 = 照档案作答", b_opt_kind == "ok")
-	_check("B 类题正面回应降低怀疑度", b_opt_delta < 0.0)
+	# ★ 第七十六轮：`correct_delta` 归零之后（轮内只涨不跌），照答不再「降」怀疑度。
+	_check("B 类题正面回应不涨怀疑值（correct_delta = 0）",
+		is_equal_approx(b_opt_delta, Interrogation.CORRECT_DELTA))
 	_check("B 类题的正面回应文案就是档案里的 answer", b_text_ok)
 	_check("第 4 项是「沉默」", b_silence_kind == "silence")
 
@@ -3605,6 +3607,28 @@ func _test_story_config() -> void:
 		sd._rules["pass_suspicion"] = old_rule
 	_check("还原后 rule_f 回到原值",
 		is_equal_approx(sd.rule_f("pass_suspicion", -1.0), float(old_rule)))
+
+	# ---- 2b. ★ 第七十六轮：story.json 的 rules 是**逐键覆盖**，会盖掉 DEFAULT_RULES ----
+	#   第 75 轮把过关线改成 100、correct_delta 归零时，json 里那两键没跟上
+	#   —— 常量改了、测试全绿，**游戏实际还在用 60 / −6**。
+	#   所以这里验「运行时读到的值」和常量一致：光验常量是验不出来的。
+	print("\n-- 数值：story.json 与常量必须一致（第七十六轮补）--")
+	_check("运行时过关线 = Interrogation.PASS_SUSPICION（%s）" % str(Interrogation.PASS_SUSPICION),
+		is_equal_approx(sd.rule_f("pass_suspicion", -1.0), Interrogation.PASS_SUSPICION))
+	_check("运行时照实答增量 = Interrogation.CORRECT_DELTA（%s）" % str(Interrogation.CORRECT_DELTA),
+		is_equal_approx(sd.rule_f("correct_delta", -999.0), Interrogation.CORRECT_DELTA))
+	_check("运行时前后矛盾代价 = Interrogation.CONTRADICTION_PENALTY",
+		is_equal_approx(sd.rule_f("contradiction_penalty", -1.0), Interrogation.CONTRADICTION_PENALTY))
+	_check("运行时 QTE 失败代价 = Interrogation.EXPR_QTE_FAIL",
+		is_equal_approx(sd.rule_f("expr_qte_fail", -1.0), Interrogation.EXPR_QTE_FAIL))
+	_check("运行时掏手机越界 = Interrogation.PHONE_PULL_PENALTY",
+		is_equal_approx(sd.rule_f("phone_pull_penalty", -1.0), Interrogation.PHONE_PULL_PENALTY))
+	_check("运行时沉默代价 = Interrogation.SILENCE_DELTA",
+		is_equal_approx(sd.rule_f("silence_delta", -1.0), Interrogation.SILENCE_DELTA))
+	_check("运行时硬答代价 = Interrogation.BLIND_MADE_UP_DELTA",
+		is_equal_approx(sd.rule_f("blind_made_up_delta", -1.0), Interrogation.BLIND_MADE_UP_DELTA))
+	_check("运行时编造代价 = Interrogation.IMPROVISE_PENALTY",
+		is_equal_approx(sd.rule_f("improvise_penalty", -1.0), Interrogation.IMPROVISE_PENALTY))
 
 	_check("rule_i 取整数值（combo_len = 3）", sd.rule_i("combo_len", 3) == 3)
 	_check("rule_arr 取数组（combo_keys 3 个）",

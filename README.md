@@ -1935,7 +1935,8 @@ tools/
   new_outfits_sheet.py   # ★ 把第二十五轮补的水手服 / 连衣裙 / 晚礼服 / 三套暴露装叠到小人身上，
                          #   末四格是「内裤层级修前 / 修后」对照（现烘一层旧 gstring）
   story_editor.html      # ★ 可视化文本编辑器（单文件网页，改剧情 / 数值 / 界面文案 / 结局）
-  build_story_editor.py  # 把 data/story.json 内嵌进文本编辑器的内置快照
+  story_server.py        # ★★ 第七十六轮：本地小服务，让编辑器直接读写 data/story.json（8765）
+  build_story_editor.py  # 把 data/story.json 内嵌进文本编辑器的内置快照（只读退路用）
   DumpStory.tscn/.gd     # 把 ScenarioData 当前数据导出成 data/story.json
   editor_smoke.js        # 文本编辑器（含手机那几页）的冒烟测试（Node + DOM 桩，含反向用例）
 tests/
@@ -1945,13 +1946,33 @@ tests/
 screenshots/             # 各阶段渲染截图 + 流程总览图
 run_game.bat             # 双击开始游戏
 run_tests.bat            # 双击跑全部自动化测试（4 套）
-open_story_editor.bat    # 双击打开文本编辑器（剧情 / 数值 / 手机 / 服装）
+open_story_editor.bat    # 双击打开文本编辑器（剧情 / 数值 / 手机 / 服装）★ 它会起一个本地小服务
 index.html               # 可在浏览器直接体验的 HTML5 早期原型
 ```
 
 ## 文本编辑器（剧情 / 数值 / 界面文案 / 结局）
 
-双击 **`open_story_editor.bat`**（或直接打开 `tools/story_editor.html`）。
+双击 **`open_story_editor.bat`**（★ 第七十六轮起**别直接打开那个 HTML** —— 见下面「怎么保存」）。
+
+**它编辑的就是 `data/story.json` 本身**：没有「打开文件」，也没有「另存为」。
+保存 = 直接写回 `data/story.json`（旧版自动留一份 `data/story.json.bak`）。
+
+### 怎么保存（第七十六轮）
+
+浏览器不许网页写本地磁盘，所以「直接编辑那个文件」得靠一个本地小服务：
+
+```
+open_story_editor.bat
+  → python tools\story_server.py --no-open     （127.0.0.1:8765，最小化窗口）
+  → 浏览器打开 http://127.0.0.1:8765/
+```
+
+- 页面顶栏写着 **`data/story.json · 已同步 · 直连本地服务`** → `Ctrl+S` 直接写盘。
+- 关掉那个最小化的黑窗口 = 停服务。
+- 直接双击 `tools/story_editor.html`（`file://`）也能看，但是**只读**：
+  顶栏会写「只读（没连上本地服务）」，点保存只弹提示，不会下载文件。
+- 写入是原子的（先写 `.tmp` 再替换），并且会拒收「没有 `backgrounds` 数组」的内容 ——
+  防止手滑把整份数据写废。
 
 **除服装以外的内容全部可改**：剧情文本、玩法数值、界面上的每一句字、四种收场的结局文案 ——
 都不再写死在 GDScript 里，而是放在 **`data/story.json`**；游戏启动时读它。
@@ -2410,6 +2431,85 @@ DP 解不再顶到理论上限，于是这点假改进被看见了（旧上限�
 换装与数据层 **633** 条 / 端到端 **944** 条 / 编辑器冒烟 **361** 条。
 端到端 **0 失败、无 `SCRIPT ERROR`**；换装 34 条与冒烟 12 条**全部来自用户自己的数据改动**
 （`scene_1` / `scene_2` 缺短信 / 事实 / 盲区题，且仍按四轮写），比基线 36 条还少 2 条。
+
+## 第七十六轮：编辑器直接编辑 data/story.json，去掉「打开 / 另存为」
+
+用户口径：「编辑器现在直接编辑 data 中的 story.json，不要打开功能」。
+
+### 一、为什么非要一个本地小服务
+
+浏览器给不了两样东西，缺一样都做不到「直接编辑那个文件」：
+
+| 想要 | 浏览器实际给的 |
+|---|---|
+| `fetch("../data/story.json")` 读文件 | `file://` 下**被拦**（跨源），只能读页面内置快照 |
+| 把结果写回 `data/story.json` | `showSaveFilePicker` 只能让**用户手挑**文件，且**不能指定路径** |
+
+所以加了一个 30 行的本地服务 `tools/story_server.py`（标准库，无依赖）：
+
+```
+GET  /api/story   → data/story.json 原文（不缓存）
+POST /api/story   → 校验后覆盖写入（旧版备份 data/story.json.bak）
+GET  /            → tools/story_editor.html
+GET  /<其他路径>  → 以项目根为根的静态文件（图标之类）
+```
+
+写入是**原子**的（写 `.tmp` → `os.replace`），并且有结构守卫：
+**没有 `backgrounds` 数组就拒收**，防手滑把整份数据写废。只监听 `127.0.0.1`。
+
+### 二、页面上删掉了什么
+
+- 顶栏：「📂 打开」「另存为…」两键 + 隐藏的 `<input type="file">`；`Ctrl+O` 也去掉。
+  现在只剩 **`💾 保存到 data/story.json`** / `📋 回退常量` / `↶ ↷`。
+- 代码：第 41 轮那套 **File System Access + IndexedDB 记句柄**整段删除
+  （`openFile` / `writableHandle` / `idbPut` / `idbGet` / `PICKER_ID` / `rememberedHandle`）。
+  那段代码当年是为了「让浏览器记住上次存到哪儿」，现在文件只有一个，记住它没有意义。
+- 保存的回退路径也改了：以前「浏览器不给就地写权限 → 下载一份」，现在**不再下载**
+  —— 只读模式下点保存直接提示去用 `open_story_editor.bat`。少一条会让人误以为存好了的路。
+
+### 三、启动流程（三条路，只有第一条能存）
+
+| 顺序 | 条件 | 结果 |
+|---|---|---|
+| ① | `GET /api/story` 成功 | **`data/story.json` · 可保存**（正常路径） |
+| ② | 静态服务能读到 `data/story.json` | 只读（拿 `python -m http.server` 打开时的退路） |
+| ③ | 页面内置快照 | 只读（`file://` 双击时的退路） |
+
+`canSave` 就是这个判断的结果：它决定顶栏那行字、也决定 `save()` 走不走 POST。
+
+### 四、验证
+
+- 真链路 `curl` 跑通：`GET` 212918 字节 → `POST` 原样写回 → `git diff data/story.json` **为空**（往返无损）；
+  缺 `backgrounds` 的请求返回 **400**。
+- 编辑器冒烟新增第 16 节「保存通道」6 条断言：只读模式下**不发任何请求**、
+  连上后 `POST` 到 `/api/story`、正文就是 `toJSON()`、6 套背景都在。**367 条 / 12 失败**
+  （失败仍是那 12 条用户数据）。
+- Godot 两套：换装 **633 / 34**、端到端 **952 / 0**（失败全是用户数据）。
+- 截图：43 张重拍后只有 3 张「变了」，全是噪声 —— 相册那两张（SubViewport，每次跑都不同）
+  与 `25_run_failed`（0.07%，差的是「第 N 局」那行的局号）。`git checkout --` 还原，没进提交。
+
+### 五、顺手抓到一个真 bug：过关线其实还是 60
+
+编辑器的内置快照原来是**旧的**（`pass_suspicion` 还是 60），刷新它之后才看见：
+`data/story.json` 里 `pass_suspicion` = **60**、`correct_delta` = **−6** ——
+第 75 轮只改了常量与文档，**json 那两键没跟上**。而 `rules` 是**逐键覆盖**，
+所以游戏实际跑的一直是旧过关线。
+
+为什么测试没抓到：`TestRunner` 验的是 `Interrogation.PASS_SUSPICION` 这个**常量**，
+不是「运行时读到的值」。常量对、数据错，照样全绿。
+
+修法与守卫：
+
+```gdscript
+# TestRunner 新增一节「story.json 与常量必须一致」
+_check("运行时过关线 = Interrogation.PASS_SUSPICION（100）",
+    is_equal_approx(sd.rule_f("pass_suspicion", -1.0), Interrogation.PASS_SUSPICION))
+```
+
+8 个关键项（过关线 / 照实答 / 前后矛盾 / QTE 失败 / 掏手机 / 沉默 / 硬答 / 编造）
+全部按 `ScenarioData.rule_f(...)` 比常量。顺手把 `correct_delta` 那三个调用点各写一遍的
+`-6.0` 兜底收成 `Interrogation.CORRECT_DELTA := 0.0`（它和 `DEFAULT_RULES` 的 0 早就对不上）。
+「B 类题正面回应降低怀疑度」也改成「不涨」—— 归零之后「降」不成立了。
 
 ## 美术资产（小人 · AU 图包）
 
@@ -4069,7 +4169,8 @@ node tools/editor_smoke.js
 
 ### 方式 D：文本编辑器（改剧情 / 数值 / 界面文案 / 结局）
 
-双击 `open_story_editor.bat`，或直接用浏览器打开 `tools/story_editor.html`。
+双击 `open_story_editor.bat`（它会起一个本地小服务，页面地址 `http://127.0.0.1:8765/`）。
+★ 第七十六轮起**不要**直接用浏览器打开 `tools/story_editor.html` —— 那样只能看不能存。
 详见上面「文本编辑器」一节。
 
 ### 方式 E：手机（现在是文本编辑器里的「📱 手机」那一组）

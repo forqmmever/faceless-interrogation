@@ -703,7 +703,7 @@ func _test_manual_question_options() -> void:
 #  留空就用选项文本本身 —— 所以出厂数据一条都不用补。
 # ------------------------------------------------------------
 func _test_option_echo() -> void:
-	print("\n-- 选项回应：选完的那句接到下一题题面前 --")
+	print("\n-- 选项回应：显示在题面下方的反馈区（第七十八轮改）--")
 	_run_a_clean_level()
 	_check("开新的一轮 → 上一轮的回应不会带进来", interro.last_choice_text == "")
 	interro._ended = false
@@ -713,7 +713,7 @@ func _test_option_echo() -> void:
 	interro.qte_container.hide()
 	interro.intf_container.hide()
 	interro._load_question(0)
-	_check("第 1 题题面前没有上一题的回应",
+	_check("第 1 题题面里没有上一题的回应",
 		not interro.dialogue_label.text.begins_with("你："))
 
 	# 挑一个「照实答」的选项 —— 它不会当场收场，最能看清下一题的样子。
@@ -735,18 +735,25 @@ func _test_option_echo() -> void:
 	var echo := str((interro.current_options[pick] as Dictionary).get("echo", ""))
 	_check("回应文本默认 = 选项原文（不带 A. 前缀）",
 		echo != "" and not echo.begins_with("A. "))
+	var manual := RunData.questions_are_manual()
 	interro._select_option(pick)
-	_check("选完之后记下了这句回应", interro.last_choice_text == echo)
-	_check("默认回应不是「自带」——下一题前会自动加「你：」",
-		interro.last_choice_is_custom == false)
+	_check("选完之后记下了这句回应", interro.last_choice_text != "")
+	_check("默认回应不是「自带」", interro.last_choice_is_custom == false)
+	# ★★ 第七十八轮：回应**立刻**显示在反馈区（不再等下一题拼进题面）。
+	#   manual 背景不把选项原文再念一遍 → 回落的那份不显示；auto 背景显示「你：…」
+	var want := "" if manual else "你：" + echo
+	_check("★ 反馈区立刻换上这句回应（%s）" % ("manual 留空" if manual else "auto 带「你：」"),
+		interro.feedback_label.text == want)
 
 	interro._ended = false
 	interro._running = true
 	interro._load_question(1)
-	_check("下一题题面前接上了「你：<上一题选的>」",
-		interro.dialogue_label.text.begins_with("你：" + echo + "\n"))
-	_check("下一题的题面照旧跟在后面",
+	_check("★ 下一题题面里**不再**接上一题的回应",
+		not interro.dialogue_label.text.contains(echo))
+	_check("下一题的题面照旧显示",
 		interro.dialogue_label.text.contains(_q_text_of(interro.level_questions()[1])))
+	_check("★ 换题之后反馈区仍然留着那句回应（一直留到下次选择）",
+		interro.feedback_label.text == want)
 
 	# ---- 选项自带 echo 时优先用它；没写就回落 ----
 	var opts: Array = interro._build_unified_options({
@@ -765,19 +772,22 @@ func _test_option_echo() -> void:
 		bool((opts[0] as Dictionary).get("echo_custom", false)))
 	_check("没写 echo → 标记为「回落」",
 		not bool((opts[1] as Dictionary).get("echo_custom", true)))
-	# ★ 第六十一轮：自带的那段原样显示 —— 它可以是「选完之后的后果」，不能自动加「你：」
-	interro.last_choice_text = "（测试后果）"
-	interro.last_choice_is_custom = true
-	interro._load_question(1)
-	_check("自带回应原样显示（不自动加「你：」）",
-		interro.dialogue_label.text.begins_with("（测试后果）\n"))
-	# ★ 第六十九轮：manual 背景全部按原文；auto 背景保留说话人 / 「你：」
-	_check("manual 背景：没写 echo 时不再重复选项文本",
-		interro._dialogue_text(true, "苦主", "回应", false, "题面") == "题面")
-	_check("manual 背景：作者写的 echo 仍原样保留",
-		interro._dialogue_text(true, "苦主", "回应", true, "题面") == "回应\n题面")
-	_check("auto 背景：默认回应加「你：」、题面加说话人",
-		interro._dialogue_text(false, "苦主", "回应", false, "题面") == "你：回应\n苦主：题面")
+
+	# ---- _choice_echo：把「自带 / 回落」翻译成反馈区里显示的那段 ----
+	_check("自带回应 → 原样（不加「你：」）",
+		interro._choice_echo(opts[0] as Dictionary) == "（测试专用回应）")
+	var fallback: String = str(interro._choice_echo(opts[1] as Dictionary))
+	_check("★ 回落的那份：manual 背景留空、auto 背景加「你：」",
+		fallback == ("" if manual else "你：乙回答"))
+	_check("完全没写 echo（沉默之类）→ 空串",
+		interro._choice_echo({"text": "A. （沉默）", "echo": "", "echo_custom": false}) == "")
+
+	# ★ 第六十九轮：manual 背景题面按原文；auto 背景保留说话人名牌
+	_check("manual 背景：题面按原文",
+		interro._dialogue_text(true, "苦主", "题面") == "题面")
+	_check("auto 背景：题面加说话人名牌",
+		interro._dialogue_text(false, "苦主", "题面") == "苦主：题面")
+
 	# 「⚠」是读过情报后给按钮加的雷区标记 —— 屏幕上是原句，不能把标记念出来。
 	var warn_opts: Array = interro._letterize([{"_label": "⚠ 测试危险项"}])
 	_check("回应文本里不带「⚠」这个按钮标记",
@@ -1882,22 +1892,28 @@ func _test_interrogator_intel() -> void:
 		str((interro.current_options[1] as Dictionary).get("text", "")).contains("⚠")
 			== ScenarioData.trait_is_dangerous(tr, "bluff"))
 
-	# 反馈文案要跟着性情走（同一道题，换个人问，后果不同）
+	# ★★ 第七十八轮（用户口径）：「原来的反馈句删除」。
+	#   反馈区现在显示的是**选项自己的回应**，不再是按性情挑的那段 bluff_note / evade_note。
+	#   （那两份文案与 DossierData.trait_note() 都还在，留给将来的盲区题 / 别处用。）
 	interro._ended = false
 	interro._running = true
 	interro.is_qte_active = false
 	interro._load_question(b_idx)
+	var pick_bluff: Dictionary = interro.current_options[1]
 	interro._select_option(1)          # 撒谎
-	_check("撒谎的反馈文案来自该性情的 bluff_note",
-		interro.feedback_label.text == str(tr.get("bluff_note", "")))
+	_check("★ 撒谎之后反馈区是「选项回应」，不再是性情的 bluff_note",
+		interro.feedback_label.text == interro._choice_echo(pick_bluff)
+			and interro.feedback_label.text != str(tr.get("bluff_note", "")))
 
 	interro._ended = false
 	interro._running = true
 	interro.is_qte_active = false
 	interro._load_question(b_idx)
+	var pick_evade: Dictionary = interro.current_options[2]
 	interro._select_option(2)          # 回避
-	_check("回避的反馈文案来自该性情的 evade_note",
-		interro.feedback_label.text == str(tr.get("evade_note", "")))
+	_check("★ 回避之后反馈区是「选项回应」，不再是性情的 evade_note",
+		interro.feedback_label.text == interro._choice_echo(pick_evade)
+			and interro.feedback_label.text != str(tr.get("evade_note", "")))
 
 	gd.interrogator_intel_read = false
 

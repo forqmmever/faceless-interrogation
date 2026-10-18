@@ -699,7 +699,9 @@ try {
     // ★ 第五十三轮：选关面板新增两条（select_bg_title / select_bg_random）→ 79 → 81
     // ★ 第五十七轮：盘问界面新增「你」的说话人名牌（speaker_you）→ 81 → 82
     // ★ 第七十三轮：删掉 select_bg_random（面板上不再有「随机」那颗按钮）→ 87 → 86
-  ok(P.uiLeafCount() === 86, "story.ui 共 86 条文案，实际 " + P.uiLeafCount());
+    // ★ 第七十八轮：删掉 13 条「回答反馈句」（card_* / fact_correct_* / companion_no_value 等，
+    //   用户口径「原来的反馈句删除」）→ 86 → 73
+  ok(P.uiLeafCount() === 73, "story.ui 共 73 条文案，实际 " + P.uiLeafCount());
     const rs = P.rulesSections(), us = P.uiSections(), es = P.endingsSections();
     // ★ 第三十三轮：删 3 项（exposure_qte_threshold / interference_min / interference_per_exposure）
     //   加 2 项（exposure_qte_min / exposure_qte_full）→ 31 − 3 + 2 = 30
@@ -713,7 +715,7 @@ try {
     ok(qteFieldKeys.includes("prompt"), "全局 QTE 页也有该字段（实际：" + qteFieldKeys.join(",") + "）");
     ok(qFieldKeys.includes("qte") && qFieldKeys.includes("delay"),
       "每题仍能改 QTE 类型与出现时间");
-    ok(us.reduce((a, s) => a + (s.fields || []).length, 0) === 85, "文案页覆盖 85 条");
+    ok(us.reduce((a, s) => a + (s.fields || []).length, 0) === 72, "文案页覆盖 72 条");
     ok(es.reduce((a, s) => a + (s.fields || []).length, 0) === 27, "结局页覆盖 27 条");
     ok(rs.every(s => s.host && s.host() === P.story.rules), "全部数值区块都写在 story.rules 上（全局一套）");
     ok(us.every(s => s.host && s.host() === P.story.ui[s.seg]), "每个文案区块挂在对应的 ui 子段上");

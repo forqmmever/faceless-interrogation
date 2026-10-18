@@ -98,6 +98,12 @@ const OPTION_LETTERS := ["A. ", "B. ", "C. ", "D. "]
 #  但**必须按真实宽度算**：新按钮刚加进容器时宽度是 0，自动换行会把最小高度
 #  算成「一个字一行」（实测 510），见 _refresh_option_buttons() 里的注释。
 const OPTION_BTN_H := 46.0
+
+# --- 题面下方那块「反馈区」的颜色 ---
+#  ★ 第七十八轮：这块地方的主内容是**上一题选项的回应**（作者写的旁白 / 后果），
+#    判定解释（前后矛盾、口径不符、盲区选错…）接在它后面。默认用这层灰，
+#    判定类文案自己再覆盖成红 / 绿 / 橙。
+const FEEDBACK_COLOR := Color(0.66, 0.70, 0.76)
 const OPTION_BTN_WIDTH_FALLBACK := 320.0
 
 # --- 视角晃动 ---
@@ -195,11 +201,13 @@ var combo_index: int = 0                   # 组合干扰：已经敲对了几�
 var interference_line: String = ""         # 他这一次递的那句话（显示在干扰条上）
 
 var current_options: Array = []
-# ★ 第五十七轮：上一题选中的那句话 —— 下一题的题面之前会接一行「你：<这句>」，
-#   让「你答了什么 → 他又问什么」在屏幕上连起来。
-# ★ 第六十一轮：选项可以自带 `echo`（选完之后接在下一题前的那段）。自带时**原样显示**，
+# ★ 第五十七轮：上一题选中的那句话 —— 用来把「你答了什么 → 他又问什么」连起来。
+# ★ 第六十一轮：选项可以自带 `echo`（「选完之后的那段回应」）。自带时**原样显示**，
 #   不再自动加「你：」—— 所以它可以写「你说了什么」，也可以写「这句话的后果 / 旁白」。
 #   没写才回落选项文本，并加「你：」。
+# ★★ 第七十八轮（用户口径）：「接在下一题题面前的回应放在反馈句的现在的位置，
+#   原来的反馈句删除」。所以这段**不再拼进下一题的题面**，而是显示在题面下方那块
+#   反馈区里，并且一直留到下一次选择 —— 题面上方从此只有题面本身。
 var last_choice_text: String = ""
 var last_choice_is_custom: bool = false
 var _questions: Array = []               # 本轮实际要问的题（从背景题库里抽出来的）
@@ -900,6 +908,9 @@ func start_interrogation() -> void:
 	# 新的一轮从干净的一句话开始 —— 上一轮最后那句不能带进来。
 	last_choice_text = ""
 	last_choice_is_custom = false
+	# ★ 第七十八轮：反馈区是常驻的，开新轮必须显式清空（不再是「换题就清」）。
+	feedback_label.text = ""
+	feedback_label.add_theme_color_override("font_color", FEEDBACK_COLOR)
 	current_question_index = 0
 	interference_count = 0
 	interference_blocked = 0
@@ -1517,8 +1528,10 @@ func _load_question(index: int) -> void:
 	_auto_retract_phone()
 	_cancel_qte()
 
-	feedback_label.text = ""
-	feedback_label.add_theme_color_override("font_color", Color(0.66, 0.70, 0.76))
+	# ★★ 第七十八轮：反馈区不再「换题就清空」—— 它常驻显示**上一题选项的回应**
+	#   （作者写的那段），直到下一次选择把它换掉。原来回应是拼在题面前面的，
+	#   换题就等于把它带进来了；现在位置换到题面下方，得自己留着。
+	_show_choice_echo()
 	# ★ 第七十一轮：换题时把还没写出去的「怀疑度 +N」丢掉 ——
 	#   它是上一题的事，不能贴到新题的反馈区上。
 	_pending_delta = 0.0
@@ -1526,14 +1539,12 @@ func _load_question(index: int) -> void:
 	# ★ 第二十九轮：新格式的题目没有 `kind`，改看 `speaker` 字段（见 _q_is_companion）。
 	var is_comp := _q_is_companion(q)
 	# ★ 第六十九轮（用户口径）：「自行编辑的题目不要在前面自动加说话人名牌」。
-	#   manual 背景：题面 / 上一题回应都按原文，不拼「苦主 / 黄毛 / 你」。
-	#   auto 背景：保留原来的说话人名牌与「你：」回应，不动出厂观感。
+	#   manual 背景：题面按原文，不拼「苦主 / 黄毛」。
+	#   auto 背景：保留原来的说话人名牌，不动出厂观感。
 	var manual := RunData.questions_are_manual()
 	var speaker := _ut("interrogation.speaker_companion", "同行者") if is_comp \
 		else _ut("interrogation.speaker_interrogator", "审讯官")
-	var echo_text := last_choice_text if index > 0 else ""
-	dialogue_label.text = _dialogue_text(manual, speaker, echo_text,
-		last_choice_is_custom, _q_text(q))
+	dialogue_label.text = _dialogue_text(manual, speaker, _q_text(q))
 
 	if is_comp:
 		GameData.companion_asked += 1
@@ -1548,22 +1559,46 @@ func _load_question(index: int) -> void:
 	#   （needs_expression_for）还会遍历选项找 leak / made_up —— 所以照常有效。
 	_apply_qte_plan(index, str(q.get("kind", "")), current_options)
 
-# 拼题面：auto 背景保留「说话人：」与「你：<上一题回应>」；manual 背景全部按原文。
-func _dialogue_text(manual: bool, speaker: String, echo_text: String,
-		custom: bool, qtext: String) -> String:
-	var head := ""
-	if echo_text.strip_edges() != "":
-		if manual:
-			# manual 背景：只有作者写的「后果 / 旁白」才保留；没写 echo 的选项文本不再重复，
-			# 免得下一题顶上一行看起来像多出来的选项（第二局第一轮第四问那种）。
-			if custom:
-				head = echo_text + "\n"
-		elif custom:
-			head = echo_text + "\n"
-		else:
-			head = _ut("interrogation.speaker_you", "你") + "：" + echo_text + "\n"
+# 拼题面：auto 背景保留「说话人：」名牌；manual 背景按原文。
+# ★ 第七十八轮：题面里**不再接上一题的回应** —— 它挪到下方反馈区了。
+func _dialogue_text(manual: bool, speaker: String, qtext: String) -> String:
 	var speaker_head := "" if manual else speaker + "："
-	return head + speaker_head + qtext
+	return speaker_head + qtext
+
+# ------------------------------------------------------------
+#  选项的「回应」—— 选完那句话之后，反馈区里显示的那段
+#
+#  用户口径（第七十八轮）：「接在下一题题面前的回应放在反馈句的现在的位置，
+#  原来的反馈句删除」。所以：
+#    · 位置：题面**下方**那块（原来是「他点了点头」那种模板反馈句的地盘）；
+#    · 内容：选项自己的 `echo`（作者写的旁白 / 后果），
+#            没写就回落 —— auto 背景显示「你：<选项原文>」，manual 背景留空
+#            （不把选项文本再念一遍，免得看起来像多出来的一行）。
+#    · 旧的那批模板反馈句**全部不再显示**（见各 _answer_* 里的注释）。
+# ------------------------------------------------------------
+func _choice_echo(opt: Dictionary) -> String:
+	var echo := str(opt.get("echo", ""))
+	if echo.strip_edges() == "":
+		return ""
+	# `echo_custom` 是 _letterize 打的标记：true = 作者自己写了，原样显示
+	if bool(opt.get("echo_custom", false)):
+		return echo
+	if RunData.questions_are_manual():
+		return ""
+	return _ut("interrogation.speaker_you", "你") + "：" + echo
+
+func _show_choice_echo() -> void:
+	feedback_label.text = last_choice_text
+	feedback_label.add_theme_color_override("font_color", FEEDBACK_COLOR)
+
+# 往反馈区**追加**一段（回应已经在上面了，判定解释接在它后面）。
+# gap 默认空一行 —— 判定文案和旁白是两种东西，挤在一起看不清。
+func _append_feedback(txt: String, gap: String = "\n\n") -> void:
+	var clean := txt.strip_edges()
+	if clean == "":
+		return
+	var body := feedback_label.text.strip_edges()
+	feedback_label.text = clean if body == "" else body + gap + clean
 
 # ------------------------------------------------------------
 #  每题的 QTE 排期（第二十三轮，编辑器可改）
@@ -1735,13 +1770,14 @@ func _select_option(opt_index: int) -> void:
 	_record_answer(opt_index)
 
 	var opt: Dictionary = current_options[opt_index]
-	# ★ 第五十七轮：把「你刚说的这句」记下来 —— 下一题的题面会把它接在前面。
+	# ★ 第五十七轮：把「你刚说的这句」记下来 —— 它是答案下方反馈区的内容。
 	#   放在所有结算分支之前：不管这一答是照实答、撒谎、说漏嘴还是直接收场，
 	#   这句话都已经出口了。
-	last_choice_text = str(opt.get("echo", ""))
+	# ★★ 第七十八轮：顺手**立刻**把它贴到反馈区（原来只是记着，等下一题拼进题面）。
+	last_choice_text = _choice_echo(opt)
 	last_choice_is_custom = bool(opt.get("echo_custom", false))
+	_show_choice_echo()
 	var kind := str(opt["kind"])
-	var owner := str(opt["owner"])
 
 	# ★ 第二十九轮：`ending` 是**选项自己指定**的收场方式 ——
 	#   和 tone 分开，所以「照实答」这类选项也能被写成一句话把人送走。
@@ -1777,32 +1813,11 @@ func _select_option(opt_index: int) -> void:
 
 	_add_suspicion(float(opt["delta"]))
 
-	match kind:
-		"ok":
-			if owner == "A":
-				feedback_label.text = _ut("feedback.card_ok_a",
-					"你没有接这个话头。审讯官盯着你看了两秒，翻过一页。")
-			else:
-				feedback_label.text = _ut("feedback.card_ok_b",
-					"你照着整理好的档案作答，细节对得上，审讯官在记录本上划掉了一项。")
-		"gap":
-			feedback_label.text = _ut("feedback.card_gap",
-				"你答不出细节。审讯官的笔尖停了一下 —— 一个跑这条线多年的商人，不该记不住这些。")
-		"bluff":
-			# 撒谎的后果因人而异 —— 文案就是「审问者的情报」在盘问里的回声
-			var bn := DossierData.trait_note("bluff")
-			feedback_label.text = bn if bn != "" \
-				else _ut("feedback.card_bluff_default",
-					"你临时编了个说法。审讯官没接话，只是把它记了下来。")
-		"evade":
-			var en := DossierData.trait_note("evade")
-			feedback_label.text = en if en != "" \
-				else _ut("feedback.card_evade_default",
-					"你把问题推了回去。这种回避本身也算一种回答。")
-		"silence":
-			feedback_label.text = _ut("feedback.card_silence",
-				"你一个字都没接。他盯着你看了几秒，把这一页翻了过去 —— "
-				+ "但翻之前，他在页角折了一下。")
+	# ★★ 第七十八轮（用户口径）：「原来的反馈句删除」。
+	#   这里原来按 kind 写五种模板反馈（「他没有接这个话头」/「你把问题推了回去」/…），
+	#   现在**一句都不写了** —— 反馈区只留选项自己的回应（上面已经贴好）。
+	#   `kind` 仍然决定判定与代价，只是不再产出一段系统文案。
+	#   对应地，story.json 的 `ui.feedback` 里那批键（card_* 等）已删掉。
 
 	# ★ 第二十九轮：选项可以要求「选完震一下」（`shake` 填力度，不填就不震）
 	if opt.has("shake"):
@@ -1872,6 +1887,9 @@ func _current_question() -> Dictionary:
 #    真正会翻车的只有「跨关复问」：翻出**前面几轮**立过的说法来问。
 #    「前后矛盾」的判定仍然保留在 `else` 分支里 —— 那是跨关复问走的路。
 #  轮内怀疑度只涨不跌：答对口径不再给负奖励，只写文案。
+# ★★ 第七十八轮（用户口径）：「原来的反馈句删除」。
+#   这里只留**判定解释**（口径不符 / 前后矛盾的对照），不再写「他点了点头」这类观感文案 ——
+#   那批句子现在由选项自己的回应代替（见 _choice_echo）。判定解释接在回应后面。
 func _answer_fact(opt: Dictionary) -> void:
 	var fid := str(opt.get("fact", ""))
 	var val := str(opt.get("value", ""))
@@ -1883,34 +1901,20 @@ func _answer_fact(opt: Dictionary) -> void:
 
 	if first:
 		GameData.stated_facts[fid] = val
-		if val == canonical:
-			feedback_label.add_theme_color_override("font_color", Color(0.50, 0.86, 0.66))
-			if GameData.known_facts.has(fid):
-				feedback_label.text = _ut("feedback.fact_correct_known",
-					"你说的是短信里那个版本 —— 和东家、家人对得上。他点了点头。")
-			else:
-				feedback_label.text = _ut("feedback.fact_correct_unknown",
-					"你随口给了个说法。听起来挺自然 —— "
-					+ "但愿它跟别处对得上。（你还没在短信里确认过这一条）")
-		else:
+		if val != canonical:
 			GameData.improvised += 1
 			_add_suspicion(_rf("improvise_penalty", IMPROVISE_PENALTY))
 			feedback_label.add_theme_color_override("font_color", Color(0.94, 0.72, 0.34))
-			feedback_label.text = _ut("feedback.fact_improvise",
+			_append_feedback(_ut("feedback.fact_improvise",
 				"你把「%s」说成了「%s」—— 这跟短信里的口径不一样。\n"
 				+ "他现在还不知道。但这句话已经进了册子。") \
-				% [DossierData.fact_prompt_name(fid), label]
+				% [DossierData.fact_prompt_name(fid), label])
 	else:
-		if val == prev:
-			feedback_label.add_theme_color_override("font_color", Color(0.50, 0.86, 0.66))
-			feedback_label.text = _ut("feedback.fact_repeat_same",
-				"你说得跟上次一模一样，一个字都没差。"
-				+ "他抬了下眉毛，没说什么。")
-		else:
+		if val != prev:
 			GameData.contradictions += 1
 			_add_suspicion(_rf("contradiction_penalty", CONTRADICTION_PENALTY))
 			feedback_label.add_theme_color_override("font_color", Color(0.96, 0.38, 0.36))
-			feedback_label.text = _contradiction_text(fid, prev, val, recall)
+			_append_feedback(_contradiction_text(fid, prev, val, recall))
 
 	_set_options_enabled(false)
 	if _ended:
@@ -1936,6 +1940,8 @@ func _contradiction_text(fid: String, prev: String, now: String, recall: bool) -
 #  他刚听见你立下的说法，立刻抛一个错的版本试你。
 #  判定和说法题完全一样：顺着他说 = 跟自己的口径对不上 = 前后矛盾。
 #  唯一的差别是：无论你怎么答，这句话都进了册子（plants +1）。
+# ★★ 第七十八轮（用户口径）：观感反馈句删掉，只留「顺着他说 = 口径摇晃」这条**判定解释**
+#   （它解释怀疑度为什么涨）。他种下的那句话（plant）是剧情，照旧接在后面。
 func _answer_companion(opt: Dictionary) -> void:
 	var fid := str(opt.get("fact", ""))
 	var val := str(opt.get("value", ""))
@@ -1946,7 +1952,6 @@ func _answer_companion(opt: Dictionary) -> void:
 	_add_suspicion(delta)
 
 	var prev := str(GameData.stated_facts.get(fid, ""))
-	feedback_label.add_theme_color_override("font_color", Color(0.90, 0.68, 0.36))
 
 	# ★ 第十三轮：**他这一问不再构成前后矛盾**。
 	#   理由：他就在同一关里、你刚立完说法之后插这句话 ——
@@ -1955,29 +1960,18 @@ func _answer_companion(opt: Dictionary) -> void:
 	#     ① 把错版本塞进册子（plants +1，他从不做无用功）；
 	#     ② 你若顺着他说，就按这个选项的代价涨怀疑度（立场动摇，但不算矛盾）。
 	#   真正的「前后矛盾」只在**跨关复问**里出现（见 _answer_fact 的 else 分支）。
-	if val == "":
-		feedback_label.text = _ut("feedback.companion_no_value",
-			"你没有正面接他这句话。他还是把话头留在了桌上 —— 审讯官都听见了。")
-	elif prev == "":
-		feedback_label.text = _ut("feedback.companion_first",
-			"（你没接他的话头 —— 不认，也不否认。"
-			+ "审讯官看了你一眼，没说什么；同行者笑了笑。）")
-	elif val == prev:
-		feedback_label.add_theme_color_override("font_color", Color(0.50, 0.86, 0.66))
-		feedback_label.text = _ut("feedback.companion_same",
-			"你顶了回去，说的还是那套说法。他笑了一下，转头去看审讯官的表情。")
-	else:
+	if val != "" and prev != "" and val != prev:
 		feedback_label.add_theme_color_override("font_color", Color(0.96, 0.56, 0.36))
-		feedback_label.text = _ut("feedback.companion_sway",
+		_append_feedback(_ut("feedback.companion_sway",
 			"你顺着他的话说了下去 —— 这可跟你之前那句对不上。\n"
 			+ "  · 你说过的是：「%s」\n  · 这次顺着他：「%s」\n"
 			+ "（这一轮里还不算「前后矛盾」—— 但你的说法已经开始摇晃了。）") % [
-			DossierData.fact_value_label(fid, prev), DossierData.fact_value_label(fid, val)]
+			DossierData.fact_value_label(fid, prev), DossierData.fact_value_label(fid, val)])
 
 	# 右侧栏删掉之后，他种下的那句话就接在反馈下面
 	var plant := str(q.get("plant", ""))
 	if plant != "":
-		feedback_label.text += "\n\n" + plant
+		_append_feedback(plant)
 
 	_set_options_enabled(false)
 	if _ended:
@@ -2004,6 +1998,11 @@ func _answer_blind(opt: Dictionary) -> void:
 	# 两个都不便宜时，选相对轻的那个 —— 这题考的从来不是「有没有零代价的选项」
 	var right_kind := "bluff" if bluff_d < evade_d else "evade"
 
+	# ★★ 第七十八轮（用户口径）：「原来的反馈句删除」。这里删掉的是
+	#   「你说完，他没有立刻接话」这种观感句，以及「（选对了 / 选错了）」后面那半句解释 ——
+	#   但**保留这两条判定提示本身**：盲区题的全部玩法就是「靠备忘录推断他吃哪一套」，
+	#   把「选对 / 选错」和备忘录一起删掉，这题就变成纯运气了。
+	#   硬答的重罚解释（blind_made_up）同理保留。
 	var head := ""
 	if kind == "made_up":
 		feedback_label.add_theme_color_override("font_color", Color(0.96, 0.38, 0.36))
@@ -2011,14 +2010,12 @@ func _answer_blind(opt: Dictionary) -> void:
 			"你当场编了个具体的细节。他顺着往下追了两句 —— 你接不上。\n"
 			+ "（这题你手里本来就没底：编得越细，他越能往下追。）")
 	else:
-		var note := DossierData.trait_note(kind)
-		head = note if note != "" else _ut("feedback.blind_default", "你说完，他没有立刻接话。")
 		if kind == right_kind:
 			feedback_label.add_theme_color_override("font_color", Color(0.50, 0.86, 0.66))
-			head += _ut("feedback.blind_right", "\n（选对了 —— 他这种人吃的就是这一套。）")
+			head = _ut("feedback.blind_right", "\n（选对了 —— 他这种人吃的就是这一套。）")
 		else:
 			feedback_label.add_theme_color_override("font_color", Color(0.90, 0.68, 0.36))
-			head += _ut("feedback.blind_wrong", "\n（选错了 —— 他这种人不吃这一套。）")
+			head = _ut("feedback.blind_wrong", "\n（选错了 —— 他这种人不吃这一套。）")
 
 	# 把备忘录第一条原样贴出来：这一题的正解只能从它推出来
 	var tail := _ut("feedback.blind_tail", "【备忘录第一条】%s · 忌讳：%s") % [
@@ -2029,7 +2026,7 @@ func _answer_blind(opt: Dictionary) -> void:
 
 	# 先写反馈再扣分 —— 扣到 100 会直接 _game_over()，
 	# 但玩家仍然该看到「为什么这一答就崩了」。
-	feedback_label.text = head + "\n" + tail
+	_append_feedback((head + "\n" + tail).strip_edges())
 
 	_add_suspicion(delta)
 	if _ended:
@@ -2320,8 +2317,7 @@ func _flush_delta_note() -> void:
 	if d <= 0.0 or _ended:
 		return
 	var note := _ut("interrogation.delta_note", "（怀疑度 +%d）") % int(round(d))
-	var body := feedback_label.text.strip_edges()
-	feedback_label.text = note if body == "" else feedback_label.text + "\n" + note
+	_append_feedback(note, "\n")
 
 func _update_suspicion_ui() -> void:
 	suspicion_bar.value = GameData.suspicion_level

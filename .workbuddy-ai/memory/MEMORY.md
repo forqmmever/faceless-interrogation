@@ -30,22 +30,20 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 ★ **第 76 轮起编辑器直接读写 `data/story.json`**：`open_story_editor.bat` 起 `tools/story_server.py`
 （`GET/POST /api/story`，127.0.0.1:8765）；`file://` 打开 = **只读**。**别改回 File System Access / 下载**。
 ★ **改完 `data/story.json` 要跑 `python tools/build_story_editor.py` 重建内置快照** ——
-编辑器冒烟读的是 HTML 里那份快照，不同步就报旧数据的提醒（第 77 轮踩过）。
-★ **`open_story_editor.bat` 必须纯 ASCII + CRLF**（第 77 轮续）：cmd 按 OEM 代码页读它，
-存 UTF-8 的中文是乱码，再被「按 UTF-8 读」的编辑器（含本工具）存一次就变成一串 `?`。
-用 Read/Edit 改它会按 UTF-8 重写 —— 改完**用 Python 转回 ascii + CRLF** 并验证 `all(b<128)`。
-★ **Python 侧实测坑**：`sys.exit("一句话")` **写不进** `--log` 文件（那是解释器退出时打到 stderr 的，
-文件没 flush）→ 用 `print` + `flush` 再 `exit`。
-★ **Windows 的 `SO_REUSEADDR` 让两次 bind 都成功** —— 判断端口占用只能**主动 connect 一次**。
+冒烟读的是 HTML 里那份快照，不同步就报旧数据的提醒。
+★ **`open_story_editor.bat` 必须纯 ASCII + CRLF**：cmd 按 OEM 代码页读它，UTF-8 的中文是乱码，
+被「按 UTF-8 读」的编辑器（含本工具）存一次就变成一串 `?`。改完用 Python 转 ascii + 验证 `all(b<128)`。
+★ **Python 侧实测坑**：`sys.exit("一句话")` **写不进** `--log`（解释器退出时才打到 stderr，文件没 flush）
+→ 用 `print` + `flush` 再 `exit`。★ **Windows 的 `SO_REUSEADDR` 让两次 bind 都成功** —— 判占用只能**主动 connect 一次**。
 ★ 用户 2026-10-15：「没动代码不用跑四套验证」—— 纯文档 / 清点 / 加工具**跳过**。
-★ **后台跑长测试时不要同时改它读得到的资源**；长测试用 `run_in_background` + 重定向到 `.workbuddy-ai/tmp/*.log`（`| tail` 会吞输出）。
+★ **后台跑长测试时不要同时改它读得到的资源**；长测试用 `run_in_background` + 重定向到 `.workbuddy-ai/tmp/*.log`。
 ★ 本沙箱里 `start` 起的子进程会随命令结束被清掉 —— 验证「服务是否存活」必须和 `curl` 写**同一条命令**。
 
 ### 术语（用户 2026-10-15 定义）
 
 **一局** = 含一套背景 + 若干轮的那一整盘；**一轮** = 一次换装 + 问答环节（代码 `level_index`）。统一用「轮」。
-★ 替换用**精确模式 + SKIP 词表**：改「本关→本轮 / 每关→每轮 / 第 N 关→第 N 轮 / 关卡→轮次」，
-**不动**「关口 / 关隘 / 通关 / 进关 / 过关 / 关心 / 关键 / 相关 / 关闭」；改完复查 diff。
+★ 替换用**精确模式 + SKIP 词表**：「本关→本轮 / 每关→每轮 / 第 N 关→第 N 轮 / 关卡→轮次」，
+**不动**「关口 / 关隘 / 通关 / 进关 / 过关 / 关心 / 关键 / 相关 / 关闭」。
 ★ 脚本里别用 `line.split('#')[0]` 切注释 —— BBCode 的 `[color=#8a919c]` 会被当注释起点。
 
 ## 二、改数据的几条链路
@@ -54,14 +52,13 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 
 `levelsFields()` 只给「🪜 关卡与轮数」页用（写 `story.levels`，**默认值**）；
 「🎬 背景」页的「⑦ 本局覆写 · 几轮」是**另写的一份 `fields`**（写 `bg.levels[i]`，**游戏真正读的**）。
-★ **标题写着「说明」不等于有说明字段** —— 排查「改不了」先数 `fields` 的键，别读标题。
+★ **标题写着「说明」不等于有说明字段** —— 排查「改不了」先数 `fields` 的键。
 
 ### 改一句界面文案 → 同时找三处
 
 ① `ScenarioData.gd` 的 `DEFAULT_*`（兜底）；② `data/story.json`（**实际读的**，优先）；③ `tests/*.gd` 的**期望值**。
-★ **改了占位符数量 = 改了接口**。六处同步：`_tf(...)` 参数 → `DEFAULT_*` → `story.json` →
-**占位符守卫断言**（两处）→ 编辑器字段表 → `ui` 段的 `ph:true` 标记。
-★ **`phone.*` 的文案字段分两处登记**：`PHONE_SEGS`（字段表）与 `PH_EXPECT`（占位符个数）。
+★ **改了占位符数量 = 改了接口**。六处同步：`_tf(...)` → `DEFAULT_*` → `story.json` →
+**占位符守卫断言**（两处）→ 编辑器字段表 → `ui` 段的 `ph:true`。★ `phone.*` 另有两处登记：`PHONE_SEGS` / `PH_EXPECT`。
 
 ### ★ 「为什么没显示」先查数据文件，别只读脚本
 
@@ -74,6 +71,9 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 ★ **`DumpStory` 不能无条件重跑**：`backgrounds[].questions[]` 里第 29 轮迁移的题目**只存在于 story.json**。只改 `rules` / `levels` / `true_presets` 这类段**不用重导**。
 ★★ **改 `rules` 的数值光改常量没用** —— 第 75 轮漏了 `pass_suspicion`(60) / `correct_delta`(−6)，
 整轮还在用旧过关线而测试全绿（验的是常量）。第 76 轮补了守卫：`TestRunner` 用 `ScenarioData.rule_f(...)` 比常量（8 项）。
+★★ **不要用 `json.loads → 改 → json.dumps` 整体重写 `data/story.json`**（第 78 轮踩）：
+一次重写把整份文件退回「只有 3 套背景」的旧版（diff 2258 行，差点提交）。要删/改几个键就用**逐行文本操作**
+（`^\t\t\t"key":` 精确匹配），写完立刻断言「`backgrounds` 仍是 6 套 + 字节数没暴跌」再 `git diff --stat` 看规模。
 
 ### ★ 派生数据不会自己跟上来
 
@@ -93,7 +93,7 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 
 ### ★★ 加「会被随机抽到 / 会被测试遍历」的内容型数据 → 先想草稿标志（第 53 轮）
 
-先问两句：**① 半成品会不会被抽到？② 测试会不会遍历它？** 两个「会」→ 需要 `enabled`（草稿）标志。
+先问：**① 半成品会不会被抽到？② 测试会不会遍历它？** 两个「会」→ 需要 `enabled`（草稿）标志。
 判断式 `b.get("enabled", true) != false`（缺省 = 启用）。过滤只放在**产生新选择**的地方（抽局 / 列按钮 / 校验）；
 **按 id 取对象的地方不过滤**（存档里可能有后来被停用的背景）。
 
@@ -111,19 +111,29 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 把选项写的数整个盖掉，已改成 `_add_suspicion(float(opt["delta"]))`。
 **这类背景的每个选项都必须写 `suspicion`**（TestRunner 有守卫），编辑器也会给提醒。
 
+### ★★ 盘问界面三块：题面 / 反馈区 / 选项（第 78 轮定稿）
+
+用户口径：「接在下一题题面前的回应放在反馈句的现在的位置，原来的反馈句删除」。
+- `options[].echo` → 显示在**反馈区**（`feedback_label`），**不再拼进题面**（`_dialogue_text` 只剩名牌 + 题面）。
+- 反馈区**不能换题就清空**：`_load_question` 每次重新贴 `last_choice_text`，留到下次选择；开新轮在 `_start_level` 清空。
+- 取法 `_choice_echo()`：写了 `echo` 原样；没写 → manual 留空、auto 加「你：」。
+- 判定解释（口径不符 / 矛盾 / 带偏 / 盲区）用 `_append_feedback()` 接在回应**后面**。
+- 模板反馈句已删（`ui.feedback` 24 → 11 条）。**盲区题的「选对 / 选错 + 备忘录」必须留** —— 删了这题变纯运气。
+  `traits[].bluff_note / evade_note` 已无调用点（数据与 `trait_note()` 保留，编辑器标「现已不显示」）。
+
 ## 三、测试怎么写（细则见 `REFERENCE.md` 五章）
 
 - ★★ **编辑器校验面板只放「问题」，不放「说明」** —— 出厂数据必须 **0 错误且 0 提醒**（冒烟已断言守住）。**看到一大片提醒时先怀疑规则本身**（第 54 轮 57 条里 27 条是校验器算错）。
 - ★★ **跑完测试看三样**：`Failures: 0`、**有没有 `SCRIPT ERROR`**、**断言总数有没有莫名减少**。**越界 / 运行时报错不会让测试失败，只会让那一行静默消失**。改「轮数 / 槽位数」这类常量后要 grep 所有带下标的断言。
-  ★ 第 77 轮又踩一次：`(d.get("options", []) or [])` —— **GDScript 的 `or` 永远返回 bool**，缺字段时 `for x in true` 当场报错，整节断言静默消失而摘要照打「ALL PASSED」。取数组用 `_arr_of(d, key)`。
+  ★ `(d.get("options", []) or [])` —— **GDScript 的 `or` 永远返回 bool**，缺字段时 `for x in true` 当场报错、整节断言静默消失。取数组用 `_arr_of(d, key)`。
 - **防「空转通过」**：循环一次都不进 → 断言全绿但什么都没测。**加「样本里确实查到 N 条」的断言**。
 - ★ **写断言的四个老坑**：① 只对部分对象生效的规则要配**对照断言**；② 写完要**故意改回错的**验证它真能抓到 bug；③「存在性 / 非空」断言看不见「少做了一步」→ 要判**数值范围**，阈值用**实测**定；④ 写「单调 / 递增」断言前**先把取样点数值写下来**。
-  ★ 第 77 轮再踩：验「按钮文本不重复」时比的是带「A. 」前缀的整串 —— **字母前缀把重名盖住了**，改坏代码断言照样 PASS。比之前先去掉前缀。
+  ★ 验「文本不重复」要去掉「A. 」前缀再比 —— **前缀把重名盖住了**（第 77 轮改坏代码仍然 PASS）。
 - ★★ **别让断言依赖「上一个测试留下的局」**：继承来的局是**随机种子** → 假失败，**同代码两次跑一挂一过**。要么自己开局，要么判据改成「相对量」。★ 凡断言「涨了 N 点」之前先**钉死基数**（第 75 轮继承到 100 上限，48 点被钳掉）。
 - ★ **纯函数测试测不出「时间线上的 bug」** → 涉及「状态随轮次推进而变」的功能**必须再写一个走完整流程的探针**（`Main.tscn` 起场景）。判据：**测试里没出现两次以上状态推进，就测不到时间线**。
 - ★★ **背景不止一种形态时，测试要自己挑背景**：`scene_*` 是 `manual`（没有档案卡 / 题目分类）。依赖某一类数据的测试**钉在 `_canonical_bg()`**；抽错不只是假红，`a_cards()[0]` 还会越界把后面几条**静默吞掉**。「最优值波动」这类断言要**逐背景分组**。
 - **测试用完清跨局保留状态**：`ProfileData.reset_all()` + 注入的 `_*_presets` 清回 `{}`。
-- ★ **改全局数值时 `tests/` 里写死旧数字的断言会成片挂** —— 改成引用常量或 `>=` 阈值。
+- ★ **改全局数值 / 删文案键时 `tests/` 和 `editor_smoke.js` 里写死的计数会成片挂** —— 改成引用常量或 `>=` 阈值；`ui` 文案总数与「文案页覆盖 N 条」两条要一起改。
 
 ### ★★ 截图「变了」怎么判（最容易误判，细则见 `REFERENCE.md`）
 
@@ -131,7 +141,7 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 2. **「时对时错」先查这一屏状态有没有钉死**，再查异步定时器。★ `set_process(false)` **停不住 `await create_timer()`**：先 `await _wait(120)` 让它过期，再 `_load_question()`。
 3. **判噪声**：① 同代码连跑三次一致 ② 差异稀疏点状 ③ `_plog` 逐字相同 → 三条同时成立 = 抗锯齿差异。
    ★ 相册 SubViewport / 带 shake / QTE 判负**每次跑都不同** → 判据 = 「与旧版差异量级 ≈ 同代码两次跑量级」→ `git checkout --` **还原别提交**。
-4. ★ **报「真变」要给机制上的量**，并附差异百分比与 bbox。
+4. ★ **报「真变」要给机制上的量** + 差异百分比 + bbox（bbox 落在题面区 / 反馈区 = 本轮本来就会变）。
 
 ## 四、数值曲线的规矩（展开见 `REFERENCE.md` 七章）
 
@@ -139,23 +149,23 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 ★ **怀疑度**：起点 20、过关线 100、`leak_delta = 100`。改过关线按「预算 = 线 − 起点」等比重标增量。
 ★ **接受度 vs 衣服**：全库 165 件、`acceptance_req` 最大 **15**（5 件：`top_none` / `bottom_none` / `dress_transparent` /
 `dress_seethrough` / `panties_tieside`）。第 1 轮 10 → 160/165（有效槽位 132/137）；**第 2 轮 19 → 165/165，再加没用**。
-★ 标定用 `WardrobeModel.auto_complete_outfit()`（测试里 `_dp_optimum` 会高估）；探针要覆盖测试用的种子池。
-★ **反差 = 全槽位求和**（`CONTRAST_EXCLUDED_SLOTS := []`），单件 `|你穿的 − 原貌那件| × 5`；改口径必须同时**拉开原貌池** + **重标 `contrast_req`**。
+★ 标定用 `WardrobeModel.auto_complete_outfit()`（`_dp_optimum` 会高估）；探针要覆盖测试用的种子池。
+★ **反差 = 全槽位求和**，单件 `|你穿的 − 原貌那件| × 5`；改口径必须同时**拉开原貌池** + **重标 `contrast_req`**。
 ★ **下装 / 成装是命门**（变露或被锁死 → 断崖下跌）：下装始终 `bottom_longskirt`、`FORCED_NEVER_SLOTS := ["bottom","dress"]`、
 不抽「与原貌完全相同」那件；「抽原貌」必须在「抽强制装备」**之前**（各用独立随机流）。
-★ **150 是实测定的**（第 2 轮写不了 160）；报余量用**最差值**不用中位。★ DP 的暴露账是**保守上界**，「局部最优」类断言按**同一本账**判。
+★ **150 是实测定的**；报余量用**最差值**。★ DP 的暴露账是**保守上界**，「局部最优」类断言按**同一本账**判。
 ★ 改轮数要动的全部位置见 `2026-10-16-第五十二轮-两轮制与减测试耗时.md` 第二节。
 
 ## 五、架构约定（细节见 `REFERENCE.md` 六章）
 
 - **★ 只用 AU 图包（第 37 轮硬约定）**：DoL 链路**已从代码拆掉**，产物只有 `assets/dol_au/` + `data/doll_au.json`（**不要写回** `assets/dol/`）。取景框 **68×203**，路径走 `DolDoll.root()` / `data_path()`，**不要写死**。
-- **★ 成装（`dress`）= 两层源图叠加**：**只取一层就只有上半身**。**加新成装第一件事**：查 `upper/<款>` 与 `lower/<款>` 都在不在。
-- **两条槽位级名单语义相反**：`DISABLED_SLOTS` = 下架；`MANUAL_SLOTS` = 只能手动装备。`active_slots()`（界面口径）/ `auto_slots()`（自动流程 + 数值口径）**别混用**。
-- **多件槽位（`MULTI_SLOTS := {"tattoo": 2}`）**：`equipped` 里**单件 = `String`，多件 = `Array`** → **一律走访问器**（`ids_at` / `set_ids` / `_ids_of`）；「空件」必须标 `"bare": true`。
-  ★★ **测试里自己读写 `equipped[slot]` 最容易踩**（第 75 轮把 `Array` 写成字符串 → 纹身整栏从计算里消失）。用 `_slot_ids()` / `_restore_slot()` 这类帮手。
-- **运行时覆写用 `static var`（唯一解）**：**「原地改容器」而非换新容器**；由 `ScenarioData._load_story()` 读完文件后**反调** `OutfitData.apply_*()`；落盘**只写「与内置值不同」的条目**。
+- **★ 成装（`dress`）= 两层源图叠加**：**只取一层就只有上半身**。加新成装先查 `upper/<款>` 与 `lower/<款>` 都在不在。
+- **两条槽位级名单语义相反**：`DISABLED_SLOTS` = 下架；`MANUAL_SLOTS` = 只能手动装备。`active_slots()`（界面）/ `auto_slots()`（自动流程 + 数值）**别混用**。
+- **多件槽位（`MULTI_SLOTS := {"tattoo": 2}`）**：`equipped` 里**单件 = `String`，多件 = `Array`** → **一律走访问器**（`ids_at` / `set_ids` / `_ids_of`）；「空件」标 `"bare": true`。
+  ★★ **测试里自己读写 `equipped[slot]` 最容易踩**（第 75 轮把 `Array` 写成字符串 → 纹身整栏消失）。用 `_slot_ids()` / `_restore_slot()`。
+- **运行时覆写用 `static var`**：**「原地改容器」而非换新容器**；由 `ScenarioData._load_story()` 读完文件后**反调** `OutfitData.apply_*()`；落盘**只写「与内置值不同」的条目**。
 - **★★ 多个调用点顺序不一致 → 改「写」的时机，不改调用点（第 71 轮）**：`_queue_delta_note()` 累加 + `call_deferred` 本帧末统一追加。判据：**同一动作 ≥3 个调用点且书写顺序不一致**。
-- **★ 一个文本变量服务多个选项时，别整句替换**（第 77 轮）：`_trait_options()` 只该给「⚠ 前缀」，文本用每个选项自己的 —— 否则一道题里两个以上 bluff 会显示成同一句。
+- **★ 一个文本变量服务多个选项时，别整句替换**（第 77 轮）：`_trait_options()` 只该给「⚠ 前缀」，文本用各自的 —— 否则一题里两个以上 bluff 会显示成同一句。
 
 ### 五条硬规矩（展开见 `REFERENCE.md`）
 

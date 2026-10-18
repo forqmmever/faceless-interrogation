@@ -66,6 +66,12 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 ① `ScenarioData.gd` 的 `DEFAULT_*`（json 缺失时的兜底）；② `data/story.json`（游戏**实际读的**，它优先）；③ `tests/*.gd` 的**期望值**。
 ★ **改了占位符数量 = 改了接口**（否则运行时 `not all characters converted`）。六处依次同步：`_tf(...)` 参数 → `DEFAULT_*` → `story.json` → **占位符守卫断言**（两处）→ 编辑器字段表 → `ui` 段的 `ph:true` 标记（第 50 轮漏了最后一处，冒烟连带挂两条）。
 
+### ★ 「为什么没显示」先查数据文件，别只读脚本
+
+`story.json` 里的**空串**会静默盖掉 `DEFAULT_*` 的整句。第 71 轮「掏手机越界、题面下面一片空白」就是
+`ui.interrogation.phone_caught` 被写成 `""`（`DEFAULT_UI` 里其实有整句）。
+判据：文案不出现时**先 `grep` 数据文件**确认那个键是不是空串，再去读 `_ut(...)`。
+
 ### ★ story.json 两段整段替换，另三段逐键覆盖
 
 `_item_desc` / `_backgrounds` / `_traits` / `_clue_frame` / `_clue_sources` / `_photo_notes` = **整段替换**（空字典被忽略）；`_rules` / `_ui` / `_phone` = **逐键覆盖**。
@@ -183,6 +189,8 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 - **两条槽位级名单语义相反（第 39 轮）**：`DISABLED_SLOTS` = 下架（玩家看不到）；`MANUAL_SLOTS` = 只能手动装备（看得到、点得到，系统从不代劳）。配套 `active_slots()`（**界面口径**）/ `auto_slots()`（**自动流程 + 数值口径**）/ `slot_enabled()` / `is_manual_slot()` **别混用**。
 - **多件槽位（`MULTI_SLOTS := {"tattoo": 2}`）**：`equipped` 里**单件 = `String`，多件 = `Array`** → **一律走访问器** `ids_at` / `id_at` / `has_id` / `set_ids` / `solid_ids` / `_ids_of`；「空件」必须标 `"bare": true`；门控先看件自己的 `gate`、没有才退回槽位级 `UNDER_GATE`；`_delta()` 连带项只在**可见性真的翻转时**才重算。
 - **运行时覆写用 `static var`（唯一解）**：`const` 编译期只读、普通 `var` 够不着 `static func`；连带缓存（`_by_slot` / `_by_id` / `_stat_max`）一起改；**「原地改容器」而非换新容器**（几十处直接读 `X.ITEMS`）；**autoload 顺序**决定覆写要由 `ScenarioData._load_story()` 读完文件后**反调** `OutfitData.apply_*()`，兜底函数**绝不能**在「数据源未就绪」时标记完成；落盘**只写「与内置值不同」的条目**（**文件里有 = 改过**）。
+
+- **★★ 多个调用点顺序不一致 → 改「写」的时机，不改调用点（第 71 轮）**：怀疑度上升有 6 条路、11 个调用点，其中 `_select_option()` / `_phone_pull_event()` 都是**先**加数值、**再**写反馈文案 —— 当场拼会被后写的那句**整句盖掉**。做法：`_queue_delta_note()` 累加 + `call_deferred` **本帧末**统一追加；换题时清 pending、`_ended` 后不写。判据：**同一个动作 ≥3 个调用点且书写顺序不一致**时，别逐个改顺序，改「什么时候写」。★ 配套测试要 `begins_with` / `==`（`contains` 抓不到「被覆盖」）+ 一条**数值**断言（文案绿 ≠ 逻辑对）。
 
 ### 五条硬规矩（展开见 `REFERENCE.md`）
 

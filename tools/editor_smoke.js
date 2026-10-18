@@ -273,6 +273,34 @@ try {
   // ★★ 第五十五轮：背景页里的「手机短信」一节删掉了（和手机编辑器重合），
   //   短信改到「📱 手机」→ 三组短信页；三组结构完全一样。
   ok(!secs0.some(s => s.key === "sms"), "背景页里不再有和手机编辑器重复的「手机短信」一节");
+
+  // ★★ 第七十二轮（用户报「不同轮游戏的背景说明，现在依然无法在编辑器里编辑」）：
+  //   第六十轮把 intro 加进了 levelsFields() —— 可那一段只给「🪜 关卡与轮数」页用；
+  //   背景页的「⑦ 本局覆写 · 几轮」是**另写的一份字段表**，于是这里一直缺 intro。
+  //   而游戏真正读的是 bg.levels[i].intro（OutfitData._ensure_levels 逐键并进 LEVELS），
+  //   在全局页里改等于白改。这两份字段表必须都有 intro。
+  console.log("\n-- 7c2. 每轮的背景说明（浮窗正文）在背景页里能改 --");
+  ok(P.levelsFields().some(f => f.k === "intro"),
+    "「🪜 关卡与轮数」页仍有说明栏（哪套背景都没写时的兜底）");
+  const lvSec = secs0.find(s => s.key === "levels");
+  ok(!!lvSec, "背景页有「⑦ 本局覆写 · 几轮」一节");
+  if (lvSec) {
+    const lvf = lvSec.fields.map(f => f.k);
+    ok(lvf.indexOf("intro") >= 0,
+      "⑦ 几轮里能改「这一轮的背景说明」（实际：" + lvf.join(",") + "）");
+    ok(lvf.indexOf("name") >= 0 && lvf.indexOf("contrast_req") >= 0,
+      "⑦ 几轮里名字 / 反差要求仍在（没被这轮改动挤掉）");
+  }
+  const badIntro = [];
+  P.story.backgrounds.filter(b => b.enabled !== false).forEach(b => {
+    const ls = b.levels || [];
+    if (ls.length < 2) badIntro.push(b.id + "：只有 " + ls.length + " 轮");
+    else if (!String(ls[0].intro || "").trim() || !String(ls[1].intro || "").trim())
+      badIntro.push(b.id + "：有轮次缺说明");
+    else if (ls[0].intro === ls[1].intro) badIntro.push(b.id + "：两轮说明相同");
+  });
+  ok(badIntro.length === 0, "出厂背景每一轮都有自己的背景说明"
+    + (badIntro.length ? " —— " + badIntro.join("；") : "（4 套 × 2 轮）"));
   ["interrogator", "companion", "friends"].forEach(g => {
     const sec = P.smsSection(g, P.story.backgrounds[0])[0];
     ok(!!sec, "手机页里有「" + g + "」的短信一节");

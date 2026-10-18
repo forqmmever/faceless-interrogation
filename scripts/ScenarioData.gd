@@ -2108,13 +2108,17 @@ const DEFAULT_UI := {
 		"credits_back": "←  返回",
 		# ---- 选关面板（第二十一轮）----
 		# 点「开始游戏」之后先出这一层。轮次都在，锁着的只是按钮。
-		# ★ 第五十三轮：上面多了「本局背景」一组按钮 —— 默认「随机」，
-		#   其余几颗按 `ScenarioData.enabled_backgrounds()` **动态生成**，
-		#   所以这里只有标题与「随机」这两句是文案；背景名直接用背景自己的 name。
+		# ★ 第五十三轮：上面多了「本局背景」一组按钮，按
+		#   `ScenarioData.enabled_backgrounds()` **动态生成**，所以这里只有
+		#   「本局背景」那句标题是文案；每颗按钮上的字直接用背景自己的 name。
+		# ★★ 第七十三轮（用户口径）：「玩家可以自行选择游玩哪个背景……然后删掉随机的选项」——
+		#   原来第一颗是「随机」（`select_bg_random`，空 id = 每局随机抽），现在删了：
+		#   面板上每一颗都是具体背景，且总有一颗是选中的（见 Main._build_level_select）。
+		#   ★ 删键之后 `_ut("title.select_bg_random", ...)` 会退回代码里那个默认值，
+		#     所以代码里也不能再引用它 —— 引用点已一并去掉。
 		"select_title": "选择从哪一轮开始",
 		"select_sub": "一次一局，从选中的那一轮往后走。每一轮都可以直接进入。",
-		"select_bg_title": "本局背景（默认每局随机抽一套）",
-		"select_bg_random": "随机",
+		"select_bg_title": "本局背景（点一套选中）",
 		"select_open_note": "可以进入",
 		"select_locked_note": "尚未开放",
 		"select_back": "◀  返回",
@@ -2255,7 +2259,7 @@ const DEFAULT_ENDINGS := {
 	"overlay_fail_btn": "重来本轮  ↺",
 	"overlay_fail_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]进度[/color]  已通过 [b]%d[/b] / %d 轮\n\n这一轮到此为止 —— 回到[color=#f0a83c]这一轮的准备室[/color]重来。\n背景不变、他记忆里的那张脸不变、你已经查到的情报也都还在。\n要改的是[color=#f0a83c]这一轮的打扮[/color]，不是身份。",
 	"overlay_win_title": "🏁 本局通关",
-	"overlay_win_btn": "再来一局（新背景 · 新原貌）  ↺",
+	"overlay_win_btn": "再来一局（同一套背景 · 新原貌）  ↺",
 	"overlay_win_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]身份[/color]  %s → 以「%s」的身份走完全程\n[color=#8a919c]成绩[/color]  %d / %d 轮全部通过 ｜ 前后矛盾 [b]%d[/b] 次\n\n你把 A 藏进了 B 的皮里，一路没有露馅。\n同行者从头到尾没有揭穿你 —— 他只是把你留在了原地。",
 	"overlay_level_title": "✅ 第 %d 轮通过",
 	"overlay_level_btn": "进入第 %d 轮  ➔",

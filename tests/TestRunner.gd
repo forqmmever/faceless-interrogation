@@ -196,22 +196,33 @@ func _test_boot() -> void:
 			str(OutfitData.LEVELS[1].get("name", ""))))
 	_check("选关时还没开局（准备室仍藏着）", wardrobe.visible == false)
 
-	# ★★ 第五十三轮：选关面板新增「本局背景」一组按钮 ——
-	#   默认「随机」，其余按 `ScenarioData.enabled_backgrounds()` **动态生成**
+	# ★★ 第五十三轮：选关面板新增「本局背景」一组按钮，按
+	#   `ScenarioData.enabled_backgrounds()` **动态生成**
 	#   （编辑器里新增一套背景并勾上「启用」，这里就自动多一颗，不用改代码）。
-	print("\n-- 选关面板 · 本局背景（第五十三轮）--")
+	# ★★ 第七十三轮（用户口径）：「玩家可以自行选择游玩哪个背景，现在却只能用随机，
+	#   修复这个问题然后删掉随机的选项」——
+	#   原来第一颗是「随机」（空 id），而且默认就选中它；现在**没有那一颗**了，
+	#   每一颗都是具体背景，且默认就有一套亮着（不存在「没选 = 随机」的状态）。
+	print("\n-- 选关面板 · 本局背景（第七十三轮：没有「随机」了）--")
 	_check("背景按钮组建出来了（冒烟/截图都靠它）", main.level_select_bg_btns.size() >= 2)
-	_check("按钮数 = 已启用背景数 + 1（那一颗是「随机」）",
-		main.level_select_bg_btns.size() == ScenarioData.enabled_backgrounds().size() + 1)
-	_check("第 1 颗是「随机」（默认选中的就是它）",
-		str(main.level_select_bg_btns[0]["id"]) == ""
-		and main._pending_bg_id == "")
-	_check("其余每颗对应一套已启用背景",
-		main.level_select_bg_btns[1]["id"] == str((ScenarioData.enabled_backgrounds()[0] as Dictionary).get("id", "")))
+	_check("按钮数 = 已启用背景数（不再 +1）",
+		main.level_select_bg_btns.size() == ScenarioData.enabled_backgrounds().size())
+	var any_empty_id := false
+	for e in main.level_select_bg_btns:
+		if str(e["id"]) == "":
+			any_empty_id = true
+	_check("★ 一颗「随机」都没有（每颗都是具体背景的 id）", not any_empty_id)
+	_check("★ 默认就选中了第一套（不存在「没选」的状态）",
+		main._pending_bg_id == str(main.level_select_bg_btns[0]["id"]))
+	_check("第 1 颗就是已启用背景的第一套",
+		main.level_select_bg_btns[0]["id"] == str((ScenarioData.enabled_backgrounds()[0] as Dictionary).get("id", "")))
 	_check("草稿背景不出现在按钮组里（列了也点不出东西）",
-		main.level_select_bg_btns.size() == ScenarioData.bg_count() + 1)
+		main.level_select_bg_btns.size() == ScenarioData.bg_count())
+	# 「随机」这句文案连同数据键一起删了（留着键的话编辑器里还能改出来）
+	_check("★ 数据里已没有 select_bg_random 这条文案",
+		ScenarioData.ui_t("title.select_bg_random", "__missing__") == "__missing__")
 
-	# 挑一套背景 → 面板要记下来；再点「随机」要能记回空串
+	# 挑一套背景 → 面板要记下来
 	#   ★ 显式标类型：`enabled_backgrounds()` 是 Array，元素是 Variant，
 	#     用 `:=` 让编译器推断会因为「三元的两支类型不定」直接报 Parse Error。
 	var enabled: Array = ScenarioData.enabled_backgrounds()
@@ -219,8 +230,6 @@ func _test_boot() -> void:
 	var pick_id := str(picked.get("id", ""))
 	main._on_bg_choice(pick_id)
 	_check("点了某套背景 → 面板记下了它", main._pending_bg_id == pick_id)
-	main._on_bg_choice("")
-	_check("再点「随机」→ 记回空串（回到随机）", main._pending_bg_id == "")
 
 	# 指定背景开局 —— 顺带验「随机流不被指定背景打乱」这条不变式
 	var seed_probe := 20261111
@@ -240,7 +249,21 @@ func _test_boot() -> void:
 	RunData.start_new_run(seed_probe, 0, "__no_such_bg__")
 	_check("指定不存在的背景 id → 退回随机（不崩）",
 		RunData.background_id == bg_random)
-	main._on_bg_choice("")
+
+	# ★★ 第七十三轮：「再来一局」要沿用**这一局用的那套背景** ——
+	#   以前这里走 `_start_new_run()`（不传 bg），每打完一局就换一套，
+	#   玩家在面板里挑的背景等于只用一次。
+	main._on_bg_choice(pick_id)
+	main._pending_action = "new_run"
+	var runs_before: int = RunData.run_index
+	main._on_overlay_pressed()
+	_check("★ 通关后「再来一局」→ 还是同一套背景（实际 %s / 期望 %s）" % [
+			RunData.background_id, pick_id], RunData.background_id == pick_id)
+	_check("「再来一局」确实是新的一局（局数 %d → %d）" % [runs_before, RunData.run_index],
+		RunData.run_index == runs_before + 1)
+	_check("★ 面板的选择跟着实际背景走（下次打开默认选它）",
+		main._pending_bg_id == RunData.background_id)
+	main._pending_action = ""
 	# ★ 第五十九轮：第 2 轮不再锁着 —— 点它就按第 2 轮开局
 	main._on_level_selected(1)
 	_check("点第 2 轮 → 选关面板收起", not main._is_level_select_open())

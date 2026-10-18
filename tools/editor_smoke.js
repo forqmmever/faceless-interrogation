@@ -673,7 +673,8 @@ try {
       "反差值曲线的 base / step 都在（" + R.contrast_req_base + " / " + R.contrast_req_step + "）");
     // ★ 第五十三轮：选关面板新增两条（select_bg_title / select_bg_random）→ 79 → 81
     // ★ 第五十七轮：盘问界面新增「你」的说话人名牌（speaker_you）→ 81 → 82
-  ok(P.uiLeafCount() === 87, "story.ui 共 87 条文案，实际 " + P.uiLeafCount());
+    // ★ 第七十三轮：删掉 select_bg_random（面板上不再有「随机」那颗按钮）→ 87 → 86
+  ok(P.uiLeafCount() === 86, "story.ui 共 86 条文案，实际 " + P.uiLeafCount());
     const rs = P.rulesSections(), us = P.uiSections(), es = P.endingsSections();
     // ★ 第三十三轮：删 3 项（exposure_qte_threshold / interference_min / interference_per_exposure）
     //   加 2 项（exposure_qte_min / exposure_qte_full）→ 31 − 3 + 2 = 30

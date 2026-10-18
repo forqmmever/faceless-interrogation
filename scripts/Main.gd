@@ -6,9 +6,9 @@ extends Node
 #  一局（run）：
 #    开始界面（开始 / 继续 / 退出）
 #      ↓
-#    选关面板（2 个入口；两轮都可以直接进 —— OutfitData.OPEN_LEVELS）
+#    选关面板（先挑一套背景 + 2 个入口；两轮都可以直接进 —— OutfitData.OPEN_LEVELS）
 #      ↓
-#    随机抽一套背景 + 随机生成 A 的原貌
+#    随机生成 A 的原貌（背景是玩家挑的，★ 第七十三轮起不再随机）
 #      ↓
 #    准备室（换装 + 手机）  ← 第 1 关
 #      ↓
@@ -63,9 +63,12 @@ var credits_back_btn: Button
 var level_select: Control
 var level_select_rows: Array = []      # [{btn, note, li}]
 var level_select_back_btn: Button
-# ★ 第五十三轮：本局背景选择 —— [{btn, id}]，id 为空串的那一颗是「随机」
+# ★ 第五十三轮：本局背景选择 —— [{btn, id}]
+# ★ 第七十三轮：不再有 id 为空串的「随机」那一颗 —— 每颗都是具体背景。
 var level_select_bg_btns: Array = []
-# 选中的背景 id（空串 = 随机抽）。只在「这一层面板上」有效，开局时传给 RunData。
+# 选中的背景 id。★ 第七十三轮起它**不会是空串**（面板保证总有一套选中），
+#   并且跟着实际开局走：`_start_new_run()` / `_continue_run()` 都会把它设成本局的背景，
+#   所以「面板下次打开默认选谁」与「再来一局用哪套」都以它为准。
 var _pending_bg_id: String = ""
 
 var _pending_action: String = ""   # "next_level" | "retry_level" | "new_run"
@@ -211,13 +214,19 @@ func _build_level_select() -> void:
 
 	vb.add_child(HSeparator.new())
 
-	# ★★ 第五十三轮：本局背景 —— 默认随机抽，也可以自己挑一套。
+	# ★★ 第五十三轮：本局背景 —— 可以在选关面板里自己挑一套。
 	#   用户口径：「编辑器可以新增背景，不止现有的四个，点击开始游戏的界面同步更新」。
 	#   ★ 按钮组是**动态生成**的（从 ScenarioData.enabled_backgrounds() 读），
 	#     所以编辑器里新增一套背景、勾上「启用」，这里就自动多一个按钮，不用改代码。
 	#   ★ 草稿背景不列出来（它们不参与抽取，列了点了也没用）。
+	#   ★★ 第七十三轮（用户口径）：「玩家可以自行选择游玩哪个背景，现在却只能用随机，
+	#     修复这个问题然后删掉随机的选项」—— 原来第一颗是「随机」（空 id = 每局随机抽），
+	#     而且默认就选中它，所以不点的人永远是随机。现在：
+	#       ① 面板上**没有「随机」**，每一颗都是具体的一套背景；
+	#       ② 默认选中「上一局用的那套」（`_pending_bg_id`，见 _start_new_run），
+	#          第一局则选第一套 —— 任何时刻都有一套是亮着的，不存在「没选」的状态。
 	var bg_lab := Label.new()
-	bg_lab.text = _ut("title.select_bg_title", "本局背景（默认每局随机抽一套）")
+	bg_lab.text = _ut("title.select_bg_title", "本局背景（点一套选中）")
 	bg_lab.add_theme_font_size_override("font_size", 13)
 	bg_lab.add_theme_color_override("font_color", Color(0.72, 0.76, 0.84))
 	vb.add_child(bg_lab)
@@ -228,10 +237,20 @@ func _build_level_select() -> void:
 	vb.add_child(bg_flow)
 
 	level_select_bg_btns = []
-	var bg_choices: Array = [{"id": "", "name": _ut("title.select_bg_random", "随机")}]
+	var bg_choices: Array = []
 	for b in ScenarioData.enabled_backgrounds():
 		bg_choices.append({"id": str((b as Dictionary).get("id", "")),
 			"name": str((b as Dictionary).get("name", ""))})
+	# 默认选中：`_pending_bg_id` 还在列表里就用它，否则退回第一套。
+	#   ★ 用「列表里有没有」来判断，不能只判空 —— 编辑器里把某套背景停用之后，
+	#     `_pending_bg_id` 可能是一个已经不存在的 id（甚至上次运行留下的）。
+	var still_there := false
+	for ch in bg_choices:
+		if str((ch as Dictionary).get("id", "")) == _pending_bg_id:
+			still_there = true
+			break
+	if not still_there:
+		_pending_bg_id = str((bg_choices[0] as Dictionary).get("id", "")) if not bg_choices.is_empty() else ""
 	for ch in bg_choices:
 		var bid := str((ch as Dictionary).get("id", ""))
 		var bbtn := Button.new()
@@ -310,7 +329,7 @@ func _build_level_select() -> void:
 
 	level_select.hide()
 
-# 点了某套背景（或「随机」）
+# 点了某套背景（第七十三轮起没有「随机」那一颗了）
 func _on_bg_choice(bid: String) -> void:
 	_pending_bg_id = bid
 	_sync_bg_choice_style()
@@ -351,7 +370,7 @@ func _on_level_select_back() -> void:
 	_hide_level_select()
 	_show_title()
 
-# 点了某一轮 → 按那一轮开局（背景用面板上选的那套；没选就是随机）
+# 点了某一轮 → 按那一轮开局（背景用面板上选的那套；面板保证总有一套选中）
 func _on_level_selected(li: int) -> void:
 	if not OutfitData.level_unlocked(li):
 		return
@@ -361,9 +380,15 @@ func _on_level_selected(li: int) -> void:
 # ---------------- 流程 ----------------
 # seed_in >= 0 时用固定种子开新局（截图与测试需要可复现的随机结果）
 # start_level：从第几轮开始（选关面板传进来；0 = 第一轮）
-# bg_id：本局指定的背景（选关面板传进来；空 = 每局随机抽）★ 第五十三轮
+# bg_id：本局指定的背景（选关面板传进来；**空 = 随机抽**）
+#   ★ 第五十三轮加的 bg_id。★ 第七十三轮：面板不再传空 —— 但**空串仍是「随机」**，
+#     因为测试与截图脚本大量直接调 `_start_new_run(seed)`，它们需要覆盖四套背景。
+#     玩家侧「随机」的入口（面板上那颗按钮）已经删了，见 _build_level_select()。
 func _start_new_run(seed_in: int = -1, start_level: int = 0, bg_id: String = "") -> void:
 	RunData.start_new_run(seed_in, start_level, bg_id)
+	# ★ 第七十三轮：记住这一局真正用的背景 —— 面板下次打开默认选它，
+	#   「再来一局」也沿用它（不再像以前那样换一套）。
+	_pending_bg_id = RunData.background_id
 	_hide_title()
 	_hide_level_select()
 	_hide_overlay()
@@ -381,6 +406,8 @@ func _continue_run() -> void:
 		return
 	RunData.resume_run(RunSave.seed_value, RunSave.run_index,
 		RunSave.level_index, RunSave.cleared_levels)
+	# ★ 第七十三轮：续玩也把背景记到面板的选择上（这一局用的是哪套，面板就亮哪套）
+	_pending_bg_id = RunData.background_id
 	_hide_title()
 	_hide_level_select()
 	_hide_overlay()
@@ -484,7 +511,9 @@ func _on_overlay_pressed() -> void:
 	elif _pending_action == "retry_level":
 		_retry_level()
 	else:
-		_start_new_run()
+		# ★ 第七十三轮：「再来一局」沿用**这一局用的那套背景**（以前是换一套新的）。
+		#   玩家在选关面板里挑过背景之后，不该每打完一局就被换掉。
+		_start_new_run(-1, 0, _pending_bg_id)
 
 # ---------------- 覆盖层文案 ----------------
 func _level_line() -> String:

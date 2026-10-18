@@ -758,8 +758,10 @@ func _test_option_echo() -> void:
 	_check("自带回应原样显示（不自动加「你：」）",
 		interro.dialogue_label.text.begins_with("（测试后果）\n"))
 	# ★ 第六十九轮：manual 背景全部按原文；auto 背景保留说话人 / 「你：」
-	_check("manual 背景：回应和题面都不加说话人",
-		interro._dialogue_text(true, "苦主", "回应", false, "题面") == "回应\n题面")
+	_check("manual 背景：没写 echo 时不再重复选项文本",
+		interro._dialogue_text(true, "苦主", "回应", false, "题面") == "题面")
+	_check("manual 背景：作者写的 echo 仍原样保留",
+		interro._dialogue_text(true, "苦主", "回应", true, "题面") == "回应\n题面")
 	_check("auto 背景：默认回应加「你：」、题面加说话人",
 		interro._dialogue_text(false, "苦主", "回应", false, "题面") == "你：回应\n苦主：题面")
 	# 「⚠」是读过情报后给按钮加的雷区标记 —— 屏幕上是原句，不能把标记念出来。

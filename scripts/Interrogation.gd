@@ -1549,7 +1549,12 @@ func _dialogue_text(manual: bool, speaker: String, echo_text: String,
 		custom: bool, qtext: String) -> String:
 	var head := ""
 	if echo_text.strip_edges() != "":
-		if manual or custom:
+		if manual:
+			# manual 背景：只有作者写的「后果 / 旁白」才保留；没写 echo 的选项文本不再重复，
+			# 免得下一题顶上一行看起来像多出来的选项（第二局第一轮第四问那种）。
+			if custom:
+				head = echo_text + "\n"
+		elif custom:
 			head = echo_text + "\n"
 		else:
 			head = _ut("interrogation.speaker_you", "你") + "：" + echo_text + "\n"

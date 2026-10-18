@@ -606,6 +606,10 @@ func _build_title() -> void:
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_font_size_override("font_size", 13)
 	sub.add_theme_color_override("font_color", Color(0.56, 0.60, 0.68))
+	# ★★ 第七十四轮（用户口径）：「界面上会留下空白的地方全部去掉……不再需要填入文字」——
+	#   副标被清空时**整行收起来**（VBoxContainer 会跳过隐藏子节点），
+	#   不留一条空行。同理见 Interrogation 的反馈区（空串 = 什么都不写）。
+	sub.visible = sub.text.strip_edges() != ""
 	vb.add_child(sub)
 
 	vb.add_child(HSeparator.new())

@@ -138,15 +138,15 @@ try {
   //   ★ 第五十八轮：新增的「情景一」是**草稿**，校验器按设计只给它一条「还是草稿」提醒。
   //     所以把这一条单独认下来，其余提醒仍然是 0 —— 守门人没有被放松。
   const draftWarns = warns.filter(i => i.m.includes("还是草稿"));
-  // ★ 第六十七轮：用户在工作区里清空了几句界面文案（外部编辑）。
-  //   空文案是**内容**不是代码回归，允许；其余提醒仍然是 0。
-  const userEmptyWarns = warns.filter(i =>
-    i.m.includes("是空的 —— 界面上会留一块空白"));
-  const otherWarns = warns.filter(i =>
-    !i.m.includes("还是草稿") && !userEmptyWarns.includes(i));
+  // ★★ 第七十四轮（用户口径）：「将现在编辑器中提醒会退回出厂文案和界面上会留下空白的地方
+  //   全部去掉，不再需要填入文字」—— 那 4 条「是空的 —— 界面上会留一块空白」的提醒
+  //   **已经从校验器里删掉**，所以第六十七轮加的「用户清空文案」豁免不再需要（空文案压根不报警）。
+  const otherWarns = warns.filter(i => !i.m.includes("还是草稿"));
   ok(otherWarns.length === 0,
-    "除了草稿说明与用户清空的两句，出厂数据下 0 条提醒（实际 " + otherWarns.length + " 条）"
+    "除了草稿说明，出厂数据下 0 条提醒（实际 " + otherWarns.length + " 条）"
     + (otherWarns.length ? "：\n      " + otherWarns.slice(0, 8).map(i => i.m).join("\n      ") : ""));
+  ok(!warns.some(i => /留一块空白|会退回出厂文案/.test(i.m)),
+    "「界面会留空白」「退回出厂文案」这两类提醒已经不在校验器里了");
   ok(draftWarns.length === 2,
     "两套草稿（情景一 / 情景二）各报一条「还是草稿」提醒（实际 " + draftWarns.length + " 条）");
   console.log("   错误 " + errs.length + " / 提醒 " + warns.length);
@@ -634,8 +634,10 @@ try {
   negCase("组合键位清空", s => { s.rules.combo_keys = []; }, "必须是非空数组");
   negCase("组合键位个数和「敲几个键」对不上（应是提醒）", s => { s.rules.combo_len = 5; }, "对不上");
   negCase("按住涨得比松手掉得还慢（应是提醒）", s => { s.rules.expr_qte_boost = 10; }, "压不过去");
-  negCase("界面文案缺一条（应是提醒）", s => { delete s.ui.common.help_btn; }, "common.help_btn");
-  negCase("界面文案写成空串（应是提醒）", s => { s.ui.title.title = ""; }, "留一块空白");
+  // ★★ 第七十四轮（用户口径）：「提醒会退回出厂文案和界面上会留下空白的地方全部去掉，
+  //   不再需要填入文字」—— 所以「缺一条」「写成空串」这两条反向用例**不再成立**
+  //   （空着有出厂兜底，编辑器不该再提醒）。换成两条正面用例 + 一条「真会拼崩」的反向用例：
+  negCase("带占位符的那句被清空（仍要报错）", s => { s.ui.interrogation.phone_notice = ""; }, "带占位符");
   negCase("反馈句丢了占位符", s => { s.ui.feedback.summary = "没有占位符的一句话"; }, "丢了占位符");
   negCase("结局文案缺一条（应是提醒）", s => { delete s.backgrounds[0].endings.recognized_line; }, "recognized_line");
   negCase("结局文案丢了占位符", s => { s.backgrounds[0].endings.recognized_line = "怎么是你。"; }, "丢了占位符");
@@ -643,8 +645,10 @@ try {
   // ---- 第五十五轮：手机并入 / 三组同构短信 ----
   negCase("手机文案少写一个占位符",
     s => { s.phone.memo.cast_body = s.phone.memo.cast_body.replace("%s", "我"); }, "个占位符");
-  negCase("手机段落整块缺失",
-    s => { delete s.phone.album; }, "手机 · 相册");
+  // ★ 第七十四轮：删掉**某一页**不再报错（那一页会退回出厂文案，用户明确不要这类提醒）；
+  //   整块 phone 缺失仍然算错（那是结构问题，不是「某栏空着」）。
+  negCase("整块 phone 段缺失",
+    s => { delete s.phone; }, "缺少 phone 段");
   negCase("短信一条对话都没有",
     s => { s.backgrounds[0].companion_sms[0].messages = []; }, "一条消息都没有");
   negCase("短信 id 重复",
@@ -656,6 +660,24 @@ try {
     s => { delete s.backgrounds[0].cover_role; }, "没有 cover_role");
   negCase("自动生成：选项 tone 非法会报错",
     s => { s.backgrounds[0].questions[0].options[0].tone = "shout"; }, "不是合法的七种之一");
+
+  // ★★ 第七十四轮正面用例：清空界面文案 / 手机某栏 → **一条提醒都不该有**
+  //   （用户口径：不再需要填入文字；空着有出厂兜底，界面上的空标签自己收起）
+  P.loadStory(JSON.parse(JSON.stringify(pristine)), "t.json", false);
+  P.story.ui.title.subtitle = "";
+  P.story.ui.interrogation.phone_caught = "";
+  P.story.phone.memo.hint = "";
+  P.story.phone.album.title = "";
+  P.validateNow();
+  const emptyLeft = P.issues.filter(i => /是空的|留一块空白|会退回出厂文案/.test(i.m));
+  ok(emptyLeft.length === 0, "清空 4 条文案 → 校验一条都不提醒（实际 " + emptyLeft.length + " 条）"
+    + (emptyLeft.length ? "：" + emptyLeft[0].m : ""));
+  // 但**带占位符**的那句清空仍要报错 —— 空着 `"" % 参数` 会直接崩
+  P.loadStory(JSON.parse(JSON.stringify(pristine)), "t.json", false);
+  P.story.ui.interrogation.phone_notice = "";
+  P.validateNow();
+  ok(P.issues.some(i => i.lv === "e" && i.m.includes("带占位符")),
+    "带占位符的那句清空 → 仍然报错（空着游戏拼参数会崩）");
   P.loadStory(JSON.parse(JSON.stringify(pristine)), "t.json", false);
 
   console.log("\n-- 8b. 数值 / 界面文案 / 结局文案（本轮新增）--");

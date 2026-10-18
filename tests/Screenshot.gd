@@ -960,14 +960,31 @@ func _run() -> void:
 		#   照上面第 19 步的办法把状态全部钉死，再禁掉 _process。
 		interro.interference_active = false
 		interro.interference_timer = 999.0
+		# ★★ 第七十四轮：这里补两处「钉状态」，补之前这张图会**时对时错**。
+		#   ① `_options_locked_by_qte`：第 19 步的 QTE 是手工顶过去的，
+		#      照第 22 步的做法一并显式清掉，别指望上一步收干净。
+		interro._options_locked_by_qte = false
 		interro.set_process(false)
+		#   ② **异步的坑（同第 69 轮第 22 步那条注释）**：第 19 步的
+		#      `_select_option(1)` 会走 `_after_answer()` → `_next_question_delay()`，
+		#      而后者是 `await create_timer(1.8)` 再 `_load_question(idx + 1)` ——
+		#      这个定时器**不受 `set_process(false)` 影响**。这里如果直接
+		#      `_load_question(a_idx)` 就开拍，定时器会在随后的 `_wait()` 里到点，
+		#      把题从第 4 题推成第 5 题 → 选的就不是「说漏嘴」那一项了，
+		#      拍出来是「题目还在、什么都没发生」（怀疑度停在 60、没有收场）。
+		#      先等它过期（2 秒 = 120 帧），再加载要拍的那道题。
+		await _wait(120)
 		interro._load_question(a_idx)
 		_plog("     说漏嘴用的题：%s（第 %d 题，选项 0 = %s）" % [
 			str(interro.level_questions()[a_idx].get("id", "")), a_idx,
 			str(((interro.level_questions()[a_idx].get("options", []) as Array)[0] as Dictionary).get("tone", "-"))])
+		# 落地核对：真的停在第 a_idx 题上（定时器要是又抢跑，这里会当场说出来）
+		_plog("     实际加载到第 %d 题（选项 %d 个）" % [
+			interro.current_question_index, interro.current_options.size()])
 		await _wait(10)
 		interro._select_option(0)
-		_plog("     答完 → 怀疑度 %.1f ｜ 已收场 = %s" % [gd.suspicion_level, str(interro._ended)])
+		_plog("     答完 → 怀疑度 %.1f ｜ 已收场 = %s ｜ 收场原因 = %s" % [
+			gd.suspicion_level, str(interro._ended), interro._end_reason])
 		await _wait(16)
 		await _shot("20_leak_exposed")
 		gd.dossier_kept.erase(a_card)

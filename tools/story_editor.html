@@ -3440,27 +3440,35 @@ function validateNow(){
     warn("前后矛盾上限是 " + R.contradiction_limit + " —— 等于一次都不允许，第 1 次矛盾就直接判负", {kind:"rules"});
 
   // ---- 界面文案（ui）----
+  // ★★ 第七十四轮（用户口径）：「将现在编辑器中提醒会退回出厂文案和界面上会留下空白的地方
+  //   全部去掉，不再需要填入文字」——
+  //   所以**空着 / 缺键都不再提醒**：这些文案都有出厂兜底（`ScenarioData.DEFAULT_UI`），
+  //   空着游戏照跑；界面上那些空标签也会自动收起（见 Main._build_title_screen）。
+  //   只留「真会拼崩」的检查：**带占位符的**那一栏空着 / 丢了 %s，游戏拼参数时会出错。
+  //   ★ 结局文案（endings）那批不动 —— 用户明确说「会退回出厂模板那一句的地方不用管」。
   const U = story.ui || {};
   uiSections().forEach(sec => (sec.fields || []).forEach(f => {
     const g = U[sec.seg] || {};
     const val = g[f.k];
     const where = "界面文案 · " + stripNum(sec.title) + " · " + (f.label || f.k);
-    if (val === undefined || val === null){
-      warn(where + " 缺 " + sec.seg + "." + f.k + " —— 会用出厂文案", {kind:"ui"});
-      return;
-    }
+    if (val === undefined || val === null) return;
     if (f.t === "strlist"){
       if (!Array.isArray(val) || !val.length) err(where + "（" + sec.seg + "." + f.k + "）必须是非空数组", {kind:"ui"});
       return;
     }
-    if (!String(val).length) warn(where + " 是空的 —— 界面上会留一块空白", {kind:"ui"});
+    if (!String(val).length){
+      // 空着本身不是问题（有出厂兜底、界面会收起空标签）——
+      // 但**带占位符**的那句空着会 `"" % 参数` 直接报错，这条必须留着。
+      if (f.ph) err(where + " 是空的 —— 这句带占位符，空着游戏拼参数时会崩", {kind:"ui"});
+      return;
+    }
     if (f.ph && !String(val).includes("%"))
       err(where + " 丢了占位符（%s / %d）—— 游戏拼这句话时参数会对不上", {kind:"ui"});
   }));
 
   // ---- 手机（★ 第五十五轮：并入的那一半，原 phone_editor 的校验搬过来）----
   if (!story.phone || typeof story.phone !== "object"){
-    err("缺少 phone 段 —— 手机会全部退回出厂文案", {kind:"phone", page:"shell"});
+    err("缺少 phone 段 —— 手机页整块缺失（会全部用出厂文案）", {kind:"phone", page:"shell"});
   } else {
     Object.keys(PHONE_SEGS).forEach(name => {
       const meta = PHONE_PAGES.find(p => p.key === name) || {title:name};
@@ -3469,10 +3477,13 @@ function validateNow(){
         const where = "手机 · " + meta.title + " · " + f.label;
         const val = data[f.k];
         const v = {kind:"phone", page:name};
-        if (val === undefined || val === null || val === ""){
-          warn(where + " 是空的 —— 会退回出厂文案", v); return;
-        }
         const want = PH_EXPECT[name + "." + f.k];
+        // ★★ 第七十四轮：空着不再提醒（有出厂兜底）。**带占位符**的那几栏空着照样算错。
+        if (val === undefined || val === null || val === ""){
+          if (want !== undefined && want > 0)
+            err(where + " 是空的 —— 这栏带占位符，空着游戏拼参数时会崩", v);
+          return;
+        }
         const got = countPh(val);
         if (want === undefined){
           // 只提醒「真的写成了 %s / %d」的情况 —— 状态栏那种 🔋78% 是百分号，不是占位符
@@ -3480,7 +3491,7 @@ function validateNow(){
             + " 个 %s / %d 这类占位符 —— 游戏不会替换它，会原样印出来", v);
         } else if (got !== want){
           err(where + " 需要 " + want + " 个占位符，现在有 " + got
-            + " 个 —— 格式化会失败，游戏会退回出厂文案", v);
+            + " 个 —— 格式化会失败，这句话会拼不出来", v);
         }
       });
     });

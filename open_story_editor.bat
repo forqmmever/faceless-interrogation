@@ -29,12 +29,12 @@ set /a P3=%PORT%+2
 
 if not exist "%EDITOR%" (
     echo [ERROR] Editor not found: %EDITOR%
-    pause
+    ping -n 11 127.0.0.1 >nul 2>nul
     exit /b 1
 )
 if not exist "%SERVER%" (
     echo [ERROR] Local service not found: %SERVER%
-    pause
+    ping -n 11 127.0.0.1 >nul 2>nul
     exit /b 1
 )
 if not exist "%LOGDIR%" mkdir "%LOGDIR%" >nul 2>nul
@@ -63,6 +63,17 @@ rem (a plain file:// open), but keeping it fresh costs under a second.
 "%PY%" "%PROJ%tools\build_story_editor.py" >nul 2>nul
 
 rem ------------------------------------------------------------
+rem  Use pythonw.exe when it is available: that is the same interpreter
+rem  without a console, so the service runs in the background and NO
+rem  window is left on screen. This is the fix for "a window pops up
+rem  and I have to close it by hand".
+rem  Stop the service from the editor header ("Stop service") instead.
+rem ------------------------------------------------------------
+set "PYW="
+for %%D in ("%PY%") do if exist "%%~dpDpythonw.exe" set "PYW=%%~dpDpythonw.exe"
+if not defined PYW set "PYW=%PY%"
+
+rem ------------------------------------------------------------
 rem  2. Already running? Reuse it, do not start a second one.
 rem     Only three ports are checked: that is the window the service
 rem     itself may have shifted into when 8765 was taken.
@@ -82,7 +93,12 @@ rem     so the browser arrived first and showed
 rem     "127.0.0.1 refused to connect".
 rem ------------------------------------------------------------
 if exist "%LOG%" del "%LOG%" >nul 2>nul
-start "story-editor-server" /min "%PY%" "%SERVER%" --no-open --log "%LOG%" --port %PORT% --auto-port %SPAN%
+if "%PYW%"=="%PY%" (
+    rem No pythonw next to this interpreter - fall back to a minimized console.
+    start "story-editor-server" /min "%PY%" "%SERVER%" --no-open --log "%LOG%" --port %PORT% --auto-port %SPAN%
+) else (
+    start "" /b "%PYW%" "%SERVER%" --no-open --log "%LOG%" --port %PORT% --auto-port %SPAN%
+)
 
 set /a TRY=0
 :wait
@@ -98,7 +114,7 @@ goto wait
 
 :ready
 echo Service ready: %SRVURL%
-echo (keep the minimized "story-editor-server" window; closing it stops saving)
+echo (no window to keep - it runs in the background; stop it from the editor header)
 if not "%STORY_EDITOR_NO_OPEN%"=="1" start "" "%SRVURL%"
 exit /b 0
 
@@ -124,7 +140,9 @@ echo         "%PY%" "%SERVER%" --no-open
 echo.
 echo Opening the editor in READ-ONLY mode (you can look, but not save).
 if not "%STORY_EDITOR_NO_OPEN%"=="1" start "" "%EDITOR%"
-pause
+echo.
+echo This window closes itself in 20 seconds (log: %LOG%).
+ping -n 21 127.0.0.1 >nul 2>nul
 exit /b 1
 
 :nopython
@@ -134,7 +152,9 @@ echo        To save into data\story.json, install Python 3 and tick
 echo        "Add Python to PATH" during setup.
 echo.
 if not "%STORY_EDITOR_NO_OPEN%"=="1" start "" "%EDITOR%"
-pause
+echo.
+echo This window closes itself in 10 seconds.
+ping -n 11 127.0.0.1 >nul 2>nul
 exit /b 0
 
 rem ---------------- helpers ----------------

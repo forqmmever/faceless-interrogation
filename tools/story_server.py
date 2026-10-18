@@ -29,6 +29,7 @@
 """
 
 import argparse
+import hashlib
 import io
 import json
 import os
@@ -36,6 +37,7 @@ import shutil
 import socket
 import sys
 import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -43,9 +45,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 STORY = os.path.join(ROOT, "data", "story.json")
 STORY_BAK = STORY + ".bak"
+BACKUP_DIR = os.path.join(ROOT, "data", "backups")
 EDITOR = os.path.join(HERE, "story_editor.html")
 
 DEFAULT_PORT = 8765
+BACKUP_KEEP = 30        # data/backups/ 里留最近这么多份
 
 
 def port_in_use(host, port):
@@ -75,19 +79,60 @@ def read_story_bytes():
         return f.read()
 
 
+def story_rev(raw):
+    """这一份内容的「版本号」= sha256 前 16 位。
+
+    ★ 第七十九轮：用来解决「编辑器页面开着、磁盘被别人改了、一保存就整份覆盖」。
+      页面每次成功 GET 都记下这个 rev，保存时用 `If-Match` 带回来；
+      与磁盘当前 rev 不一致就拒绝写入，让用户先重新载入。
+    """
+    return hashlib.sha256(raw).hexdigest()[:16]
+
+
+def backup_copy(raw):
+    """把一份内容另存到 data/backups/story-YYYYMMDD-HHMMSS.json，只留最近 N 份。
+
+    ★ 为什么不能只靠 story.json.bak：那个只有一份，是「上一次保存前」的版本 ——
+      覆盖两次就彻底没了。这里每次写盘都留一份带时间戳的，出事了能翻回去。
+    """
+    try:
+        os.makedirs(BACKUP_DIR, exist_ok=True)
+        name = time.strftime("story-%Y%m%d-%H%M%S.json")
+        path = os.path.join(BACKUP_DIR, name)
+        # 同一秒内连续保存两次 —— 加序号别互相盖
+        i = 1
+        while os.path.exists(path):
+            name = time.strftime("story-%Y%m%d-%H%M%S") + "-%d.json" % i
+            path = os.path.join(BACKUP_DIR, name)
+            i += 1
+        with open(path, "wb") as f:
+            f.write(raw)
+        olds = sorted(os.listdir(BACKUP_DIR))
+        for old in olds[:-BACKUP_KEEP] if len(olds) > BACKUP_KEEP else []:
+            if old.startswith("story-") and old.endswith(".json"):
+                try:
+                    os.remove(os.path.join(BACKUP_DIR, old))
+                except OSError:
+                    pass
+        return name
+    except OSError:
+        return ""
+
+
 def write_story_bytes(raw):
-    """原子写入：临时文件 → os.replace。返回 (字节数, 是否生成了备份)。"""
+    """原子写入：临时文件 → os.replace。返回 (字节数, 是否生成了 .bak, 时间戳备份名)。"""
     made_bak = False
     if os.path.exists(STORY):
         shutil.copyfile(STORY, STORY_BAK)
         made_bak = True
+        backup_copy(read_story_bytes())
     tmp = STORY + ".tmp"
     with open(tmp, "wb") as f:
         f.write(raw)
         f.flush()
         os.fsync(f.fileno())
     os.replace(tmp, STORY)
-    return len(raw), made_bak
+    return len(raw), made_bak, story_rev(raw)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -135,7 +180,8 @@ class Handler(BaseHTTPRequestHandler):
             except OSError as e:
                 self._json(500, {"ok": False, "error": str(e)})
                 return
-            self._send(200, raw)
+            # X-Story-Rev = 这一份内容的版本号，页面保存时用 If-Match 带回
+            self._send(200, raw, extra={"X-Story-Rev": story_rev(raw)})
             return
 
         # 静态文件（限定在项目根内，防目录穿越）
@@ -161,6 +207,14 @@ class Handler(BaseHTTPRequestHandler):
     # ---------- POST ----------
     def do_POST(self):
         path = self.path.split("?", 1)[0]
+
+        # ★ 第七十九轮：无窗口运行时（pythonw），用户没有「关掉黑窗口」这个把手了 ——
+        #   编辑器顶栏那个「⏹ 停服务」按的就是这里。
+        if path == "/api/quit":
+            self._json(200, {"ok": True, "bye": True})
+            threading.Thread(target=self.server.shutdown, daemon=True).start()
+            return
+
         if path != "/api/story":
             self._json(404, {"ok": False, "error": "not found: " + path})
             return
@@ -200,13 +254,35 @@ class Handler(BaseHTTPRequestHandler):
         if not text.endswith("\n"):
             text += "\n"
 
+        # ④ ★★ 第七十九轮：**版本守卫** —— 页面拿着旧内容整份覆盖新内容，是
+        #   「改好的东西被冲掉」最真实的那条路：
+        #     ① 你打开编辑器（页面记住那一刻的 JSON）；
+        #     ② 我这边改了 data/story.json（换行数、文案、数值）；
+        #     ③ 你在那个**还开着**的页面上改一处、按保存 →
+        #        整份「旧内容 + 你这一处」写回去，② 全没了。
+        #   现在 GET 会带 `X-Story-Rev`（内容 sha256 前 16 位），保存时用
+        #   `If-Match` 带回来；对不上就 409 拒收，让页面先重新载入。
+        #   ★ 只在**页面自己提供了 If-Match** 时才校验 —— curl / 脚本照旧能写。
+        want = (self.headers.get("If-Match") or "").strip().strip('"')
+        if want and os.path.exists(STORY):
+            cur = story_rev(read_story_bytes())
+            if want != cur:
+                self._json(409, {
+                    "ok": False,
+                    "error": "磁盘上的 data/story.json 已经变了（你打开页面之后被改过）—— "
+                             "为免覆盖掉那些改动，这次保存被拒绝。请点「↻ 重新载入」再改。",
+                    "rev": cur,
+                    "conflict": True,
+                })
+                return
+
         try:
-            n, made_bak = write_story_bytes(text.encode("utf-8"))
+            n, made_bak, rev = write_story_bytes(text.encode("utf-8"))
         except OSError as e:
             self._json(500, {"ok": False, "error": "写盘失败：%s" % e})
             return
 
-        self._json(200, {"ok": True, "bytes": n, "backup": made_bak,
+        self._json(200, {"ok": True, "bytes": n, "backup": made_bak, "rev": rev,
                          "backgrounds": len(obj["backgrounds"])})
 
 

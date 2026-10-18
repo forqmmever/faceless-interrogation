@@ -23,5 +23,8 @@ desktop.ini
 data/story.json.bak
 data/story.json.tmp
 
+# 编辑器每次保存前留的时间戳备份（tools/story_server.py 生成，留最近 30 份）
+data/backups/
+
 # 日志
 *.log

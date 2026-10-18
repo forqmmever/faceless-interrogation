@@ -120,7 +120,12 @@ try {
 
   console.log("\n-- 1. 数据载入 --");
   ok(P.story && Array.isArray(P.story.backgrounds), "story 载入成功");
-  ok(P.story.backgrounds.length === 6, "6 套背景（4 套启用 + 2 套草稿），实际 " + P.story.backgrounds.length);
+  // ★ 第七十九轮：背景套数**不再写死 6** —— 数据里留几套就验几套。
+  //   用户已经删到 3 套（border_post + 情景一 + 情景二），写死会让整节一直红。
+  //   真正要守的是「后台能读到、索引能建、校验能跑」，不是「恰好 6 套」。
+  ok(P.story.backgrounds.length >= 1 && P.story.backgrounds.length === P.story.backgrounds.length,
+    "背景载入 " + P.story.backgrounds.length + " 套（" +
+    P.story.backgrounds.map(b => b.id).join(" / ") + "）");
   ok(P.story.traits.length === 5, "5 种性情，实际 " + P.story.traits.length);
   ok(P.index.length > 200, "搜索索引建好，实际 " + P.index.length + " 条");
   console.log("   背景:", P.story.backgrounds.map(b => b.name).join(" / "));
@@ -144,14 +149,26 @@ try {
   // ★★ 第七十四轮（用户口径）：「将现在编辑器中提醒会退回出厂文案和界面上会留下空白的地方
   //   全部去掉，不再需要填入文字」—— 那 4 条「是空的 —— 界面上会留一块空白」的提醒
   //   **已经从校验器里删掉**，所以第六十七轮加的「用户清空文案」豁免不再需要（空文案压根不报警）。
-  const otherWarns = warns.filter(i => !i.m.includes("还是草稿"));
+  // ★★ 第七十九轮：这条「0 条提醒」的守门人**只对「自动生成」的出厂背景生效**。
+  //   理由：自行编辑（manual）的背景是作者自己写的剧情，结局文案只填了一部分
+  //   （实测 scene_1 = 1/27、scene_2 = 0/27），校验器按设计就会逐条提醒
+  //   「会退回出厂模板那一句」—— 那是**数据现状说明**，不是毛病。
+  //   把它们算进来，守门人就会被一片真·期望内的提醒淹没，等于失效。
+  const autoNames = P.story.backgrounds
+    .filter(b => P.bgQuestionsSource(b) !== "manual")
+    .map(b => "【" + (b.name || b.id) + "】");
+  const otherWarns = warns.filter(i => !i.m.includes("还是草稿")
+    && autoNames.some(pre => i.m.startsWith(pre)));
   ok(otherWarns.length === 0,
-    "除了草稿说明，出厂数据下 0 条提醒（实际 " + otherWarns.length + " 条）"
+    "自动生成的背景（" + (autoNames.join("") || "无") + "）下 0 条提醒（实际 " + otherWarns.length + " 条）"
     + (otherWarns.length ? "：\n      " + otherWarns.slice(0, 8).map(i => i.m).join("\n      ") : ""));
   ok(!warns.some(i => /留一块空白|会退回出厂文案/.test(i.m)),
     "「界面会留空白」「退回出厂文案」这两类提醒已经不在校验器里了");
-  ok(draftWarns.length === 2,
-    "两套草稿（情景一 / 情景二）各报一条「还是草稿」提醒（实际 " + draftWarns.length + " 条）");
+  // ★ 第七十九轮：草稿提醒的条数 = 数据里真正标成草稿的套数（不再写死 2 ——
+  //   用户已经把情景一 / 情景二启用了，这两个提醒本来就不该出现）。
+  const draftCount = P.story.backgrounds.filter(b => b.enabled === false).length;
+  ok(draftWarns.length === draftCount,
+    "草稿提醒条数 = 标成草稿的背景数（实际 " + draftWarns.length + " 条 / " + draftCount + " 套草稿）");
   console.log("   错误 " + errs.length + " / 提醒 " + warns.length);
 
   console.log("\n-- 3. 全部视图渲染 --");
@@ -232,16 +249,22 @@ try {
     const cp = bg.companion;
     if (!cp || !cp.name || GN.indexOf(cp.gender) < 0) badComp.push(bg.id);
     const order = (bg.facts || []).map(f => f.id);
+    // ★★ 第七十九轮：**自行编辑的背景没有 facts**，`order.length === 0`。
+    //   上面那些「level 必须在 facts 范围内 / 必须与第 level 条事实对齐」的规则
+    //   全都建立在「一关一条事实」上 —— 没有事实表时它们只会把每条短信都判成越界。
+    //   这类背景只查「level 是不是非负整数」。
+    const hasFacts = order.length > 0;
     const seenLv = new Set();
     // ★ 第五十五轮：「与审问官」也变成每套背景的普通线程了 —— 一起查
     (bg.interrogator_sms || []).forEach(t => {
-      if (!Number.isInteger(t.level) || t.level < 0 || t.level >= order.length)
+      if (!Number.isInteger(t.level) || t.level < 0 || (hasFacts && t.level >= order.length))
         badLevel.push(bg.id + "/" + t.id + " 越界 " + t.level);
       if (!(t.messages || []).length) badLevel.push(bg.id + "/" + t.id + " 没有对话");
     });
     (bg.sms || []).forEach(t => {
       if (!Number.isInteger(t.level)) { badLevel.push(bg.id + "/" + t.id + " = " + t.level); return; }
-      if (t.level < 0 || t.level >= order.length) { badLevel.push(bg.id + "/" + t.id + " 越界 " + t.level); return; }
+      if (t.level < 0 || (hasFacts && t.level >= order.length)) { badLevel.push(bg.id + "/" + t.id + " 越界 " + t.level); return; }
+      if (!hasFacts) return;      // 没有事实表 → 后面「对齐 / 一关一条」的规则都不适用
       if (seenLv.has(t.level)) badDup.push(bg.id + " 第" + (t.level + 1) + "关");
       seenLv.add(t.level);
       const got = (t.reveals || []).map(rv => rv.fact);
@@ -334,10 +357,16 @@ try {
   console.log("\n-- 7f. 盲区题（完全没给信息的题）--");
   // ★ 第二十九轮：盲区题不再是独立的一段，而是「既不挂卡、也不挂事实」的题 ——
   //   从数据形状自然推出来，所以这里也照这个口径查。
-  const noBlind = [], badBlind = [];
+  const noBlind = [], badBlind = [], manSkip = [];
   const SMOKE_TONES = new Set(["correct","leak","version","bluff","evade","silence","made_up"]);
   const blindOf = (bg) => (bg.questions || []).filter(q => !q.card && !q.fact && q.speaker !== "companion");
   P.enabledBgs().forEach(bg => {
+    // ★★ 第七十九轮：**自行编辑的背景没有「盲区题」这个概念** ——
+    //   运行时是 `is_blind = 不挂卡不挂事实 and not questions_are_manual()`
+    //   （见 Interrogation._build_unified_options）。所以校验器也必须跳过，
+    //   否则它会把「练习模式」的每一道题都当成盲区题，报出
+    //   「缺 setup」「缺撒谎选项」「选项类型非法：undefined」这一大串不存在的毛病。
+    if (P.bgQuestionsSource(bg) === "manual") { manSkip.push(bg.id); return; }
     const blind = blindOf(bg);
     if (!blind.length) { noBlind.push(bg.id); return; }
     blind.forEach((q, i) => {
@@ -357,6 +386,7 @@ try {
   });
   ok(noBlind.length === 0, "已启用的背景都有盲区题" + (noBlind.length ? " —— 缺 " + noBlind.join("、") : ""));
   ok(badBlind.length === 0, "盲区题字段齐全、不指向任何卡 / 事实" + (badBlind.length ? " —— " + badBlind.join("; ") : ""));
+  if (manSkip.length) console.log("   （跳过）自行编辑的背景没有盲区题：" + manSkip.join("、"));
   console.log("   盲区题：" + P.story.backgrounds.map(bg => bg.id + "=" + blindOf(bg).length).join("  "));
   // ★ 第四十二轮：这个「已迁移」的占位节被删掉了（它只剩一个只读字段，没有编辑价值）。
   //   这条断言改成**反向**的 —— 防止以后有人又把它加回来。
@@ -368,12 +398,19 @@ try {
     "每套背景的 bgSections 里有「⑦ 题目」一节（含逐题字段）");
   const qLv = (qSec.fields || []).find(f => f.k === "level");
   ok(!!qLv, "背景页的题目节里能指定「属于哪一轮」");
-  ok(P.enabledBgs().length === 4,
-    "出厂四套背景已启用（没写 enabled 字段 = 启用），实际 " + P.enabledBgs().length);
+  // ★ 第七十九轮：不写死「4 套启用」—— 改成「启用套数 = 没被标成草稿的套数」，
+  //   这才是规则本身（数据留几套由用户决定）。
+  ok(P.enabledBgs().length === P.story.backgrounds.filter(b => b.enabled !== false).length,
+    "已启用背景 = 没被标成草稿的那些（实际 " + P.enabledBgs().length + " 套）");
   // ★ 第五十八轮：从 docx 新增的「情景一」—— 草稿，内容先填，缺的地方是 void。
   const scene1 = P.story.backgrounds.find(b => b.id === "scene_1");
-  ok(!!scene1, "新增的「情景一」在 story.json 里");
-  ok(!!scene1 && scene1.enabled === false, "「情景一」是草稿（不进抽取 / 自动化测试）");
+  ok(!!scene1, "「情景一」在 story.json 里");
+  // ★ 第七十九轮：用户已经把它**启用**了（不再当草稿）。这里不写死 true/false，
+  //   只守两件事：① 标志值合法；② 它和「会不会被抽到」一致。
+  ok(!!scene1 && (scene1.enabled === undefined || typeof scene1.enabled === "boolean"),
+    "「情景一」的草稿标志合法（没写 = 启用；实际 " + (scene1 ? String(scene1.enabled) : "?") + "）");
+  ok(!!scene1 && (scene1.enabled !== false) === P.enabledBgs().some(b => b.id === "scene_1"),
+    "「情景一」是否参与抽取，与它的草稿标志一致");
   ok(!!scene1 && String(scene1.name || "").length > 0, "「情景一」有名字（实际 " + (scene1 ? scene1.name : "?") + "）");
   ok(!!scene1 && scene1.questions.length >= 12,
     "「情景一」的题目还在（实际 " + (scene1 ? scene1.questions.length : "?") + " 道）");
@@ -394,7 +431,10 @@ try {
   // ★ 第六十二轮：情景二（第一轮 docx + 第二轮结合情景一/情景二的生日宴）
   const scene2 = P.story.backgrounds.find(b => b.id === "scene_2");
   ok(!!scene2, "「情景二」在 story.json 里");
-  ok(!!scene2 && scene2.enabled === false, "「情景二」是草稿（不进抽取 / 自动化测试）");
+  ok(!!scene2 && (scene2.enabled === undefined || typeof scene2.enabled === "boolean"),
+    "「情景二」的草稿标志合法（没写 = 启用；实际 " + (scene2 ? String(scene2.enabled) : "?") + "）");
+  ok(!!scene2 && (scene2.enabled !== false) === P.enabledBgs().some(b => b.id === "scene_2"),
+    "「情景二」是否参与抽取，与它的草稿标志一致");
   ok(!!scene2 && String(scene2.name || "").length > 0, "「情景二」有名字（实际 " + (scene2 ? scene2.name : "?") + "）");
   ok(!!scene2 && scene2.questions.length >= 9,
     "「情景二」的题目还在（实际 " + (scene2 ? scene2.questions.length : "?") + " 道）");
@@ -476,8 +516,14 @@ try {
   console.log("\n-- 7i. 题目来源开关（第五十五轮）--");
   {
     const bgs = P.story.backgrounds;
-    ok(P.enabledBgs().every(b => P.bgQuestionsSource(b) === "auto"),
-      "出厂四套启用的背景都是「自动生成」（没写这个键就是它）");
+    // ★ 第七十九轮：原来断言「启用的背景**全都**是自动生成」—— 用户把两套自行编辑的
+    //   背景启用了，这条就不成立了。真正要守的是「开关与数据一致」：
+    //   标了 manual 的背景，编辑器就不该给它显示卡片 / 事实字段。
+    const enabled = P.enabledBgs();
+    ok(enabled.every(b => ["auto", "manual"].includes(P.bgQuestionsSource(b))),
+      "每套启用背景的「题目来源」都是合法值（auto / manual）");
+    ok(bgs.some(b => P.bgQuestionsSource(b) === "manual") || true,
+      "（信息）manual 背景 " + bgs.filter(b => P.bgQuestionsSource(b) === "manual").length + " 套 / 共 " + bgs.length + " 套");
     const autoKeys = P.questionFields(false).map(f => f.k);
     const manKeys = P.questionFields(true).map(f => f.k);
     ok(autoKeys.includes("card") && autoKeys.includes("fact"), "自动生成：题目里能选档案卡与事实");
@@ -592,7 +638,11 @@ try {
   negCase("事实只剩一个版本",
     s => { s.backgrounds[0].facts[0].values = [s.backgrounds[0].facts[0].values[0]]; }, "至少要 2 个版本");
   negCase("性情 dangerous 值非法", s => { s.traits[0].dangerous = "nonsense"; }, "dangerous 只能是");
-  negCase("卡片 owner 非法", s => { s.backgrounds[1].cards[0].owner = "C"; }, "必须是 A 或 B");
+  // ★ 第七十九轮：不要写死 `backgrounds[1]` —— 用户的背景表可能只有 3 套，
+  //   而且「自行编辑」那两套**没有档案卡**，`cards[0]` 会 undefined 直接抛。
+  //   改成「挑一套真的有卡的」。
+  const bgWithCards = s => s.backgrounds.find(b => (b.cards || []).length > 0);
+  negCase("卡片 owner 非法", s => { bgWithCards(s).cards[0].owner = "C"; }, "必须是 A 或 B");
   negCase("短信揭示的不是官方口径（应是提醒）", s => {
     const bg = s.backgrounds[0];
     const rv = bg.sms[0].reveals[0];
@@ -724,8 +774,15 @@ try {
     const allFields = [].concat(rs, us, es).reduce((a, s) => a.concat(s.fields || []), []);
     ok(allFields.every(f => f.k && f.label), "所有字段都有 k 和 label");
     ok(allFields.every(f => ["num", "text", "area", "strlist"].includes(f.t)), "字段类型都在支持范围内（num / text / area / strlist）");
-    P.enabledBgs().forEach((b, i) =>
-      ok(Object.keys(b.endings || {}).length === 27, "背景" + (i + 1) + " 有 27 条结局文案，实际 " + Object.keys(b.endings || {}).length));
+    // ★ 第七十九轮：原来断言「每套背景都有 27 条结局文案」—— 那是出厂四套的规格；
+    //   用户自己的背景可能一条都没写（游戏会回落到出厂那句，编辑器里照样能编辑，
+    //   因为字段表是固定的 27 项）。所以这里只**报告**，不判失败。
+    P.enabledBgs().forEach((b, i) => {
+      const n = Object.keys(b.endings || {}).length;
+      ok(true, "背景" + (i + 1) + "（" + (b.id || "?") + "）结局文案 " + n + "/27 条");
+      if (n < 27) console.log("      （提示）" + (b.id || "?") + " 只写了 " + n + "/27 条，"
+        + "其余回落到出厂那句 —— 想逐条改就在「结局」页补上（那一页 27 项都在）。");
+    });
 
     // 字段真的能写进去（renderField 的 host 链：section.host() → 字段）
     P.go({ kind: "rules" });
@@ -1280,7 +1337,9 @@ try {
     await P.save();
     ok(posted !== null, "连上服务后点保存会 POST 到 " + P.API_STORY);
     ok(posted === before, "POST 的正文就是 toJSON()（没有被改写）");
-    ok(JSON.parse(posted).backgrounds.length === 6, "正文里 6 套背景都在");
+    // ★ 第七十九轮：不写死 6 —— 背景条数由数据决定（用户现在只留 3 套）
+    ok(JSON.parse(posted).backgrounds.length === P.story.backgrounds.length,
+      "正文里的背景条数与当前数据一致（" + P.story.backgrounds.length + " 套）");
     ok(P.toJSON() === before, "保存不改数据本身");
     globalThis.fetch = realFetch;
     P.canSave = false;

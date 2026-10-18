@@ -1515,6 +1515,9 @@ func _load_question(index: int) -> void:
 
 	feedback_label.text = ""
 	feedback_label.add_theme_color_override("font_color", Color(0.66, 0.70, 0.76))
+	# ★ 第七十一轮：换题时把还没写出去的「怀疑度 +N」丢掉 ——
+	#   它是上一题的事，不能贴到新题的反馈区上。
+	_pending_delta = 0.0
 
 	# ★ 第二十九轮：新格式的题目没有 `kind`，改看 `speaker` 字段（见 _q_is_companion）。
 	var is_comp := _q_is_companion(q)
@@ -2265,8 +2268,46 @@ func _add_suspicion(amount: float) -> void:
 	var delta := maxf(0.0, amount)
 	GameData.suspicion_level = clampf(GameData.suspicion_level + delta, 0.0, 100.0)
 	_update_suspicion_ui()
+	# ★ 第七十一轮：涨了多少，在题面下面的反馈区说一句（见 _queue_delta_note）。
+	if delta > 0.0:
+		_queue_delta_note(delta)
 	if GameData.suspicion_level >= 100.0:
 		_game_over()
+
+# ------------------------------------------------------------
+#  「怀疑度 +N」写在题面下面（第七十一轮，用户口径）
+#
+#   「所有增加怀疑度的说明 放在题面下面 如掏出手机后」——
+#   原来只有手机面板上的通知条写数值（`phone_notice`），而题面下面的反馈区
+#   对掏手机这件事**是空的**（`phone_caught` 在 story.json 里是空串），
+#   于是玩家只看到进度条动了一下，不知道为什么。
+#
+#   ★ 为什么用 `call_deferred` 而不是在 `_add_suspicion()` 里直接拼：
+#     各调用点的顺序不一样 —— `_select_option()` 是**先**加怀疑度、**再**写反馈文案
+#     （直接拼会被后面那句盖掉），`_phone_pull_event()` 也是先加后写。
+#     排到本帧末统一追加：不管调用点在前在后都对，也不用去改那 11 个调用点。
+#   ★ 同一帧里加好几笔（比如说漏嘴 + 收场）先累加成一个数再写，不刷屏。
+# ------------------------------------------------------------
+var _pending_delta := 0.0
+var _delta_flush_queued := false
+
+func _queue_delta_note(d: float) -> void:
+	_pending_delta += d
+	if _delta_flush_queued:
+		return
+	_delta_flush_queued = true
+	call_deferred("_flush_delta_note")
+
+func _flush_delta_note() -> void:
+	_delta_flush_queued = false
+	var d := _pending_delta
+	_pending_delta = 0.0
+	# 已经收场（说漏嘴 / 怀疑度到 100）就不写了 —— 结果覆盖层会盖住反馈区。
+	if d <= 0.0 or _ended:
+		return
+	var note := _ut("interrogation.delta_note", "（怀疑度 +%d）") % int(round(d))
+	var body := feedback_label.text.strip_edges()
+	feedback_label.text = note if body == "" else feedback_label.text + "\n" + note
 
 func _update_suspicion_ui() -> void:
 	suspicion_bar.value = GameData.suspicion_level

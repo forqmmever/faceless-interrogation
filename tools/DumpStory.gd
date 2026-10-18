@@ -37,7 +37,9 @@ func _ready() -> void:
 
 	var out := {
 		"$schema": "faceless-story-v1",
-		"note": "本文件由 tools/DumpStory.gd 生成，可用 tools/story_editor.html 编辑：剧情（背景 / 题库 / 短信 / 文案 / 结局）、玩法数值、服装数值、原貌，以及每局（按背景）的轮数 / 强制穿着 / QTE 计划 / 身体缺陷覆写；手机界面与短信另见 tools/phone_editor.html。游戏启动时从这里读；文件缺失会回退到 ScenarioData.gd / OutfitData.gd 里的内置常量。",
+		# ★ 第七十一轮：原来这里写「手机界面与短信另见 tools/phone_editor.html」——
+		#   那个文件第 55 轮就并进 story_editor.html 了（左侧「📱 手机」组），改掉免得误导。
+		"note": "本文件由 tools/DumpStory.gd 生成，可用 tools/story_editor.html 编辑：剧情（背景 / 题库 / 短信 / 文案 / 结局）、手机界面（备忘录 / 短信 / 相册 / 桌面）、玩法数值、服装数值、原貌，以及每局（按背景）的轮数 / 强制穿着 / QTE 计划 / 身体缺陷覆写。游戏启动时从这里读；文件缺失会回退到 ScenarioData.gd / OutfitData.gd 里的内置常量。",
 		"rules": ScenarioData.RULES,
 		"ui": ScenarioData.UI,
 		# ★ 第二十三轮新增的四段（都在编辑器里可改）：

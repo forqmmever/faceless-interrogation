@@ -118,6 +118,8 @@ func _ready() -> void:
 	_tick("自行编辑的题")
 	await _test_option_button_layout()
 	_tick("选项按钮布局（协程）")
+	await _test_delta_note()
+	_tick("怀疑度说明（协程）")
 	_test_option_echo()
 	_tick("选项回应")
 	_test_new_mechanics()
@@ -812,6 +814,70 @@ func _test_option_button_layout() -> void:
 	# ★ 这一条才是那个 bug 的指纹：坏的时候只有**第 4 个**是 510，前三个仍是 46。
 	_check("4 个选项：最高与最矮的按钮差不到两行（%.0f vs %.0f）" % [tallest, shortest],
 		tallest - shortest <= 2.0)
+
+# ------------------------------------------------------------
+#  涨怀疑度的说明写在题面下面（★ 第七十一轮）
+#
+#  用户口径：「所有增加怀疑度的说明 放在题面下面 如掏出手机后」。
+#  原来掏手机越界只有手机面板的通知条写「+8」，题面下面的反馈区是空的
+#  （`phone_caught` 在 story.json 里是空串）—— 玩家只看到进度条动了一下。
+#  现在统一由 `_add_suspicion()` 排队、本帧末追加到反馈区。
+# ------------------------------------------------------------
+func _test_delta_note() -> void:
+	print("\n-- 涨怀疑度的说明写在题面下面 --")
+	RunData.start_new_run(20261018, 0, "town_inn")
+	gd.outfit_passed = true
+	interro.set_process(false)
+	interro._ended = false
+	interro._running = true
+	interro.start_interrogation()
+
+	var before: float = gd.suspicion_level
+	interro.feedback_label.text = "测试反馈"
+	interro._add_suspicion(8.0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check("涨怀疑度后，反馈区末尾追加了「（怀疑度 +8）」",
+		interro.feedback_label.text.contains("（怀疑度 +8）"))
+	_check("原来那句反馈还在（不是被替换掉）",
+		interro.feedback_label.text.begins_with("测试反馈"))
+	_check("怀疑度真的涨了 8（%.0f → %.0f）" % [before, gd.suspicion_level],
+		is_equal_approx(gd.suspicion_level, before + 8.0))
+
+	# 反馈区为空时，这一句自己也要能显示（掏手机越界就是这种情况）
+	interro.feedback_label.text = ""
+	interro._add_suspicion(5.0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check("反馈区为空时，就只显示「（怀疑度 +5）」（实际「%s」）"
+		% interro.feedback_label.text,
+		interro.feedback_label.text == "（怀疑度 +5）")
+
+	# 照实答是 -6，被截成 0 —— 不涨就不写
+	interro.feedback_label.text = "照实答"
+	interro._add_suspicion(-6.0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check("没涨（照实答 -6 → 0）就不写这句",
+		interro.feedback_label.text == "照实答")
+
+	# 掏手机越界：题面下面要有说明
+	interro.phone_pulls = 2          # 免罚 1 次 → 这是第 1 次越界，+8
+	interro.feedback_label.text = ""
+	interro._phone_pull_event()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check("掏出手机被看见：题面下面有「（怀疑度 +8）」（实际「%s」）"
+		% interro.feedback_label.text,
+		interro.feedback_label.text.contains("（怀疑度 +8）"))
+
+	# 换题不能把上一题的 +N 贴到新题上
+	interro._add_suspicion(3.0)
+	interro._load_question(0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check("换题后不会把上一题的 +N 贴到新题上",
+		not interro.feedback_label.text.contains("（怀疑度 +3）"))
 
 func _test_fact_consistency() -> void:
 	print("\n-- 说法题：同一件事，前后必须一致 --")

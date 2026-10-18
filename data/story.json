@@ -1,6 +1,6 @@
 {
 	"$schema": "faceless-story-v1",
-	"note": "本文件由 tools/DumpStory.gd 生成，可用 tools/story_editor.html 编辑：剧情（背景 / 题库 / 短信 / 文案 / 结局）、玩法数值、服装数值、原貌，以及每局（按背景）的轮数 / 强制穿着 / QTE 计划 / 身体缺陷覆写；手机界面与短信另见 tools/phone_editor.html。游戏启动时从这里读；文件缺失会回退到 ScenarioData.gd / OutfitData.gd 里的内置常量。",
+	"note": "本文件由 tools/DumpStory.gd 生成，可用 tools/story_editor.html 编辑：剧情（背景 / 题库 / 短信 / 文案 / 结局）、手机界面（备忘录 / 短信 / 相册 / 桌面）、玩法数值、服装数值、原貌，以及每局（按背景）的轮数 / 强制穿着 / QTE 计划 / 身体缺陷覆写。游戏启动时从这里读；文件缺失会回退到 ScenarioData.gd / OutfitData.gd 里的内置常量。",
 	"rules": {
 		"questions_per_level": 6,
 		"contrast_req_base": 125,
@@ -105,7 +105,8 @@
 			"intf_combo_prefix": "⚠ 依次敲 ",
 			"intf_combo_suffix": " 打断他！",
 			"intf_blocked": "（你把话头截了回去。他耸耸肩，把手收了回去。）",
-			"intf_failed": "（他成功把审讯官的目光引到了你身上。你慢了半拍。）"
+			"intf_failed": "（他成功把审讯官的目光引到了你身上。你慢了半拍。）",
+			"delta_note": "（怀疑度 +%d）"
 		},
 		"feedback": {
 			"card_ok_a": "你没有接这个话头。审讯官盯着你看了两秒，翻过一页。",

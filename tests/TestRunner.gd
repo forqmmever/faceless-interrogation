@@ -239,12 +239,16 @@ func _test_boot() -> void:
 	RunData.start_new_run(seed_probe, 0, pick_id)
 	_check("指定背景开局 → 背景就是指定的那套（实际 %s / 期望 %s）" % [
 			RunData.background_id, pick_id], RunData.background_id == pick_id)
-	var app_picked := RunData.true_appearance().duplicate()
 	# ★ 关键不变式：`start_new_run` 里**无论指不指定都先消耗一次 randi()** ——
 	#   所以原貌 / 情报 / 性情这些后续随机**完全不受影响**，同一个种子两次一致。
 	#   （这条要是不成立，玩家「指定背景」就会连带换掉人物，可复现性也一起没了。）
-	_check("★ 指定背景不改变后续随机流（原貌与随机开局逐项相同）",
-		_dict_eq(app_random, app_picked))
+	# ★ 第七十五轮改判据：以前拿「随机那一局」和「指定 pick_id 那一局」直接比原貌，
+	#   但用户启用的 scene_1 / scene_2 带 `true_presets.by_level` —— 随机抽到它们时
+	#   原貌是**写死的**，跟指定别的背景比当然不同，那不是随机流坏了。
+	#   正确判据：**同种子 + 同背景**跑两次，原貌必须逐项相同（指定背景不多消耗随机数）。
+	RunData.start_new_run(seed_probe, 0, bg_random)
+	_check("★ 指定背景不改变后续随机流（同种子 + 同背景 → 原貌逐项相同）",
+		_dict_eq(app_random, RunData.true_appearance()))
 	# 指定一个不存在的 id → 退回随机，不能崩
 	RunData.start_new_run(seed_probe, 0, "__no_such_bg__")
 	_check("指定不存在的背景 id → 退回随机（不崩）",
@@ -352,7 +356,13 @@ func _test_boot() -> void:
 	if not _dict_eq(RunData.true_appearance(), ta_a):
 		diff += 1
 	_check("新一局的背景或原貌至少有一项变了", diff >= 1)
-	main._start_new_run()
+	# ★ 第七十五轮：用户启用了两套「自行编辑」背景（scene_1 / scene_2）—— 它们没有档案卡、
+	#   也没有「档案题 / 盲区题 / 同行者」那套分类。凡是依赖这两样的测试都必须钉在一套
+	#   **完整数据**的背景上，否则随机抽到 scene_* 就成片假红（还会因为 `a_cards()[0]`
+	#   越界把后面几条静默吞掉 —— 越界不会让测试失败，只会让断言凭空消失）。
+	main._start_new_run(-1, 0, _canonical_bg())
+	_check("★ 本测试钉在一套「完整档案」背景上（实际 %s）" % RunData.background_id,
+		_canonical_bg() != "" and RunData.background_id == _canonical_bg())
 
 # ------------------------------------------------------------
 # 外貌情报栏已删：原貌开局即全部可见
@@ -887,14 +897,14 @@ func _test_delta_note() -> void:
 		interro.feedback_label.text == "照实答")
 
 	# 掏手机越界：题面下面要有说明
-	interro.phone_pulls = 2          # 免罚 1 次 → 这是第 1 次越界，+8
+	interro.phone_pulls = 2          # 免罚 1 次 → 这是第 1 次越界，+16（第七十五轮翻倍）
 	interro.feedback_label.text = ""
 	interro._phone_pull_event()
 	await get_tree().process_frame
 	await get_tree().process_frame
-	_check("掏出手机被看见：题面下面有「（怀疑度 +8）」（实际「%s」）"
-		% interro.feedback_label.text,
-		interro.feedback_label.text.contains("（怀疑度 +8）"))
+	_check("掏出手机被看见：题面下面有「（怀疑度 +%d）」（实际「%s」）"
+		% [int(Interrogation.PHONE_PULL_PENALTY), interro.feedback_label.text],
+		interro.feedback_label.text.contains("（怀疑度 +%d）" % int(Interrogation.PHONE_PULL_PENALTY)))
 
 	# 换题不能把上一题的 +N 贴到新题上
 	interro._add_suspicion(3.0)
@@ -1742,13 +1752,13 @@ func _test_interrogator_intel() -> void:
 			bad_memo += 1
 		if float(td.get("bluff_delta", 0.0)) < 0.0 or float(td.get("evade_delta", 0.0)) < 0.0:
 			has_negative = true
-		if float(td.get("bluff_delta", 0.0)) >= 28.0:
+		if float(td.get("bluff_delta", 0.0)) >= 56.0:
 			has_high_bluff = true
-		if float(td.get("evade_delta", 0.0)) >= 28.0:
+		if float(td.get("evade_delta", 0.0)) >= 56.0:
 			has_high_evade = true
-		if float(td.get("bluff_delta", 0.0)) <= 10.0:
+		if float(td.get("bluff_delta", 0.0)) <= 20.0:
 			has_cheap_bluff = true
-		if float(td.get("evade_delta", 0.0)) <= 10.0:
+		if float(td.get("evade_delta", 0.0)) <= 20.0:
 			has_cheap_evade = true
 	_check("性情表字段齐全（id/name/desc/hint/delta/dangerous）", bad == 0)
 	_check("每种性情都带备忘录三条（memo / like / hate）", bad_memo == 0)
@@ -1838,8 +1848,8 @@ func _test_interrogator_intel() -> void:
 	interro._load_question(b_idx)
 	_check("多疑 + 读过情报 → 撒谎项亮 ⚠",
 		str((interro.current_options[1] as Dictionary).get("text", "")).contains("⚠"))
-	_check("多疑 → 撒谎代价 = 45（全场最重）",
-		is_equal_approx(float((interro.current_options[1] as Dictionary).get("delta", 0.0)), 45.0))
+	_check("多疑 → 撒谎代价 = 90（全场最重）",
+		is_equal_approx(float((interro.current_options[1] as Dictionary).get("delta", 0.0)), 90.0))
 	_check("多疑 → 撒谎项被标 danger",
 		bool((interro.current_options[1] as Dictionary).get("danger", false)))
 	_check("多疑 → 回避项没被标 danger",
@@ -1850,12 +1860,12 @@ func _test_interrogator_intel() -> void:
 	_check("迟钝的性情能取回", str(dull.get("name", "")) == "迟钝")
 	_check("★ 迟钝的 bluff_delta 是全场最低（撒谎最便宜，但仍是正的代价）",
 		ScenarioData.trait_delta(dull, "bluff") > 0.0
-		and ScenarioData.trait_delta(dull, "bluff") <= 10.0)
+		and ScenarioData.trait_delta(dull, "bluff") <= 20.0)
 	interro._load_question(b_idx)
 	_check("迟钝 → 撒谎项不亮 ⚠",
 		not str((interro.current_options[1] as Dictionary).get("text", "")).contains("⚠"))
-	_check("迟钝 → 撒谎代价低（6），但仍然是**涨**不是降",
-		is_equal_approx(float((interro.current_options[1] as Dictionary).get("delta", 0.0)), 6.0))
+	_check("迟钝 → 撒谎代价低（12），但仍然是**涨**不是降",
+		is_equal_approx(float((interro.current_options[1] as Dictionary).get("delta", 0.0)), 12.0))
 	RunData.interrogator_trait_id = keep_tid
 	interro._load_question(b_idx)      # 选项上的 ⚠ 跟着当前性情刷新
 
@@ -1995,6 +2005,7 @@ func _test_blind_question() -> void:
 	interro.is_qte_active = false
 	interro.qte_container.hide()
 	interro._load_question(bi)
+	gd.suspicion_level = 20.0          # ★ 先钉死：否则继承到 100 上限，48 点会被钳掉
 	var before: float = gd.suspicion_level
 	interro._select_option(0)
 	_check("硬答恒定扣分",
@@ -2415,10 +2426,10 @@ func _test_expression_qte() -> void:
 	#   用户口径：「无论选择什么选项都不会提高怀疑值，但触发游戏结束的选项依然会使游戏结束」。
 	print("\n-- 妙妙工具「尼古喵尾」：装备后不再提高怀疑值 --")
 	gd.carried_tools = []
-	gd.suspicion_level = 40.0
+	gd.suspicion_level = 10.0          # ★ 20+70=90，留出余量免得撞 100 上限
 	interro._add_suspicion(Interrogation.CONTRADICTION_PENALTY)
 	_check("没带尼古喵尾 → 照常涨怀疑值",
-		is_equal_approx(gd.suspicion_level, 40.0 + Interrogation.CONTRADICTION_PENALTY))
+		is_equal_approx(gd.suspicion_level, 10.0 + Interrogation.CONTRADICTION_PENALTY))
 
 	gd.carried_tools = ["tool_tail"]
 	_check("GameData.carried_tool() 认得出来", gd.carried_tool("tool_tail"))
@@ -2669,7 +2680,7 @@ func _test_qte_budget() -> void:
 	#   所以这里验的是：**唯一**的触发来源是暴露值，而且是线性斜坡。
 	print("\n-- 表情 QTE 起手条件：只由暴露值决定（第 33 轮重写）--")
 	_check("延迟常量 = 2.5 秒", is_equal_approx(Interrogation.EXPR_QTE_DELAY, 2.5))
-	_check("失败代价 = 24", is_equal_approx(Interrogation.EXPR_QTE_FAIL, 24.0))
+	_check("失败代价 = 48（第七十五轮翻倍）", is_equal_approx(Interrogation.EXPR_QTE_FAIL, 48.0))
 	_check("斜坡两端：起效点 10 / 必出点 60",
 		Interrogation.EXPOSURE_QTE_MIN < Interrogation.EXPOSURE_QTE_FULL)
 
@@ -2889,10 +2900,13 @@ func _test_intro_and_help() -> void:
 	# ★ 手机不再重复讲（用户口径：「第二阶段的玩法说明中不需要再次说明手机」）——
 	#   阶段一已经逐个讲过四个界面了。
 	_check("★ 阶段二不再重复讲「掏出手机」这个按钮", not itxt.contains("掏出手机"))
-	_check("★ 阶段二说明了两种提示条（表情控制 / 同行者递话）",
-		itxt.contains("提示条") and itxt.contains("按住空格") and itxt.contains("递话"))
+	# ★ 第七十五轮：用户改写了这条标注（「递话」→「同行者干扰」），
+	#   判据跟着从「某个词」放宽成「两类都点了名」。
+	_check("★ 阶段二说明了两种提示条（表情控制 / 同行者干扰）",
+		itxt.contains("表情控制") and itxt.contains("同行者") and itxt.contains("按住空格"))
+	# ★ 这条规定现在写在**起手提示语**里（标注只写「手机暂时无法使用」），两处都要在。
 	_check("★ 提示条说明了「压表情时手机用不了」（这是规定）",
-		itxt.contains("手机得先收起来"))
+		itxt.contains("手机") and ScenarioData.ui_t_d("interrogation.qte_prompt").contains("手机"))
 	_check("阶段二：每处标注都有编号与说明", _mark_wellformed(im))
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -3379,21 +3393,28 @@ func _test_new_mechanics() -> void:
 			main._start_level()
 	_check("本轮新解锁的短信正好揭示本轮要问的官方口径", reveal_ok)
 
-	print("\n-- 接受度跨局保留：整局作废也不退还 --")
+	print("\n-- 接受度逐轮手写：不再跨局累计（第七十五轮）--")
 	ProfileData.reset_all()
 	main._start_new_run(555001)
-	_check("空账号开局接受度 = 起始值", RunData.acceptance == OutfitData.START_ACCEPTANCE)
+	var lv0_acc := int(OutfitData.LEVELS[0].get("acceptance", OutfitData.START_ACCEPTANCE))
+	var lv1_acc := int(OutfitData.LEVELS[1].get("acceptance", -1))
+	_check("第 1 轮接受度 = 数据里手写的值（%d）" % lv0_acc, RunData.acceptance == lv0_acc)
 	RunData.advance_level()
 	var gain0 := int(OutfitData.LEVELS[0]["acceptance_gain"])
-	_check("过关后这一关的 gain 进了账号", ProfileData.bonus() == gain0)
-	_check("当前接受度立刻跟着涨", RunData.acceptance == OutfitData.START_ACCEPTANCE + gain0)
+	_check("账号里仍然记了这笔 gain（只作战绩）", ProfileData.bonus() == gain0)
+	_check("第 2 轮接受度 = 数据里手写的值（%d）" % lv1_acc, RunData.acceptance == lv1_acc)
+	# ★ 防「空转通过」：如果手写值恰好等于「起始 + gain」，上面那条就分不清
+	#   到底是手写生效还是旧的累计公式在起作用。
+	_check("手写值 %d 与「起始 %d + gain %d」不同（这条才测得到手写生效）" % [
+			lv1_acc, OutfitData.START_ACCEPTANCE, gain0],
+		lv1_acc != OutfitData.START_ACCEPTANCE + gain0)
 	wardrobe._refresh()
-	_check("准备室数值面板写明跨局保留",
-		wardrobe.stats_label.text.contains("跨局保留"))
+	_check("准备室不再写「跨局保留」（那个概念没有了）",
+		not wardrobe.stats_label.text.contains("跨局保留"))
 
-	var acc_mid := RunData.acceptance
 	main._start_new_run(555002)       # 相当于失败重开
-	_check("新一局开局带着跨局收益", RunData.acceptance == acc_mid)
+	_check("新一局开局接受度回到第 1 轮手写值（不带上一局收益）",
+		RunData.acceptance == lv0_acc)
 	_check("新一局仍然从第 1 轮开始", RunData.level_index == 0)
 	_check("新一局局号 +1（换背景换原貌）", RunData.run_index >= 2)
 
@@ -3669,7 +3690,35 @@ func _test_story_config() -> void:
 # ------------------------------------------------------------
 func _test_multi_level_flow() -> void:
 	print("\n-- 多轮流程：从第 1 关一路走到整局通关 --")
-	main._start_new_run()
+	# ★ 第七十五轮：这一节有「按轮覆写」的两条分支（有覆写 / 没覆写）。以前靠随机抽背景
+	#   碰运气，抽到哪套就只跑哪条，同代码两次跑结论不同。现在先做一次**数据层对照**
+	#   把「没覆写」那条钉住，再把 UI 流程钉在「有覆写」那套上 —— 两条都覆盖。
+	var ov_bg := _bg_with_level_override()
+	var plain_bg := _canonical_bg()
+	_check("★ 找得到一套「带按轮覆写」的背景（对照分支的前提，实际 %s）" % ov_bg, ov_bg != "")
+	_check("★ 找得到一套「自己没写覆写」的完整背景（实际 %s）" % plain_bg, plain_bg != "")
+	if plain_bg != "":
+		# ★ 对照分支：这套背景自己没写覆写 → 应当回落**全局**那份（`story.true_presets`）。
+		#   别写成「原貌不变」—— 全局那份从第 49 轮起就带逐轮递进，它会真的换。
+		var g_raw: Variant = (ScenarioData._true_presets as Dictionary).get("by_level", [])
+		RunData.start_new_run(20261011, 0, plain_bg)
+		RunData.advance_level()
+		var g_want: Dictionary = {}
+		if typeof(g_raw) == TYPE_ARRAY and RunData.level_index < (g_raw as Array).size():
+			var g_e: Variant = (g_raw as Array)[RunData.level_index]
+			if typeof(g_e) == TYPE_DICTIONARY:
+				g_want = (g_e as Dictionary).get("slots", {})
+		_check("★ 全局那份确实配了第 %d 轮的覆写（对照的前提）" % (RunData.level_index + 1),
+			not g_want.is_empty())
+		var now_plain: Dictionary = RunData.true_appearance()
+		var g_miss := []
+		for s in g_want.keys():
+			if str(now_plain.get(str(s), "")) != str(g_want[s]):
+				g_miss.append(str(s))
+		_check("★ 没有背景覆写 → 按全局那份生效（%d 个槽位全对上）" % g_want.size(),
+			g_miss.is_empty())
+
+	main._start_new_run(20261011, 0, ov_bg if ov_bg != "" else plain_bg)
 	_check("新局回到第 1 轮", RunData.level_number() == 1)
 	_check("新局：情报台按新背景重填（12 条归类 + %d 处原貌）" % OutfitData.auto_slots().size(),
 		intel.clues_done_count() == OutfitData.auto_slots().size() and intel.unassigned_count() == 0)
@@ -3723,11 +3772,20 @@ func _test_multi_level_flow() -> void:
 			if lv_override.is_empty():
 				_check("原貌跨关不变（本轮没有配按轮覆写）", _dict_eq(now_app, true_app))
 			else:
+				# ★ 第七十五轮：`EXCLUSIVE_GROUPS` 里「成装 ↔ 上装/下装」是**成装优先**——
+				#   覆写里同时写了 `dress` 与 `top` / `bottom` 时，模型会把上下装归零
+				#   （scene_1 第 2 轮就是这种写法：晚礼服 + 校服上下装）。所以期望值要按
+				#   **归一化之后**的算，不能拿原始覆写硬比。
+				var want: Dictionary = (lv_override as Dictionary).duplicate(true)
+				if not str(want.get("dress", "dress_none")).ends_with("_none"):
+					for s in ["top", "bottom"]:
+						if want.has(s) and not str(want[s]).ends_with("_none"):
+							want[s] = _bare_id(str(s))
 				var miss := []
-				for s in lv_override.keys():
-					if str(now_app.get(str(s), "")) != str(lv_override[s]):
+				for s in want.keys():
+					if str(now_app.get(str(s), "")) != str(want[s]):
 						miss.append(str(s))
-				_check("原貌按本轮覆写生效（%d 个槽位）" % lv_override.size(), miss.is_empty())
+				_check("原貌按本轮覆写生效（%d 个槽位）" % want.size(), miss.is_empty())
 				var drift := []
 				for s in now_app.keys():
 					if lv_override.has(str(s)):
@@ -3753,10 +3811,10 @@ func _test_multi_level_flow() -> void:
 			main._on_overlay_pressed()
 			_check("重开后局号 +1", RunData.run_index == old_run + 1)
 			_check("重开后回到第 1 轮", RunData.level_number() == 1)
-			# ★ 接受度跨局保留：整局通关/作废都不会把赚到的还回去
-			_check("重开后接受度 = 起始值 + 跨局保留",
-				RunData.acceptance == OutfitData.START_ACCEPTANCE + ProfileData.bonus())
-			_check("跨局保留确实积累起来了", ProfileData.bonus() > 0)
+			# ★ 第七十五轮：不再跨局累计 —— 重开一局，接受度回到第 1 轮的手写值
+			_check("重开后接受度回到第 1 轮手写值（不带上一局收益）",
+				RunData.acceptance == int(OutfitData.LEVELS[0]["acceptance"]))
+			_check("账号里的累计仍在（只作战绩，不回流）", ProfileData.bonus() > 0)
 			_check("重开后已通过关数归零", RunData.cleared_levels == 0)
 			_check("重开后情报台按新背景重填",
 				intel.clues_done_count() == OutfitData.auto_slots().size() and intel.unassigned_count() == 0)
@@ -3834,8 +3892,9 @@ func _test_leak_and_fail_restart() -> void:
 	_check("重来本轮 → 局号不变（还是同一局）", RunData.run_index == run_before)
 	_check("重来本轮 → 回到本轮开始（失败在第 %d 轮）" % lvl_before,
 		RunData.level_number() == lvl_before)
-	_check("重来本轮 → 接受度不退",
-		RunData.acceptance == acc_before and RunData.acceptance == OutfitData.START_ACCEPTANCE + ProfileData.bonus())
+	_check("重来本轮 → 接受度不退（还是本轮手写的那个值）",
+		RunData.acceptance == acc_before
+		and RunData.acceptance == RunData.acceptance_at(RunData.level_index))
 	_check("重来本轮 → 已通过关数不变", RunData.cleared_levels == 0)
 	_check("重来本轮 → 背景不变", RunData.background_id == bg_before)
 	_check("重来本轮 → 原貌不变", _dict_eq(RunData.true_appearance(), app_before))
@@ -4271,6 +4330,39 @@ func _dict_eq(a: Dictionary, b: Dictionary) -> bool:
 		if str(a[k]) != str(b.get(k, "")):
 			return false
 	return true
+
+# ------------------------------------------------------------
+# 背景挑选（第七十五轮）
+# ------------------------------------------------------------
+# 用户启用了两套「自行编辑」背景后，六套背景的数据形态不再统一：
+#   · 出厂四套 —— 有档案卡、有「档案题 / 盲区题 / 同行者」分类、没有按轮覆写；
+#   · scene_1 / scene_2 —— `questions_source = manual`，没有档案卡与分类，但**有**按轮覆写。
+# 所以依赖某一类数据的测试必须自己挑背景，不能指望随机抽到对的那套。
+
+# 第一套「完整档案」背景（非自行编辑）—— 依赖档案卡 / 题目分类的测试用它
+func _canonical_bg() -> String:
+	for b in ScenarioData.enabled_backgrounds():
+		var d := b as Dictionary
+		if str(d.get("questions_source", "")) != "manual":
+			return str(d.get("id", ""))
+	return ""
+
+# 第一套「带按轮覆写」的背景 —— 验「覆写生效」的测试用它
+func _bg_with_level_override() -> String:
+	for b in ScenarioData.enabled_backgrounds():
+		var bid := str((b as Dictionary).get("id", ""))
+		for e in ScenarioData.bg_true_preset_by_level(bid):
+			if typeof(e) == TYPE_DICTIONARY and not (e as Dictionary).is_empty():
+				return bid
+	return ""
+
+# 某个槽位的「空件」id（数据驱动，别写死 top_none / bottom_none）
+func _bare_id(slot: String) -> String:
+	for it in OutfitData.ITEMS:
+		var d := it as Dictionary
+		if str(d.get("slot", "")) == slot and bool(d.get("bare", false)):
+			return str(d.get("id", ""))
+	return ""
 
 # 数组按字符串逐项比 —— 强制装备这类 Array[String] 用得上
 func _arr_eq(a: Array, b: Array) -> bool:

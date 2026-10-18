@@ -39,12 +39,12 @@ signal interrogation_finished(success: bool)
 #   + 从通用池补足到本数」，所以 6 道 = 3 + 1 + 2。
 #   通用池里能抽的档案题一共 8 道，四轮各 2 道正好对齐。
 const QUESTIONS_PER_LEVEL := 6
-const PASS_SUSPICION := 60.0
+const PASS_SUSPICION := 100.0       # ★ 第七十五轮：过关线 60 → 100（用户口径）
 
 # --- 说法题（前后矛盾）---
 const CONTRADICTION_LIMIT := 2        # 累计矛盾到这个数 → 当场被识破
-const CONTRADICTION_PENALTY := 35.0   # 前后矛盾：重罚（轮内只涨不跌，这刀最狠）
-const IMPROVISE_PENALTY := 12.0       # 说法与官方口径不符（还没被抓到矛盾）
+const CONTRADICTION_PENALTY := 70.0   # 前后矛盾：重罚（轮内只涨不跌，这刀最狠）★ 75 轮翻倍
+const IMPROVISE_PENALTY := 24.0       # 说法与官方口径不符（还没被抓到矛盾）★ 75 轮翻倍
 # ★ 第十三轮：轮内怀疑度只涨不跌 —— 「答对口径 / 复问一致」不再给负奖励，
 #   这几条奖励常量直接删掉，_add_suspicion 也会把一切负增量拦在门外。
 
@@ -58,13 +58,13 @@ const TOOL_TAIL_ID := "tool_tail"
 #   档案里没有、短信里也没提 —— 硬答一个具体细节是恒定重罚，
 #   因为编得越细，他越能顺着往下追问。真正的选择在「撒谎 / 回避」之间，
 #   而哪个安全由审问官的性情决定（写在手机备忘录第一条）。
-const BLIND_MADE_UP_DELTA := 24.0
+const BLIND_MADE_UP_DELTA := 48.0    # ★ 75 轮：随过关线 60→100 翻倍
 
 const EXPR_QTE_TIME := 4.0
 const EXPR_QTE_DECAY := 35.0
 const EXPR_QTE_BOOST := 80.0
 const EXPR_QTE_PASS := 80.0
-const EXPR_QTE_FAIL := 24.0          # 表情没绷住 → 怀疑度 +24（调高）
+const EXPR_QTE_FAIL := 48.0          # 表情没绷住 → 怀疑度 +48（★ 75 轮随过关线翻倍）
 # ★ 第六十七轮（用户口径）：「只能用空格控制」。
 #   不再读鼠标左键，也不读 ui_accept（那个还包含回车）—— 单独注册一个只映射空格的动作。
 const QTE_ACTION := "qte_space"
@@ -86,7 +86,7 @@ const EXPOSURE_QTE_FULL := 60
 # --- 档案题的第 4 个选项：沉默 ---
 #  选项数量是**可变**的（2 ~ 4 个）：档案题 4 个、说法题 / 同行者题 3 个、
 #  题面没给「硬答」的盲区题只有 2 个。题面数据里写了 silence 就用它，没写用这句。
-const SILENCE_DELTA := 6.0
+const SILENCE_DELTA := 12.0          # ★ 75 轮：随过关线 60→100 翻倍（6 次沉默 = 72，险过）
 const SILENCE_TEXT := "（你什么也没说 —— 沉默着，没有接这个话头。）"
 const OPTION_LETTERS := ["A. ", "B. ", "C. ", "D. "]
 
@@ -151,7 +151,7 @@ const STRIP_BAND_H := 96             # 底部常驻占位带的高度（要盖�
 #    免罚 1 + 单价 8：掏出 3 次累计 24（20 → 44，余 16），第 4 次 +24 累计 48 才过线。
 #    刚好「必需的 2~3 次」落在安全线内，想多瞄几眼就得拿别处的容错去换。
 const PHONE_PULL_FREE := 1            # 第 1 次不追究
-const PHONE_PULL_PENALTY := 8.0       # 第 n 次越界，怀疑度 +8 × n
+const PHONE_PULL_PENALTY := 16.0      # 第 n 次越界，怀疑度 +16 × n（★ 75 轮翻倍）
 
 var current_question_index: int = 0
 var is_qte_active: bool = false          # 表情 QTE（保留旧字段名，测试依赖）

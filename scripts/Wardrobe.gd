@@ -833,8 +833,8 @@ func _update_stats() -> void:
 	#    也一并撤掉，只留场所一行。
 	var lines := []
 	lines.append("[color=#8fb8f0]接受度 [b]%d[/b][/color]" % model.acceptance)
-	if ProfileData.bonus() > 0:
-		lines.append("[color=#6f7684]跨局保留 [b]+%d[/b]（失败也不会丢）[/color]" % ProfileData.bonus())
+	# ★ 第七十五轮：「跨局保留 +N（失败也不会丢）」那行撤掉了 ——
+	#   接受度不再跨局累计（用户口径），这行会一直是 0，留着只会误导。
 
 	# 本轮强制装备（0 ~ 2 件高暴露衣物，没穿 = 当场识破）
 	var forced := model.forced_items_info()

@@ -45,12 +45,17 @@ var interrogator_trait_id: String = "" # 本局审讯官的性情（审问者的
 var forced_items: Array = []           # 本轮强制装备的 item id（0 ~ 2 件）
 
 # 当前接受度 —— 派生值，不是自己攒的。
-#   = 起始值 + 账号里跨局累积的加成（ProfileData.total_gain）
-# 每通过一关就把那一关的 gain 存进 ProfileData，所以这里立刻反映出来；
-# 就算这一轮失败、回到本轮开始重来，已经到手的部分也不会丢。
+#
+# ★★ 第七十五轮（用户口径「暂时不使用接受度全局累计，改为每轮可用的暴露值不同」）：
+#    这里**不再**加 `ProfileData.bonus()`。接受度现在只有两个来源：
+#      ① 这一轮在数据里**手写了** `levels[i].acceptance` → 就用它（推荐，每轮独立标定）；
+#      ② 没写 → 起始值 + **本局**已通过那几轮的 gain（局内累计，跨局不带）。
+#    账号级的 `ProfileData.total_gain` 还在记（战绩面板用），但它**不影响**任何数值了 ——
+#    换台机器、重开游戏，第 1 轮的暴露上限都一样。
+#    暴露上限 = OutfitData.exposure_cap(acceptance) = 10 + 接受度 × 2。
 var acceptance: int:
 	get:
-		return OutfitData.START_ACCEPTANCE + ProfileData.bonus()
+		return acceptance_at(level_index)
 
 var _rng := RandomNumberGenerator.new()
 var _bg: Dictionary = {}
@@ -66,8 +71,8 @@ func _ready() -> void:
 #  start_level：从第几轮开始（0 起）。选关面板点「第 N 轮」时传进来。
 #  ★ 第五十九轮起两轮都开放（OutfitData.OPEN_LEVELS = [0, 1]），
 #    所以 start_level = 1 是常规路径，不再只是测试用。
-#    从某一轮开始意味着**前面几轮的接受度加成不补** ——
-#    开局接受度仍然只有「起始值 + 跨局累积」。
+#    从某一轮开始意味着**前面几轮不补** —— 接受度直接取 `levels[start_level].acceptance`
+#    （★ 第七十五轮：逐轮手写，不再有跨局累积）。
 #
 #  ★ 第五十三轮新增 bg_id：选关面板挑了背景就传进来；**空字符串 = 每局随机抽**
 #    （出厂行为，也是默认值）。只有「已启用」的背景 id 会被采纳，
@@ -192,7 +197,7 @@ func resume_run(seed_in: int, run_index_in: int, li: int, cleared: int) -> void:
 #    · 随机数是 0；
 #    · 当前接受度穿不起任何高暴露衣物 → 池子空。
 #  接受度越高，池子越大，被塞行头的概率越高 ——
-#  这就是「跨局累积的接受度」在玩法上的第二个作用。
+#  所以「第 2 轮接受度 19（上限 48）」比第 1 轮更容易被塞行头。
 # ============================================================
 var forced_groups: Array = []          # fixed 模式下的规则表（结构见 OutfitData.forced_groups_at）
 
@@ -755,14 +760,22 @@ func level_name() -> String:
 	return str(current_level().get("name", ""))
 
 # 「如果本局打到第 li 关，开局接受度会是多少」
-#   = 起始值 + 跨局累积（ProfileData）+ 本局还没结算的那些关的 gain
 #
-# 不变式：acceptance_at(cleared_levels) == acceptance（当前值）。
-# 因为已通过的关，gain 早就存进 ProfileData 了，这里不重复算。
+# ★★ 第七十五轮：改成「逐轮手写优先，没写才按局内累计」。
+#   ① `levels[li].acceptance` 有值 → **直接用它**（这一轮的暴露上限就定了：
+#      cap = 10 + 接受度 × 2）。这是「每轮可用的暴露值不同」的落地方式 ——
+#      想要某一轮上限 = 30，就写 acceptance = 10；上限 34 → 12，依此类推。
+#   ② 没写 → 起始值 + 这一轮**之前**各轮的 acceptance_gain（只算本局，不含跨局）。
+#
+# 不变式：acceptance_at(level_index) == acceptance（当前值）。
 func acceptance_at(li: int) -> int:
-	var acc := acceptance
 	var lv := levels()
-	for i in range(cleared_levels, mini(li, lv.size())):
+	if li >= 0 and li < lv.size():
+		var v: Variant = (lv[li] as Dictionary).get("acceptance", null)
+		if v != null:
+			return int(v)
+	var acc := OutfitData.START_ACCEPTANCE
+	for i in range(0, mini(li, lv.size())):
 		acc += int(lv[i].get("acceptance_gain", 0))
 	return acc
 
@@ -780,8 +793,9 @@ func advance_level() -> void:
 	if is_run_complete():
 		return
 	var gain := int(current_level().get("acceptance_gain", 0))
-	# ★ 全局保留：这一轮赚到的接受度**立刻**进账号。
-	#   这一轮就算失败、回到本轮开始重来，这部分也不会丢。
+	# ★ 第七十五轮：这一笔**只进战绩**，不再回流到 `acceptance`。
+	#   用户口径「暂时不使用接受度全局累计」—— 接受度现在按轮手写（levels[i].acceptance），
+	#   账号里的 total_gain 只剩「一共赚过多少」这个统计意义。
 	ProfileData.add_gain(gain)
 	cleared_levels += 1
 	level_index += 1

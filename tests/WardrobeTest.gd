@@ -1911,11 +1911,19 @@ func _test_model_basics() -> void:
 	print("\n-- 暴露值上限公式 --")
 	_check("接受度0 -> 上限10", OutfitData.exposure_cap(0) == 10)
 	_check("接受度5 -> 上限20", OutfitData.exposure_cap(5) == 20)
-	# ★ 第四十九轮：起始接受度 10 → 14（用户口径「起始低接受度时搭配太少」），
-	#   所以开局上限 30 → 38。
-	_check("接受度%d（开局）-> 上限%d" % [OutfitData.START_ACCEPTANCE,
+	# ★ 第七十五轮：起始接受度 14 → 10（「可穿件数」到 10 就封顶了），
+	#   开局上限 38 → 30。断言改成**跟着公式走**，别再写死某个数 ——
+	#   上一版把 38 写死，改起始值时就只能靠这条挂掉来提醒。
+	_check("接受度%d（起始）-> 上限%d" % [OutfitData.START_ACCEPTANCE,
 			OutfitData.exposure_cap(OutfitData.START_ACCEPTANCE)],
-		OutfitData.exposure_cap(OutfitData.START_ACCEPTANCE) == 38)
+		OutfitData.exposure_cap(OutfitData.START_ACCEPTANCE)
+			== OutfitData.EXPOSURE_BASE + OutfitData.START_ACCEPTANCE * OutfitData.EXPOSURE_PER_ACCEPTANCE)
+	# ★ 出厂两轮的暴露上限（手写 acceptance 10 / 19 → 30 / 48）：
+	#   这两条才是玩家真正看到的数，上面那条只守公式。
+	_check("出厂第 1 轮的暴露上限 = 30（手写接受度 10）",
+		RunData.exposure_cap_at(0) == 30)
+	_check("出厂第 2 轮的暴露上限 = 48（手写接受度 19）",
+		RunData.exposure_cap_at(1) == 48)
 
 	print("\n-- 接受度门槛 --")
 	var corset := OutfitData.get_item("top_corset")
@@ -2207,11 +2215,12 @@ func _test_level_curve() -> void:
 	_check("重来后问答记录回滚", GameData.answer_log.is_empty())
 	_check("重来后同行者插话次数回滚", GameData.companion_asked == 0)
 	_check("重来后怀疑度底子回滚", is_equal_approx(GameData.suspicion_carry, 0.0))
-	# ★ 接受度是**跨局保留**的 —— 本轮重来也不会把已经赚到的还回去
-	_check("重来后接受度 = 起始值 + 跨局保留",
-		RunData.acceptance == OutfitData.START_ACCEPTANCE + banked)
-	_check("本轮重来不退还已赚到的接受度",
-		banked > 0 and RunData.acceptance > OutfitData.START_ACCEPTANCE)
+	# ★ 第七十五轮：接受度改成**逐轮手写**（不再跨局累计）——
+	#   重来本轮时它当然不变：同一轮拿的还是同一个数。
+	_check("重来后接受度 = 本轮手写的值",
+		RunData.acceptance == RunData.acceptance_at(RunData.level_index))
+	_check("本轮重来不退还也不多给（还是本轮那一档）",
+		RunData.acceptance == int(OutfitData.LEVELS[RunData.level_index]["acceptance"]))
 	_check("重来后强制装备与原来一致（同一关同一个种子）",
 		_arr_eq(RunData.forced_item_ids(), forced_before))
 
@@ -2271,14 +2280,62 @@ func _test_level_curve() -> void:
 		print("         ↳ 本轮原貌: %s" % ", ".join(ws))
 		_check("第%d轮存在满足全部约束的配置" % (li + 1), worst[li] >= req)
 		_check("第%d轮默认原貌本身不达标（不白送）" % (li + 1), 0 < req)
-		# ★ 第四十九轮：按轮覆写钉死的是**主干槽位**（上下装 / 内衣 / 袜子 / 鞋 / 颈饰），
-		#   其余槽位仍由 TRUE_POOL 随机 —— 所以最优值只允许在钉死基准附近**小幅**波动。
-		#   若波动很大（几十点），说明覆写没生效
-		#   （比如某个背景自己覆写了 true_presets，把全局那套盖掉了）。
-		_check("第%d轮最优值只在钉死基准附近波动（≤ 20，实测 %d）" % [
-				li + 1, best[li] - worst[li]], best[li] - worst[li] <= 20)
+		# ★ 第七十五轮：这条「所有种子共用一个基准」的前提没了 —— 背景从 4 套变 6 套，
+		#   而 scene_1 / scene_2 自己写了 `true_presets.by_level`（晚礼服那套远比全局那套
+		#   放得开），跨背景混在一起算波动没有意义（实测第 2 轮 205~260）。
+		#   波动检查挪到下面的**逐背景分组**里，这里只报数。
+		print("      （跨背景混算的波动 %d 点，不作判据 —— 见下面逐背景那节）" % (best[li] - worst[li]))
 
 	_check("全部 %d 个种子的 4 关都可解" % PROBE_SEEDS, all_ok and unsolvable == 0)
+
+	# ---- 逐背景分组：波动 + 可解性 ----
+	# ★ 第七十五轮新增。两个目的：
+	#   ① 「按轮覆写生效」现在的判据是**同一套背景内**波动小（跨背景波动是设计使然）；
+	#   ② 每套背景在出厂要求（125 / 150）下都得可解 —— 用户调接受度时最该看的就是这张表。
+	var PER_BG_SEEDS := 6
+	# ★ 这一段会把「当前这一局」反复重开（`start_new_run` 是全局单例）——
+	#   后面的 `_test_editable_sections` 读的是**本局背景的**强制穿着规则，
+	#   不还原就会拿到最后那套背景的数据（第 75 轮实测：三条断言凭空变红）。
+	var keep_seed: int = RunData.seed_value
+	var keep_bg: String = RunData.background_id
+	var keep_li: int = RunData.level_index
+	for b in ScenarioData.enabled_backgrounds():
+		var bid := str((b as Dictionary).get("id", ""))
+		var bw := []
+		var bb := []
+		for li in OutfitData.MAX_LEVELS:
+			bw.append(999999)
+			bb.append(0)
+		var bad := 0
+		for s in range(1, PER_BG_SEEDS + 1):
+			ProfileData.reset_all()
+			RunData.start_new_run(700000 + s, 0, bid)
+			for li in OutfitData.MAX_LEVELS:
+				var ta2: Dictionary = RunData.true_appearance()
+				var acc2: int = RunData.acceptance_at(li)
+				var opt2: int = _dp_optimum(ta2, acc2, OutfitData.exposure_cap(acc2))
+				if opt2 < 0:
+					bad += 1
+				else:
+					bw[li] = mini(int(bw[li]), opt2)
+					bb[li] = maxi(int(bb[li]), opt2)
+				if li < OutfitData.MAX_LEVELS - 1:
+					RunData.advance_level()
+		var seg := []
+		for li in OutfitData.MAX_LEVELS:
+			seg.append("第%d轮 %3d~%3d" % [li + 1, bw[li], bb[li]])
+		print("      [%s] %s" % [bid, ", ".join(seg)])
+		_check("★ [%s] %d 个种子全部可解" % [bid, PER_BG_SEEDS], bad == 0)
+		for li in OutfitData.MAX_LEVELS:
+			var sp := int(bb[li]) - int(bw[li])
+			_check("★ [%s] 第%d轮最优值只在钉死基准附近波动（≤ 20，实测 %d）" % [bid, li + 1, sp],
+				sp <= 20 and int(bw[li]) < 999999)
+	# 还原现场：把「当前这一局」放回进来时的样子
+	ProfileData.reset_all()
+	RunData.start_new_run(keep_seed, keep_li, keep_bg)
+	_check("★ 逐背景探针跑完把这一局还原了（背景 %s / 第 %d 轮）" % [
+			keep_bg, keep_li + 1],
+		RunData.background_id == keep_bg and RunData.level_index == keep_li)
 
 # ------------------------------------------------------------
 #  资产完整性
@@ -2576,8 +2633,8 @@ func _test_open_levels() -> void:
 	RunData.start_new_run(8888, 1)
 	_check("从第 2 轮开局 → 轮次索引 = 1", RunData.level_index == 1)
 	_check("从第 2 轮开局 → 已通过轮数 = 1", RunData.cleared_levels == 1)
-	_check("从第 2 轮开局 → 接受度不白送",
-		RunData.acceptance == OutfitData.START_ACCEPTANCE + ProfileData.bonus())
+	_check("从第 2 轮开局 → 接受度取本轮手写值（不白送）",
+		RunData.acceptance == int(OutfitData.LEVELS[1]["acceptance"]))
 	# 同一个种子 + 同一轮 → 强制装备可复现（重来时靠的就是这条）
 	var forced_at_2: Array = RunData.forced_item_ids().duplicate()
 	RunData.start_new_run(8888, 1)
@@ -2618,13 +2675,13 @@ func _test_profile() -> void:
 		and ProfileData.runs_cleared == 0 and ProfileData.best_cleared == 0
 		and ProfileData.level_failures == 0)
 
-	# 接受度是派生值：起始值 + 账号累计
+	# 接受度是派生值：这一轮手写的 acceptance（★ 第七十五轮：不再加账号累计）
 	RunData.start_new_run(20261011)
-	_check("开局接受度 = 起始值（账号为空时）",
-		RunData.acceptance == OutfitData.START_ACCEPTANCE)
+	_check("开局接受度 = 第 1 轮手写的值",
+		RunData.acceptance == int(OutfitData.LEVELS[0]["acceptance"]))
 	ProfileData.add_gain(9)
-	_check("账号一加，当前接受度立刻跟着涨",
-		RunData.acceptance == OutfitData.START_ACCEPTANCE + 9)
+	_check("账号累计**不再**影响当前接受度（只作战绩）",
+		RunData.acceptance == int(OutfitData.LEVELS[0]["acceptance"]))
 	ProfileData.reset_all()
 
 # ------------------------------------------------------------
@@ -2977,26 +3034,52 @@ func _first_improving_move(m: WardrobeModel) -> Dictionary:
 	var base: int = m.total_contrast()
 	var keep: Dictionary = m.equipped.duplicate()
 	for slot in OutfitData.SLOT_ORDER:
-		var cur := str(keep.get(slot, ""))
+		var cur_ids := _slot_ids(m, slot)
 		for it in OutfitData.get_items_for_slot(slot):
-			if str(it["id"]) == cur:
+			var nid := str(it["id"])
+			if cur_ids.has(nid):
 				continue
 			if not m.can_equip(it):
 				continue
-			m.equipped[slot] = str(it["id"])
-			var better: bool = m.total_contrast() > base \
+			m.equipped[slot] = [nid] if OutfitData.is_multi_slot(slot) else nid
+			var got := m.total_contrast()
+			var better: bool = got > base \
 				and not m.is_over_cap() \
 				and m.conservative_exposure() <= m.exposure_cap() \
 				and m.exposed_defects().is_empty() \
 				and m.missing_forced().is_empty()
-			var got := m.total_contrast()
-			m.equipped[slot] = cur
+			_restore_slot(m, slot, keep)
 			if better:
 				m.equipped = keep
-				return {"slot": slot, "from": cur, "to": str(it["id"]),
+				return {"slot": slot, "from": str(cur_ids), "to": nid,
 					"contrast": "%d -> %d" % [base, got]}
 	m.equipped = keep
 	return {}
+
+# ------------------------------------------------------------
+#  换一个槽位做试探（★ 第七十五轮修的测试 bug）
+#
+#  旧版写的是 `var cur := str(keep.get(slot, ""))` + `m.equipped[slot] = cur`。
+#  单件槽位没问题，但**多件槽位（纹身）的 equipped 值是 Array** ——
+#  第一次试探就把 `["tattoo_neck", "tattoo_cheek"]` 变成了字符串，
+#  于是后面所有计算里纹身那一栏整个消失（暴露少 4、反差少 20、门控也跟着歪）。
+#  表现：`非局部最优` 断言在「暴露上限卡得很紧」时冒出来 ——
+#  第 75 轮把第 1 轮上限从 38 压到 30 之后才暴露，之前因为 DP 解早就顶到
+#  理论上限、根本没有可改进的余地，所以一直没被发现。
+# ------------------------------------------------------------
+func _slot_ids(m: WardrobeModel, slot: String) -> Array:
+	if not m.equipped.has(slot):
+		return []
+	var v: Variant = m.equipped[slot]
+	if typeof(v) == TYPE_ARRAY:
+		return (v as Array).duplicate()
+	return [str(v)]
+
+func _restore_slot(m: WardrobeModel, slot: String, keep: Dictionary) -> void:
+	if keep.has(slot):
+		m.equipped[slot] = keep[slot]
+	else:
+		m.equipped.erase(slot)
 
 # 同反差下，能不能只换一个槽位就让「与原貌一致」的部位更少（且约束仍满足）
 func _packing_optimal(m: WardrobeModel) -> bool:
@@ -3005,20 +3088,21 @@ func _packing_optimal(m: WardrobeModel) -> bool:
 	var keep: Dictionary = m.equipped.duplicate()
 	var ok := true
 	for slot in OutfitData.SLOT_ORDER:
-		var cur := str(keep.get(slot, ""))
+		var cur_ids := _slot_ids(m, slot)
 		for it in OutfitData.get_items_for_slot(slot):
-			if str(it["id"]) == cur:
+			var nid := str(it["id"])
+			if cur_ids.has(nid):
 				continue
 			if not m.can_equip(it):
 				continue
-			m.equipped[slot] = str(it["id"])
+			m.equipped[slot] = [nid] if OutfitData.is_multi_slot(slot) else nid
 			var better: bool = m.total_contrast() == base_c \
 				and m.matching_slots().size() < base_m \
 				and not m.is_over_cap() \
 				and m.conservative_exposure() <= m.exposure_cap() \
 				and m.exposed_defects().is_empty() \
 				and m.missing_forced().is_empty()
-			m.equipped[slot] = cur
+			_restore_slot(m, slot, keep)
 			if better:
 				ok = false
 				break

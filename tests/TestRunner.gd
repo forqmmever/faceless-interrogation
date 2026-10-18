@@ -144,6 +144,8 @@ func _ready() -> void:
 	_tick("内衣门控界面")
 	_test_editable_flow_data()
 	_tick("可编辑流程数据")
+	_test_manual_suspicion_values()
+	_tick("自行编辑背景的怀疑值")
 
 	_finish()
 
@@ -4196,6 +4198,128 @@ func _str_has(arr: Array, needle: String) -> bool:
 		if str(x).contains(needle):
 			return true
 	return false
+
+# ------------------------------------------------------------
+#  自行编辑的背景（questions_source = manual）：怀疑值只看你填的那一栏
+#
+#  用户口径（第七十七轮）：「怀疑值不要按回答类型设置，按我给的怀疑值结算」。
+#  数据侧要保证「每个选项都写了数」，运行时侧要保证「写了就一定是它说了算」——
+#  这两条各配一条断言，缺哪条都会悄悄退回「按 tone 算」：
+#
+#    · 数据：留空 → `_build_unified_options` 回落到 tone 的默认值（照实答 0 /
+#      撒谎按性情 / 说漏嘴 100）。看起来「差不多」，但那已经不是用户给的大小关系了。
+#    · 运行时：`_select_option` 里「说漏嘴」原来**无条件**加 `leak_delta`，
+#      把选项上写的数整个盖掉 —— 这就是「按类型设置」残留的那一处。
+#
+#  另外顺手钉一条：同一道题的按钮不能出现两句一样的话。
+#  原来撒谎 / 回避的文本是整句换成 `td["bluff_text"]`（= 这道题**最后**一个
+#  bluff 的文本），一道题里两个以上 bluff 时按钮会全变成同一句 ——
+#  出厂四套每道题最多一个 bluff，所以一直没露；自行编辑的背景里「三选一全是撒谎」
+#  很常见。
+# ------------------------------------------------------------
+func _manual_bg_id() -> String:
+	for b in ScenarioData.enabled_backgrounds():
+		if ScenarioData.questions_source_of(b as Dictionary) == "manual":
+			return str((b as Dictionary).get("id", ""))
+	return ""
+
+# 取一个「一定是数组」的字段。
+# ★ 别写 `d.get(k, []) or []` —— GDScript 的 `or` **永远返回 bool**，
+#   缺字段时它给出的是 `true`，然后 `for x in true` 当场 SCRIPT ERROR，
+#   而 SCRIPT ERROR 不会让测试失败：那一节断言会**整片静默消失**，
+#   摘要照样打印「ALL TESTS PASSED」。
+func _arr_of(d: Dictionary, key: String) -> Array:
+	var v: Variant = d.get(key, [])
+	return v if typeof(v) == TYPE_ARRAY else []
+
+func _test_manual_suspicion_values() -> void:
+	print("\n-- 自行编辑的背景：怀疑值只看你填的那一栏 --")
+	var keep_seed: int = RunData.seed_value
+	var keep_bg: String = RunData.background_id
+	var keep_li: int = RunData.level_index
+
+	# ① 数据：每个选项都写了显式怀疑值
+	var bgs := 0
+	var opts_total := 0
+	var missing: Array = []
+	for b in ScenarioData.enabled_backgrounds():
+		var bd: Dictionary = b
+		if ScenarioData.questions_source_of(bd) != "manual":
+			continue
+		bgs += 1
+		for q in _arr_of(bd, "questions"):
+			var qd: Dictionary = q
+			for o in _arr_of(qd, "options"):
+				opts_total += 1
+				if not (o as Dictionary).has("suspicion"):
+					missing.append(str(qd.get("id", "?")))
+	_check("★ 自行编辑的背景（%d 套 / %d 个选项）全都写了显式怀疑值（缺 %d 处%s）"
+		% [bgs, opts_total, missing.size(),
+		   "" if missing.is_empty() else "：" + "、".join(missing)],
+		bgs > 0 and opts_total > 0 and missing.is_empty())
+
+	# ② 同一道题里没有两个按钮显示同一句话（要跑真实构造，不能只看 JSON）
+	#
+	# ★ 比的是**去掉「A. 」前缀之后**的那句话 —— 按钮文本是「字母 + 那句话」，
+	#   直接比 `text` 的话「三句一模一样」会被字母前缀盖住，永远查不出来。
+	main._start_new_run(20261018, 0, _canonical_bg())
+	var letters: Array = ScenarioData.ui_arr("common.option_letters", Interrogation.OPTION_LETTERS)
+	if letters.is_empty():
+		letters = Interrogation.OPTION_LETTERS
+	var scanned := 0
+	var dup: Array = []
+	for b in ScenarioData.enabled_backgrounds():
+		var bd: Dictionary = b
+		for q in _arr_of(bd, "questions"):
+			var qd: Dictionary = q
+			if not interro._is_unified_question(qd):
+				continue
+			scanned += 1
+			var seen := {}
+			var opts: Array = interro._build_unified_options(qd)
+			for i in opts.size():
+				var t := str((opts[i] as Dictionary).get("text", ""))
+				var pre := str(letters[i % letters.size()])
+				if t.begins_with(pre):
+					t = t.substr(pre.length())
+				if t == "":
+					continue
+				if seen.has(t):
+					dup.append("%s/%s「%s」" % [str(bd.get("id", "")), str(qd.get("id", "")), t])
+					break
+				seen[t] = true
+	_check("★ 同一道题里没有两个按钮显示同一句话（扫了 %d 道题，重复 %d 道%s）"
+		% [scanned, dup.size(), "" if dup.is_empty() else "：" + "、".join(dup)],
+		scanned > 0 and dup.is_empty())
+
+	# ③ 运行时：说漏嘴的代价 = 选项自己写的数（不是固定的 leak_delta）
+	var mb := _manual_bg_id()
+	_check("有一套自行编辑的背景可以测运行时结算（%s）" % mb, mb != "")
+	if mb != "":
+		main._start_new_run(20261018, 0, mb)
+		interro.set_process(false)
+		interro._load_question(0)
+		# 换进一条「代价 20 的说漏嘴」—— 只看结算，不看题面
+		var keep_opts: Array = interro.current_options
+		interro.current_options = [{
+			"text": "A. 说漏嘴（代价 20）", "kind": "leak", "owner": "B",
+			"delta": 20.0, "ending": "leak", "echo": "",
+		}]
+		interro._ended = false
+		interro._options_locked_by_qte = false
+		gd.suspicion_level = 10.0
+		interro._select_option(0)
+		_check("★ 说漏嘴的代价取选项自己写的数（10 + 20 = 30，不是 10 + 100）",
+			is_equal_approx(gd.suspicion_level, 30.0))
+		_check("★ 说漏嘴仍然当场收场", interro._ended == true)
+		interro.current_options = keep_opts
+		interro._ended = false
+
+	# 还原现场：把「当前这一局」放回进来时的样子
+	ProfileData.reset_all()
+	if keep_bg != "":
+		main._start_new_run(keep_seed, keep_li, keep_bg)
+	interro.set_process(true)
 
 func _active_item_count() -> int:
 	var n := 0

@@ -1219,18 +1219,12 @@ func _build_unified_options(q: Dictionary) -> Array:
 	elif is_blind:
 		owner = "?"
 
-	# 撒谎 / 回避的代价由「审问者的情报」决定，所以先把它俩的文案收集出来，
-	# 交给 _trait_options 去算 —— 它还会在「多疑」时给文案加上 ⚠ 前缀。
-	var bluff_text := ""
-	var evade_text := ""
-	for o in raw:
-		var d: Dictionary = o
-		match str(d.get("tone", "")):
-			TONE_BLUFF:
-				bluff_text = str(d.get("text", ""))
-			TONE_EVADE:
-				evade_text = str(d.get("text", ""))
-	var td := _trait_options(bluff_text, evade_text)
+	# 撒谎 / 回避的代价由「审问者的情报」决定，所以先把它俩算出来。
+	# ★ 第七十七轮：这里**不再把选项文案喂进去** —— 那个参数原本只为了拿回
+	#   「加了 ⚠ 前缀的整句」，而一道题里可能有好几个 bluff / evade 选项，
+	#   拿回来的只可能是最后一个的文本。现在改成逐项自己补前缀（见下面两个分支），
+	#   文案参数就只剩盲区题那条老路在用。
+	var td := _trait_options("", "")
 
 	var out := []
 	for o in raw:
@@ -1260,14 +1254,21 @@ func _build_unified_options(q: Dictionary) -> Array:
 				item["kind"] = "bluff"
 				item["danger"] = td["bluff_danger"]
 				delta = float(d.get("suspicion", td["bluff_d"]))
-				# ★ 必须用 td 里那份文本 —— 他在「多疑」时会给它加上 ⚠ 前缀，
-				#   直接拿选项原文就把这个提示丢了（第二轮实测就是这条挂的）。
-				text = td["bluff_text"]
+				# ★★ 第七十七轮：只**补 ⚠ 前缀**，文本仍用这一项自己的那一句。
+				#   原来这里是 `text = td["bluff_text"]` —— 而 td 里那份是「这道题
+				#   **最后**一个 bluff 选项」的文本（见上面收集用的那个 for）。
+				#   一道题里有两个以上 bluff 选项时，按钮会全显示成同一句话：
+				#   出厂四套每道题最多一个 bluff，所以一直没露出来；
+				#   自行编辑的背景里「三选一全是撒谎」很常见，一点就露。
+				if td["bluff_danger"]:
+					text = "⚠ " + text
 			TONE_EVADE:
 				item["kind"] = "evade"
 				item["danger"] = td["evade_danger"]
 				delta = float(d.get("suspicion", td["evade_d"]))
-				text = td["evade_text"]
+				# ★ 同上：只补前缀，别把整句换成「最后一个 evade」的文本。
+				if td["evade_danger"]:
+					text = "⚠ " + text
 			TONE_MADE_UP:
 				item["kind"] = "made_up"
 				delta = float(d.get("suspicion",
@@ -1744,14 +1745,19 @@ func _select_option(opt_index: int) -> void:
 
 	# ★ 第二十九轮：`ending` 是**选项自己指定**的收场方式 ——
 	#   和 tone 分开，所以「照实答」这类选项也能被写成一句话把人送走。
+	# ★★ 第七十七轮：收场照旧，但**代价按选项自己写的那一栏结算**。
+	#   原来这里无条件 `_add_suspicion(leak_delta)`，把选项上写的 `suspicion` 整个盖掉 ——
+	#   于是「怀疑值按我给的数」在 leak 这一类上又退回了「按回答类型算」。
+	#   没写 `suspicion` 的选项，`opt["delta"]` 本身就是 `leak_delta`
+	#   （见 `_build_unified_options` 的 TONE_LEAK 分支），所以出厂数据一个数都没变。
 	var ending := str(opt.get("ending", ""))
 	if ending == "leak":
-		_add_suspicion(_rf("leak_delta", 100.0))
+		_add_suspicion(float(opt["delta"]))
 		_instant_exposure("说漏嘴")
 		return
 
 	if kind == "leak":
-		_add_suspicion(_rf("leak_delta", 100.0))
+		_add_suspicion(float(opt["delta"]))
 		_instant_exposure("说漏嘴")
 		return
 

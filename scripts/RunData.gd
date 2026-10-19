@@ -37,10 +37,17 @@ var clues: Array = []                  # 本局的 18 条外貌情报（由原�
 var level_index: int = 0               # 当前轮次（0 起）
 var cleared_levels: int = 0            # 本局已通过的轮次数
 var photos: Array = []                 # 本局手机相册里的照片
-# ★ 第四十四轮：相册里「点缀」槽位（眼镜 / 发型 / 鞋子）**整局共享的名额** ——
+# ★ 第四十四轮：相册里「点缀」槽位（眼镜 / 鞋子）**整局共享的名额** ——
 #   用过一次就不再出现在后续照片里（用户口径「各自最多出现一次」）。
 #   每开一局在 `_roll_photos()` 里清空。
+#   ★ 第八十八轮：**发型退出这条规则** —— 用户口径「出现上半身时，发型要显示」，
+#     所以上半身的照片一律带发型，不再受「整局一次」的限制。
 var _photo_used_one_of: Dictionary = {}
+# ★ 第八十八轮：**这一批照片还剩几个「救不回来」的名额**。
+#   用户口径：「第一轮中相册中的照片，无法恢复的不能超过两个，
+#              之后新增的无法恢复的不超过一个」。
+#   每批在 `_append_photos()` 开头重置（开局那批 2 个，之后每批 1 个）。
+var _photo_dead_budget: int = 0
 var interrogator_trait_id: String = "" # 本局审讯官的性情（审问者的情报）
 var forced_items: Array = []           # 本轮强制装备的 item id（0 ~ 2 件）
 
@@ -486,7 +493,10 @@ func _build_clues() -> void:
 #    · 每件衣服取「暴露值与原貌那件**最接近**」的那件（并列随机）——
 #      ★ 第四十四轮：**排除原貌本身** —— 照片只暗示「档位大概在哪儿」，不直接给答案；
 #    · **发型例外**：直接就是原貌那件（用户口径「发型与原貌保持一致」）；
+#      ★ 第八十八轮：上半身的照片**一律**带发型（不再受「整局最多一次」限制）；
 #    · 数量：开局 3 张，之后**每过一轮追加 2 张**（累加，旧照片保留）。
+#    · ★ 第八十八轮：废片预算 —— 开局那批最多 2 张「擦满也看不清」，
+#      之后每批最多 1 张（见 `_append_photos()` / `PHOTO_DEAD_*`）。
 #
 #  ★ 照片**不参与解锁原貌** —— `IntelDesk` 开局就把所有槽位标成已还原
 #    （见 `_fill_revealed()`），玩家本来就能在准备室里按 👁 看到 A 的样子。
@@ -502,6 +512,10 @@ func _roll_photos() -> void:
 #   ★ 每张照片基于**当前**的原貌生成 —— 所以「按背景逐轮换原貌」时，
 #     新一轮追加的照片拍的就是新的样子；旧照片保留（累加）。
 func _append_photos(n: int) -> void:
+	# ★ 第八十八轮：这一批允许几张「救不回来」——
+	#   开局那批（相册本来是空的）= 2 张，之后每轮新增的那批 = 1 张。
+	_photo_dead_budget = ScenarioData.PHOTO_DEAD_START if photos.is_empty() \
+		else ScenarioData.PHOTO_DEAD_PER_LEVEL
 	for i in n:
 		photos.append(_make_photo())
 
@@ -529,6 +543,10 @@ func _make_photo() -> Dictionary:
 			continue
 		if OutfitData.is_manual_slot(slot):
 			continue
+		# ★ 第八十八轮：发型**单独处理** —— 上半身的照片一定带（见下面 cand 那段），
+		#   所以既不进「主体」也不占「点缀」的名额。
+		if slot == "hair":
+			continue
 		if ScenarioData.PHOTO_ONE_OF.has(slot):
 			# ★ 已经被用掉的名额不再出现在候选里 —— 这就是「各自最多一次」
 			if not _photo_used_one_of.has(slot):
@@ -544,6 +562,11 @@ func _make_photo() -> Dictionary:
 		var pick := str(one_of[_rng.randi() % one_of.size()])
 		cand.append(pick)
 		_photo_used_one_of[pick] = true        # ★ 名额用掉了
+	# ★★ 第八十八轮（用户口径）：「出现上半身时，发型要显示并且与原貌保持一致」。
+	#   上半身的照片**一律**带发型，而且照实显示原貌那件（不参与「暴露值相近」的挑选）。
+	#   ★ 这也意味着发型不再受「整局最多一次」的限制 —— 否则只有第一张上半身有头发。
+	if half == ScenarioData.PHOTO_HALF_UPPER:
+		cand.append("hair")
 	# 兜底：一件都没选中 → 补一件（优先主体，保证照片里是「能看出档位」的衣服）
 	if cand.is_empty():
 		if not mains.is_empty():
@@ -574,6 +597,18 @@ func _make_photo() -> Dictionary:
 
 	var start := 0.10 + _rng.randf() * 0.45          # 0.10 ~ 0.55
 	var wipes := 1 + _rng.randi() % 3                # 1 ~ 3 次
+	# ★★ 第八十八轮（用户口径）：「第一轮中相册中的照片，无法恢复的不能超过两个，
+	#   之后新增的无法恢复的不超过一个」。
+	#   「无法恢复」= 把反光全擦完（`max_wipes`）也到不了 `PHOTO_CLEAR_AT`。
+	#   ★ 只改**擦亮次数**，不重抽照片内容 —— 重抽会白白吃掉「点缀名额」，
+	#     也会多消耗随机数（同一颗种子抽到的东西会变）。
+	var final_c := minf(1.0, start + float(wipes) * ScenarioData.PHOTO_WIPE_STEP)
+	if final_c < ScenarioData.PHOTO_CLEAR_AT:
+		if _photo_dead_budget > 0:
+			_photo_dead_budget -= 1
+		else:
+			wipes = _photo_wipes_to_clear(start)
+			final_c = minf(1.0, start + float(wipes) * ScenarioData.PHOTO_WIPE_STEP)
 	var notes: Array = ScenarioData.PHOTO_NOTES
 	var note := str(notes[_rng.randi() % notes.size()])
 	var slots := []
@@ -595,8 +630,16 @@ func _make_photo() -> Dictionary:
 		"start_clarity": start,
 		"max_wipes": wipes,
 		# 擦满之后能到什么清晰度 —— 低于阈值就是一张废片
-		"final_clarity": minf(1.0, start + float(wipes) * ScenarioData.PHOTO_WIPE_STEP),
+		"final_clarity": final_c,
 	}
+
+# 「起始清晰度 = start 的这张照片，最少擦几次才够看清」——
+#   废片预算用完时用它把照片抬成「救得回来」。
+#   ★ 只调擦亮次数（上限 3 次）：0.10 + 3 × 0.25 = 0.85 ≥ 0.70，所以一定有解。
+func _photo_wipes_to_clear(start: float) -> int:
+	var step := maxf(0.0001, ScenarioData.PHOTO_WIPE_STEP)
+	var need := int(ceil((ScenarioData.PHOTO_CLEAR_AT - start) / step))
+	return clampi(maxi(1, need), 1, 3)
 
 # 这一槽位「照片里显示哪件」—— 取暴露值与原貌那件**最接近**的。
 #

@@ -565,6 +565,34 @@ OutfitData.MANUAL_SLOTS     # 只能手动装备：看得到、点得到，但�
   不能用 `tags` / `gate` 原文 —— 否则等价件互相判定被支配、双双被删 → 该组无解 →
   「一键达标」静默返回「什么都没改」。帕累托剪枝四项全同时**只能让一方赢**（按序号），绝不互删。
 
+### ★★ 盘问左栏四块（第 78 / 81 轮定稿 · 第 82 轮改布局）
+
+从上到下：
+
+| 控件 | 内容 | 样式 |
+|---|---|---|
+| `echo_label` | 上一句**回应**（玩家刚选的那句的复述） | 淡蓝 `#9ECCFA`、字号 15 |
+| `dialogue_label` | 题面 | 字号 15 / 白 |
+| `feedback_label` | 反馈区 —— **只放判定解释**，不放模板句 | 字号 12 / 灰 |
+| （手机按钮 + 选项） | | |
+
+没写回应 / 第一题 → `echo_label.visible = false`。
+
+- 回应**不能换题就清空**：`_load_question` 每次重新贴 `last_choice_text`；开新轮才清空。
+- 取法 `_choice_echo()`：写了 `echo` 原样用；没写 → manual 留空、auto 加「你：」。
+- 判定解释（口径不符 / 矛盾 / 带偏 / 盲区）用 `_append_feedback()` 写进反馈区。
+  模板反馈句已删（`ui.feedback` 24 → 11 条）。**盲区题的「选对 / 选错 + 备忘录」必须留**。
+- ★ `_set_dialogue(txt)` 显示题面 / `_set_dialogue_visible(false)` 收起 —— **点完选项就收起题面**；
+  收场台词必须走 `_set_dialogue` 才会重新显示。
+- ★★ **换题不要调 `_show_choice_echo()`** —— 它顺手清空反馈区，判定解释会只剩 1.8 秒。
+
+**★ 这三块必须放在「有界滚动区」里**（第 82 轮）：`Control(clip_contents)` +
+`ScrollContainer(横向 DISABLED / 纵向 AUTO)`。Label 换行后高度按行数长，
+`PanelContainer` 会把它当最小高度 → 撑高父容器 → 整块溢出 720 的屏。
+
+- ★ 普通 `Control.get_minimum_size()` **只认 `custom_minimum_size`** —— 这是「高度不传给父容器」的关键。
+- ★ 选项区用 `SHRINK_END`，别和文字区都 `EXPAND_FILL`。
+
 ## 七、数值曲线的展开（`MEMORY.md` 四章）
 
 ### 反差 = 全槽位求和

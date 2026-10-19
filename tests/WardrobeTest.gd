@@ -1302,6 +1302,15 @@ func _test_photos_v2() -> void:
 						bad.append("%s 选了 e%d，原貌 e%d（排除原貌后的最优差 %d，实际差 %d）" % [
 							s, se, te, best, absi(se - te)])
 
+			# ★★ 第八十八轮（用户口径）：「出现上半身时，发型要显示并且与原貌保持一致」
+			if half == ScenarioData.PHOTO_HALF_UPPER:
+				var has_hair := false
+				for e in items:
+					if str((e as Dictionary).get("slot", "")) == "hair":
+						has_hair = true
+				if not has_hair:
+					bad.append("上半身没有发型（第 %d 张）" % i)
+
 	_check("★ %d 个种子：每张照片都符合全部约束（问题 %d 条）" % [PHOTO_SEEDS, bad.size()],
 		bad.is_empty())
 	if not bad.is_empty():
@@ -1313,26 +1322,43 @@ func _test_photos_v2() -> void:
 	_check("照片里出现过的槽位只有那五类：" + str(all_slots.keys()),
 		all_slots.size() <= ScenarioData.PHOTO_SLOTS.size())
 
-	# ---- ★ 第四十四轮：点缀（眼镜 / 发型 / 鞋子）整局各自最多一次 ----
+	# ---- ★ 第四十四轮：点缀（眼镜 / 鞋子）整局各自最多一次 ----
 	#   用户口径：「鞋子、发型、眼镜这三样在**所有照片里各自最多出现一次**」，
 	#   理由「因为这三样东西类型太少」—— 款式少，重复出现容易被玩家对比出答案。
+	#   ★ 第八十八轮：**发型退出这条规则**（用户口径「出现上半身时，发型要显示」），
+	#     所以这里只数眼镜 / 鞋子；发型改由下面那组断言守。
 	#   ★ 要跑**完整一局**（逐轮 +2 张）才能验到「累加之后也不重复」。
 	var one_of_over := 0
 	var one_of_runs := 0
-	var one_of_seen := {"glasses": 0, "hair": 0, "shoes": 0}
+	var one_of_seen := {"glasses": 0, "shoes": 0}
 	var main_repeat := 0
+	var upper_n := 0
+	var upper_no_hair := 0
+	var upper_hair_wrong := 0
 	for k in 24:
 		ProfileData.reset_all()
 		RunData.start_new_run(880000 + k * 7919)
 		for li in range(1, OutfitData.level_count()):
 			RunData.advance_level()
 		one_of_runs += 1
-		var seen := {"glasses": 0, "hair": 0, "shoes": 0}
+		var seen := {"glasses": 0, "shoes": 0}
 		for i in RunData.photos.size():
-			for e in (RunData.photos[i] as Dictionary).get("items", []):
+			var ph: Dictionary = RunData.photos[i]
+			var items: Array = ph.get("items", [])
+			var hair_shown := ""
+			for e in items:
 				var s := str((e as Dictionary).get("slot", ""))
 				if seen.has(s):
 					seen[s] += 1
+				if s == "hair":
+					hair_shown = str((e as Dictionary).get("shown", ""))
+			# ★ 上半身一定带发型，且照实显示原貌那件
+			if str(ph.get("half", "")) == ScenarioData.PHOTO_HALF_UPPER:
+				upper_n += 1
+				if hair_shown == "":
+					upper_no_hair += 1
+				elif hair_shown != RunData.true_item("hair"):
+					upper_hair_wrong += 1
 		for s in seen.keys():
 			one_of_seen[s] = maxi(int(one_of_seen[s]), int(seen[s]))
 			if int(seen[s]) > 1:
@@ -1345,13 +1371,66 @@ func _test_photos_v2() -> void:
 					top_n += 1
 		if top_n > 1:
 			main_repeat += 1
-	_check("★ %d 局完整跑完：眼镜 / 发型 / 鞋子 各自最多出现一次（超标 %d 次）" % [
+	_check("★ %d 局完整跑完：眼镜 / 鞋子 各自最多出现一次（超标 %d 次）" % [
 		one_of_runs, one_of_over], one_of_over == 0)
-	_check("★ 三样的单局出现次数上界都 ≤ 1：" + str(one_of_seen),
-		int(one_of_seen["glasses"]) <= 1 and int(one_of_seen["hair"]) <= 1
-		and int(one_of_seen["shoes"]) <= 1)
+	_check("★ 眼镜 / 鞋子的单局出现次数上界都 ≤ 1：" + str(one_of_seen),
+		int(one_of_seen["glasses"]) <= 1 and int(one_of_seen["shoes"]) <= 1)
+	# ★ 第八十八轮（用户口径）：上半身必须显示发型，且与原貌一致
+	_check("★ %d 张上半身**全部**带发型（缺 %d 张）" % [upper_n, upper_no_hair],
+		upper_n > 0 and upper_no_hair == 0)
+	_check("★ 上半身的发型与原貌一致（不一致 %d 张）" % upper_hair_wrong,
+		upper_hair_wrong == 0)
+	_check("★ 发型可以出现在多张照片里（不再受「整局一次」限制，%d 张上半身）" % upper_n,
+		upper_n > 1)
 	_check("★ 主体（上衣）**不受**这条限制、可以在多张照片里出现（%d 局如此）" % main_repeat,
 		main_repeat > 0)
+
+	# ---- ★★ 第八十八轮：废片预算 ----
+	#   用户口径：「第一轮中相册中的照片，无法恢复的不能超过两个，
+	#              之后新增的无法恢复的不超过一个」。
+	#   「无法恢复」= 擦满 `max_wipes` 也到不了 `PHOTO_CLEAR_AT`。
+	#
+	#   ★ 守卫：预算用完时靠「多擦几次」把照片抬成救得回来，所以
+	#     「起始最低 0.10 + 最多 3 次 × 0.25 = 0.85」必须够到看清阈值 ——
+	#     否则这个兜底会静默失效（照片照样是废片，预算却以为已经补上了）。
+	#     以后有人调小 `PHOTO_WIPE_STEP` / 调高 `PHOTO_CLEAR_AT`，这条会立刻红。
+	_check("★ 兜底有解：0.10 + 3 × %.2f = %.2f ≥ 看清阈值 %.2f" % [
+		ScenarioData.PHOTO_WIPE_STEP,
+		0.10 + 3.0 * ScenarioData.PHOTO_WIPE_STEP,
+		ScenarioData.PHOTO_CLEAR_AT],
+		0.10 + 3.0 * ScenarioData.PHOTO_WIPE_STEP >= ScenarioData.PHOTO_CLEAR_AT)
+	print("\n-- 相册废片预算（开局 ≤ %d，之后每批 ≤ %d）--" % [
+		ScenarioData.PHOTO_DEAD_START, ScenarioData.PHOTO_DEAD_PER_LEVEL])
+	var dead_bad := []
+	var first_dead_max := 0
+	var batch_dead_max := 0
+	var dead_total := 0
+	for k in PHOTO_SEEDS:
+		ProfileData.reset_all()
+		RunData.start_new_run(420000 + k * 7013)
+		var d0 := _dead_count(0, ScenarioData.PHOTO_COUNT_START)
+		first_dead_max = maxi(first_dead_max, d0)
+		dead_total += d0
+		if d0 > ScenarioData.PHOTO_DEAD_START:
+			dead_bad.append("开局 %d 张废片（种子 %d）" % [d0, 420000 + k * 7013])
+		var prev: int = ScenarioData.PHOTO_COUNT_START
+		for li in range(1, OutfitData.level_count()):
+			RunData.advance_level()
+			var dn := _dead_count(prev, RunData.photos.size())
+			batch_dead_max = maxi(batch_dead_max, dn)
+			dead_total += dn
+			if dn > ScenarioData.PHOTO_DEAD_PER_LEVEL:
+				dead_bad.append("第 %d 轮新增 %d 张废片" % [li + 1, dn])
+			prev = RunData.photos.size()
+	_check("★ %d 个种子逐批核对：废片数没超预算（问题 %d 条）" % [PHOTO_SEEDS, dead_bad.size()],
+		dead_bad.is_empty())
+	if not dead_bad.is_empty():
+		for m in dead_bad.slice(0, 6):
+			print("      · " + m)
+	_check("★ 预算没把废片清零（开局最多 %d 张 / 每批最多 %d 张，抽样共 %d 张）" % [
+		first_dead_max, batch_dead_max, dead_total], dead_total > 0)
+	_check("★ 开局的废片数确实出现过 > 1（否则「≤2」这条没被真正考到，实际最多 %d）" % first_dead_max,
+		first_dead_max > 1)
 
 	# ---- 每轮 +2 张（累加、旧照片保留）----
 	ProfileData.reset_all()
@@ -1421,6 +1500,15 @@ func _test_photos_v2() -> void:
 	_check("★ 发型照旧与原貌一致（%d / %d）" % [hair_true, hair_total],
 		hair_total > 0 and hair_true == hair_total)
 	ProfileData.reset_all()
+
+# ★ 第八十八轮：数 [from, to) 这几张里「救不回来」的（擦满也到不了看清阈值）
+func _dead_count(from: int, to: int) -> int:
+	var n := 0
+	for i in range(maxi(0, from), mini(to, RunData.photos.size())):
+		var p: Dictionary = RunData.photos[i]
+		if float(p.get("final_clarity", 0.0)) < ScenarioData.PHOTO_CLEAR_AT:
+			n += 1
+	return n
 
 # ------------------------------------------------------------
 #  原貌候选池（多轮制的基础）

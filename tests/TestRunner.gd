@@ -846,9 +846,9 @@ func _test_option_echo() -> void:
 
 	# ★ 第六十九轮：manual 背景题面按原文；auto 背景保留说话人名牌
 	_check("manual 背景：题面按原文",
-		interro._dialogue_text(true, "苦主", "题面") == "题面")
+		interro._dialogue_text(true, "男主", "题面") == "题面")
 	_check("auto 背景：题面加说话人名牌",
-		interro._dialogue_text(false, "苦主", "题面") == "苦主：题面")
+		interro._dialogue_text(false, "男主", "题面") == "男主：题面")
 
 	# 「⚠」是读过情报后给按钮加的雷区标记 —— 屏幕上是原句，不能把标记念出来。
 	var warn_opts: Array = interro._letterize([{"_label": "⚠ 测试危险项"}])

@@ -1530,7 +1530,7 @@ func _load_question(index: int) -> void:
 	# ★ 第二十九轮：新格式的题目没有 `kind`，改看 `speaker` 字段（见 _q_is_companion）。
 	var is_comp := _q_is_companion(q)
 	# ★ 第六十九轮（用户口径）：「自行编辑的题目不要在前面自动加说话人名牌」。
-	#   manual 背景：题面按原文，不拼「苦主 / 黄毛」。
+	#   manual 背景：题面按原文，不拼「男主 / 男二」。
 	#   auto 背景：保留原来的说话人名牌，不动出厂观感。
 	var manual := RunData.questions_are_manual()
 	var speaker := _ut("interrogation.speaker_companion", "同行者") if is_comp \

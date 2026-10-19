@@ -1706,21 +1706,57 @@ func _test_phone() -> void:
 			leak += 1
 	_check("★ 照片里没有把原貌那件直接摆出来（发型除外）", leak == 0)
 
-	# ---- 备忘录：第一条记的就是审问者 ----
+	# ---- 备忘录：第九十轮起 = 「这一轮自己写的一段手记」----
+	# ★★ 自备数据：把两轮各注入一段独特正文再验，**跑完还原** ——
+	#   不依赖「用户这一套配没配」（机制测试的铁律）。
+	var memo_lv_a: Dictionary = OutfitData.level_at(0)
+	var memo_lv_b: Dictionary = OutfitData.level_at(1) if RunData.level_count() >= 2 else memo_lv_a
+	var saved := [
+		{"lv":memo_lv_a, "had":memo_lv_a.has("memo"), "val":memo_lv_a.get("memo", null),
+			"hadh":memo_lv_a.has("memo_hint"), "hint":memo_lv_a.get("memo_hint", null)},
+		{"lv":memo_lv_b, "had":memo_lv_b.has("memo"), "val":memo_lv_b.get("memo", null),
+			"hadh":memo_lv_b.has("memo_hint"), "hint":memo_lv_b.get("memo_hint", null)},
+	]
+	memo_lv_a["memo"] = [{"body": "★甲轮正文：我问的是{审问者}，性情{性情}。"}]
+	memo_lv_a["memo_hint"] = true
+	if RunData.level_count() >= 2:
+		memo_lv_b["memo"] = [{"body": "★乙轮正文：这一轮没有那个人。"}]
+		memo_lv_b["memo_hint"] = false
+
 	phone._switch_app("memo")
 	_check("备忘录页能建出来", phone.screen_box.get_child_count() > 0)
-	var mtxt := _collect_text(phone.screen_box)
-	_check("备忘录第一条写的是审问者", mtxt.contains("【第一条】"))
-	_check("备忘录写出审问者名字", mtxt.contains(DossierData.interrogator_name()))
-	_check("备忘录写出他的性情", mtxt.contains(str(DossierData.interrogator_trait().get("name", ""))))
-	_check("备忘录写出他的喜好", mtxt.contains("喜好"))
-	_check("备忘录写出他的忌讳", mtxt.contains("忌讳"))
-	_check("备忘录还记了本局主人公", mtxt.contains("【第二条】"))
-	_check("★ 备忘录不再有「这一轮」那一条（内容整局不变）",
-		not mtxt.contains("【第三条】"))
-	_check("备忘录篇幅很短（就是临出门记的几行）", mtxt.length() < 900)
-	_check("★ 备忘录内容不随轮次变（没有「第 N / 4 关」这类字）",
-		not mtxt.contains("强制装备：") and not mtxt.contains("反差值要求"))
+	var m0 := _collect_text(phone.screen_box)
+	_check("备忘录把这一轮写的第一段摆了出来", m0.contains("★甲轮正文"))
+	_check("正文里的花括号占位符已经换成本局的实际值",
+		not m0.contains("{审问者}") and not m0.contains("{性情}")
+		and m0.contains(DossierData.interrogator_name()))
+	_check("自动生成的两条（【第一条】性情 / 【第二条】本局的人）已经下线",
+		not m0.contains("【第一条】") and not m0.contains("【第二条】"))
+	if RunData.level_count() >= 2:
+		# 每轮一份**完整**清单 → 换一轮，内容跟着整份换掉
+		var keep_li := RunData.level_index
+		RunData.level_index = 1
+		phone.rebuild()
+		var m1 := _collect_text(phone.screen_box)
+		RunData.level_index = keep_li
+		phone.rebuild()
+		_check("换一轮 → 备忘录整份换掉（不是累积）",
+			m1.contains("★乙轮正文") and not m1.contains("★甲轮正文"))
+		_check("第二轮没勾「该怎么答」→ 那一行不出现", not m1.contains("该怎么答"))
+	_check("勾了「该怎么答」→ 甲轮正文后面接上那一行", m0.contains("该怎么答"))
+
+	# 还原注入的两轮
+	for s in saved:
+		var lv: Dictionary = s["lv"]
+		if bool(s["had"]):
+			lv["memo"] = s["val"]
+		else:
+			lv.erase("memo")
+		if bool(s["hadh"]):
+			lv["memo_hint"] = s["hint"]
+		else:
+			lv.erase("memo_hint")
+	phone.rebuild()
 
 	# ---- 审问官的短信（★ 第五十五轮：和另外两组完全同构）----
 	#   原来是「掏手机越界收到的事件短信」，现在是**每套背景写死的普通线程**，
@@ -1791,7 +1827,7 @@ func _test_interrogator_intel() -> void:
 	print("\n-- 审问者的情报：B 类题该不该撒谎，看他是什么人 --")
 	main._start_new_run(20261011)
 
-	# 情报台删掉之后，审问者的性情只活在手机备忘录第一条里 ——
+	# 情报台删掉之后，审问者的性情只能从「他的脾性」反馈里看到（备忘录已改为玩家自写）——
 	# 这里不再有页签可查，下面改为直接翻手机。
 	_check("审问者的性情收进了手机（情报台已删）", intel.phone != null)
 
@@ -1854,24 +1890,61 @@ func _test_interrogator_intel() -> void:
 	_check("存在「撒谎最便宜」的性情（迟钝）", has_cheap_bluff)
 	_check("存在「回避最便宜」的性情（心软）", has_cheap_evade)
 
-	# ---- 审问者的一切都在手机备忘录第一条里 ----
-	# 情报台删掉之后，这一条就是「他是谁 + 什么性情 + 该怎么答」的唯一出处，
-	# 也是盲区题正解的来源（见 _test_blind_question）。
+	# ---- 手机备忘录（第九十轮起 = 每轮自己写的一段手记）----
+	# ★★ 机制类测试别依赖「当前数据配没配」：先看这一局自己有没有写。
+	#   没写就**临时注入**一段带占位符的正文 + 打开「该怎么答」，跑完还原。
+	#   ★ 注入点必须是 `OutfitData.level_at()` 返回的那份（RunData.levels() 每次都
+	#     重新 duplicate，改 `RunData.current_level()` 只是改了个临时副本）。
+	var memo_lv: Dictionary = OutfitData.level_at(RunData.level_index)
+	var had_memo: bool = memo_lv.has("memo")
+	var keep_memo: Variant = memo_lv.get("memo", null)
+	var had_hint: bool = memo_lv.has("memo_hint")
+	var keep_hint: Variant = memo_lv.get("memo_hint", null)
+	var injected := false
+	if DossierData.level_memo_bodies().is_empty():
+		memo_lv["memo"] = [
+			{"body": "这一局来问我的叫{审问者}（{审问者性别}），脾气是{性情}。"},
+			{"body": "我是{真身}，装的是{马甲}。同行的是{同行者}（{同行者关系}）。"},
+		]
+		memo_lv["memo_hint"] = true
+		injected = true
+
 	_check("开局没读过审问者情报", gd.interrogator_intel_read == false)
 
 	var phone: PhoneDesk = intel.phone
 	phone._switch_app("memo")
 	var ttxt := _collect_text(phone.screen_box)
-	_check("备忘录第一条写出审讯官是谁", ttxt.contains(DossierData.interrogator_name()))
-	_check("备忘录第一条写出性情名", ttxt.contains(str(tr.get("name", ""))))
-	_check("备忘录第一条写出该性情的忌讳", ttxt.contains(DossierData.interrogator_hate()))
-	_check("备忘录第一条写出「该怎么答」", ttxt.contains("该怎么答"))
+	var bodies: Array = DossierData.level_memo_bodies()
+	_check("备忘录这一轮有正文（样本里确实查到，不是空转）", bodies.size() >= 1)
+	if bodies.size() >= 1:
+		_check("备忘录把这一轮写的第一段摆了出来", ttxt.contains(str(bodies[0])))
+	_check("正文里的 {审问者} 换成了本局的实际称呼",
+		not ttxt.contains("{审问者}") and ttxt.contains(DossierData.interrogator_name()))
+	_check("正文里的 {性情} 换成了这一局的性情名",
+		not ttxt.contains("{性情}") and ttxt.contains(str(tr.get("name", ""))))
+	# ★ 「该怎么答」是**可选**的：勾了才有，不勾就没有 —— 两个方向都要验
+	if DossierData.level_memo_hint():
+		_check("勾了「该怎么答」→ 正文后面接上那一行",
+			ttxt.contains("该怎么答") and ttxt.contains(DossierData.interrogator_hint()))
+	else:
+		_check("没勾「该怎么答」→ 备忘录里没有那一行", not ttxt.contains("该怎么答"))
 
 	# ---- 翻开备忘录 = 记下了他的脾性（情报台删掉之后的唯一入口）----
 	_check("翻开备忘录 → 记为已读", gd.interrogator_intel_read == true)
 	gd.interrogator_intel_read = false
 	phone._switch_app("messages")
 	_check("翻别的 App 不算读过", gd.interrogator_intel_read == false)
+
+	# 还原注入的那一段（别把局内数据留脏）
+	if injected:
+		if had_memo:
+			memo_lv["memo"] = keep_memo
+		else:
+			memo_lv.erase("memo")
+		if had_hint:
+			memo_lv["memo_hint"] = keep_hint
+		else:
+			memo_lv.erase("memo_hint")
 
 	# ---- 盘问：B 类题的撒谎 / 回避代价跟着性情走 ----
 	_prepare_and_enter()
@@ -1956,7 +2029,7 @@ func _test_interrogator_intel() -> void:
 	interro._load_question(b_idx)      # 选项上的 ⚠ 跟着当前性情刷新
 
 	# ---- 顶栏那行「对审问者的说明」已经删掉 ----
-	#  性情从此只活在手机备忘录第一条里（上面已验）。这里守两件事：
+	#  性情从此只在盲区题的反馈里给出（上面已验）。这里守两件事：
 	#  ① 界面上再没有那个刷新方法；② 选项上的 ⚠ 仍跟着性情走。
 	_check("盘问界面不再有「审问者的说明」那一行",
 		not interro.has_method("_refresh_interrogator_intel"))
@@ -1990,17 +2063,17 @@ func _test_interrogator_intel() -> void:
 	gd.interrogator_intel_read = false
 
 # ------------------------------------------------------------
-#  盲区题：完全没给信息的题 —— 靠备忘录第一条推断怎么答
+#  盲区题：完全没给信息的题 —— 靠他的脾性推断怎么答
 #
 #  用户口径：「『完全没给信息的题』还是备忘录给的审问者信息推断出怎么答」
 #
 #  所以这题**没有内容上的正确答案**：档案里没有、短信里也没提。
-#  唯一的安全解是「按他的脾性选」—— 撒谎还是回避，看备忘录第一条。
+#  唯一的安全解是「按他的脾性选」—— 撒谎还是回避，看他的性情。
 #  这里把五种性情逐一验一遍，确认「正解」确实由性情决定，
-#  而且选完无论对错，反馈里都会把备忘录第一条摆出来。
+#  而且选完无论对错，反馈里都会把「他的脾性 + 该怎么答」摆出来。
 # ------------------------------------------------------------
 func _test_blind_question() -> void:
-	print("\n-- 盲区题：没给信息时，靠备忘录第一条推断怎么答 --")
+	print("\n-- 盲区题：没给信息时，靠他的脾性推断怎么答 --")
 	main._start_new_run(20261011)
 	_prepare_and_enter()
 	interro.set_process(false)
@@ -2068,7 +2141,7 @@ func _test_blind_question() -> void:
 		interro._select_option(right)
 		if not interro.feedback_label.text.contains("选对了"):
 			wrong_right += 1
-		if not interro.feedback_label.text.contains("备忘录第一条"):
+		if not interro.feedback_label.text.contains("【他的脾性】"):
 			missing_memo += 1
 
 		# 再验选错的那一个
@@ -2081,13 +2154,13 @@ func _test_blind_question() -> void:
 		interro._select_option(3 - right)
 		if not interro.feedback_label.text.contains("选错了"):
 			wrong_wrong += 1
-		if not interro.feedback_label.text.contains("备忘录第一条"):
+		if not interro.feedback_label.text.contains("【他的脾性】"):
 			missing_memo += 1
 
 	_check("撒谎 / 回避的代价都来自该性情的 bluff_delta / evade_delta", wrong_delta == 0)
 	_check("选对时反馈明说「选对了」", wrong_right == 0)
 	_check("选错时反馈明说「选错了」", wrong_wrong == 0)
-	_check("无论对错，反馈都把备忘录第一条摆出来", missing_memo == 0)
+	_check("无论对错，反馈都把「他的脾性 + 忌讳」摆出来", missing_memo == 0)
 	RunData.interrogator_trait_id = keep_tid
 	interro._load_question(bi)
 
@@ -2105,16 +2178,46 @@ func _test_blind_question() -> void:
 	_check("硬答的反馈点明「编得越细越糟」",
 		interro.feedback_label.text.contains("编"))
 
-	# ---- 备忘录第一条真的写着「该怎么答」----
-	# 这就是盲区题的正解来源：没有它，玩家只能三选一瞎猜。
-	var phone: PhoneDesk = intel.phone
-	phone._switch_app("memo")
-	var mtxt := _collect_text(phone.screen_box)
-	_check("备忘录第一条写出「该怎么答」", mtxt.contains("该怎么答"))
-	_check("备忘录第一条写出该性情的对策",
-		mtxt.contains(DossierData.interrogator_hint()))
-	_check("备忘录第一条写出该性情的忌讳",
-		mtxt.contains(DossierData.interrogator_hate()))
+	# ---- 盲区题的反馈必须给出「他的脾性 + 忌讳 + 该怎么答」----
+	# 这就是玩家推断正解的唯一依据：没有它，只能三选一瞎猜。
+	# ★ 第九十轮：这两行的出处不再是「备忘录第一条」（备忘录已改成玩家逐轮自己写的
+	#   手记、可以是空的），而是直接读性情表 —— 所以反馈不依赖玩家数据配没配。
+	# ★★ 这里**直接调 `_answer_blind()`** 而不是点选项：本段考的是「反馈里有什么」，
+	#   不该被「当前数据里那道盲区题长什么样」绑住（数据一改，整段就红，见铁律）。
+	interro._ended = false
+	interro._running = true
+	interro.is_qte_active = false
+	interro.qte_container.hide()
+	gd.suspicion_level = 20.0
+	interro._answer_blind({"kind":"bluff", "delta":0.0})
+	var fb: String = str(interro.feedback_label.text)
+	_check("盲区反馈摆出他的脾性名", fb.contains(DossierData.interrogator_trait_name()))
+	_check("盲区反馈摆出他的忌讳", fb.contains(DossierData.interrogator_hate()))
+	_check("盲区反馈摆出该性情的「该怎么答」", fb.contains(DossierData.interrogator_hint()))
+
+	# ---- 对照：这一轮备忘录一个字都没写，反馈照样给依据 ----
+	#   （有这条对照，才能证明「反馈读的是性情表，不是备忘录」）
+	var lv_now: Dictionary = OutfitData.level_at(RunData.level_index)
+	var had_m := lv_now.has("memo")
+	var keep_m: Variant = lv_now.get("memo", null)
+	lv_now["memo"] = []
+	# ★ 先记下「此刻备忘录确实是空的」—— 否则这条对照可能在空转
+	var memo_was_empty := DossierData.level_memo_bodies().is_empty()
+	interro._ended = false
+	interro._running = true
+	interro.is_qte_active = false
+	interro.qte_container.hide()
+	gd.suspicion_level = 20.0
+	interro._answer_blind({"kind":"bluff", "delta":0.0})
+	var fb2: String = str(interro.feedback_label.text)
+	if had_m:
+		lv_now["memo"] = keep_m
+	else:
+		lv_now.erase("memo")
+	_check("备忘录留空时反馈仍然给出脾性与忌讳（反馈不依赖备忘录）",
+		memo_was_empty
+		and fb2.contains(DossierData.interrogator_trait_name())
+		and fb2.contains(DossierData.interrogator_hate()))
 
 	# ---- 收尾：把盘问恢复成「干净可用」的状态 ----
 	# 上面的「硬答」会启动表情 QTE，而本函数开头 set_process(false)，

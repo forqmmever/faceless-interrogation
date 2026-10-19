@@ -686,3 +686,60 @@ OutfitData.MANUAL_SLOTS     # 只能手动装备：看得到、点得到，但�
 
 `splash_layer` 盖在标题**之上** 3 秒，文案 `ui.common.splash_text`。
 测试与截图调 `_skip_splash()`，别真等 3 秒（否则两套测试各多 3 秒、截图那段也会被拖）。
+
+## 九、手机备忘录（第 90 轮）的展开
+
+### 数据
+
+```json
+"levels": [
+  { "name": "第一轮 · …",
+    "memo": [ { "body": "第一段（可含 {占位符}）" }, { "body": "第二段" } ],
+    "memo_hint": true }
+]
+```
+
+- **每轮一份完整清单**，不是累积：第 2 轮要保留第 1 轮的内容，作者得自己再写一遍。
+- `memo` 允许直接写字符串（`["一段话"]`）—— `level_memo_bodies()` 两种都认，手改 JSON 更省事。
+- `memo_hint` 缺省 `false`：只有勾了才在末尾接一行 `该怎么答：<trait_hint>`。
+
+### 占位符（`DossierData.MEMO_PH_KEYS`，10 个）
+
+`{真身}` `{我性别}` `{真身份}` `{马甲}` `{审问者}` `{审问者性别}` `{性情}`
+`{同行者}` `{同行者关系}` `{同行者性别}`
+
+★ 替换是 `String.replace("{键}", 值)` 逐个做，**键带右花括号** → `{审问者}` 不会吃掉
+`{审问者性别}`，替换顺序无关。★ 编辑器里的对照表（`MEMO_PH_KEYS`，JS 常量）与这一份**必须一致**；
+冒烟里有断言守「10 项且都是 `{xx}` 形式」。
+
+### 渲染（`PhoneDesk._build_memo()`）
+
+```
+标题 → 顶部提示 → 一张卡片（`_card()`）里一个 Label
+Label.text = "\n\n".join(paras)   # 段间空一行
+Label.autowrap_mode = WORD_SMART / font_size = 11
+```
+
+- `paras` = `level_memo_bodies()`（已 `memo_fill` + 剔空串）；`memo_hint` 为真时 append 那一行。
+- `paras.is_empty()` → **直接 return，连卡片都不建**（不留空白框）。
+- `screen_box` 在 `ScrollContainer` 里（滚动条宽度压到 0），写多少段都能滚，不会撑破手机。
+
+### 三条容易踩的坑
+
+1. **`RunData.current_level()` 是临时副本**：`levels()` 每次 `duplicate` 重建。
+   测试里注入 `memo` 必须改 `OutfitData.level_at(i)` 返回的那份（`LEVELS` 里的同一对象）。
+2. **别把 `memo` 当成「累积」写**：它与 `sms` / `notes` 都不一样 —— notes 是回放、sms 是解锁累加，
+   memo 是**每轮重写一遍**。
+3. **`blind_tail` 的抬头**：第 90 轮起是 `【他的脾性】%s · 忌讳：%s`，
+   `Interrogation._answer_blind()` 里 `_ut()` 的默认值与 `story.json` 的 `ui.feedback.blind_tail`
+   必须同句 —— 只改一处就会出现「测试里对、游戏里旧」。
+
+### 编辑器
+
+- `memoFields()` 返回两条：`memo`（objlist，字段 `body` area 4 行）+ `memo_hint`（bool）。
+- **`levelsFields()` 与背景页 ⑦ 都用 `...memoFields()`** —— 第六十轮 `intro` 只加进一份、
+  第七十二轮才发现背景页里改不了的教训，这次直接共用。
+- 校验：`memo` 非数组 / 某段既非 `{body}` 也非字符串 → **错误**；
+  勾了 `memo_hint` 却一段正文都没有 → **提醒**（「备忘录里只会剩那一行」）。
+- 出厂 `scene_1` / `scene_2` × 2 轮 = 4 段，都带占位符、都勾了 `memo_hint`；
+  草稿背景（`border_post` / `bg_new_1`）不配 → 那一轮备忘录就是空的，合法。

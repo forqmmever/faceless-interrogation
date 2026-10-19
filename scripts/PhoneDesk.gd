@@ -740,106 +740,40 @@ func _make_photo_subviewport(i: int) -> SubViewport:
 # ============================================================
 #  App 3 · 备忘录（手记）
 #
-#  **第一条记的就是审问者**：这一局来问你的那个人是什么脾性、喜欢听什么、
-#  最忌讳什么。篇幅刻意很短 —— 就是临出门前匆匆记下的几行字。
-#  第二条是这一局的主人公速记。
+#  ★★ 第九十轮（用户口径）：「备忘录改成每条都是有正文，第一条可以额外设置绑定
+#    盲题的部分也可以不选，也自动填写到正文，最后效果是点进备忘录的每一套会是一段文字」。
 #
-#  ★ 第十三轮：**备忘录的内容整局不变**。
-#    原来还有「【第三条】这一轮」（轮次名 / 本轮强制装备 / 反差要求）——
-#    它每过一轮就变，掏出手机看到的字跟着跳，反而干扰「记着什么」这件事。
-#    现在只留审问者与主人公两条 —— 一局之内一个字都不变，翻到第几次都一样。
+#  所以这一页现在**只有玩家自己写的东西**：
+#    · `bg.levels[i].memo` 里按顺序写若干段正文（可空）；
+#    · 第一段可以勾「绑定盲题提示」（`memo_hint`）→ 末尾自动接一行「该怎么答：…」，
+#      那一行是盲区题唯一的依据（档案里没有、短信里也没提时只能靠它）；
+#    · 人物信息（真身 / 马甲 / 审问者 / 同行者）不再自动拼 —— 要写就用占位符，
+#      见 `DossierData.MEMO_PH_KEYS`。
+#
+#  ★ 第十三轮定的「整局不变」在第九十轮被推翻：现在**按轮走**，切到哪轮看哪轮的。
+#  ★ 渲染上按用户口径合成**一段连续文字**（段与段之间空一行），不再一条一张卡片。
 # ============================================================
 func _build_memo() -> void:
 	title_label.text = _t("memo.title", "备忘录")
-	_hint(_t("memo.hint",
-		"手记。第一条是他 —— 这一局来问你的那个人。\n（盘问中途也能掏出来看，但别掏太多次。）"),
+	_hint(_t("memo.hint", "手记。（盘问中途也能掏出来看，但别掏太多次。）"),
 		Color(0.55, 0.60, 0.68))
 
-	_build_memo_interrogator()
-	_build_memo_cast()
-
-# ---- 第一条 · 审问者本人 ----
-func _build_memo_interrogator() -> void:
-	var who := DossierData.interrogator_name()
-	var t := DossierData.interrogator_trait()
-
-	var card := _card()
-	var head := Label.new()
-	head.text = _tf("memo.head_interrogator", [who, DossierData.interrogator_gender()],
-		"【第一条】%s（%s）")
-	head.add_theme_font_size_override("font_size", 12)
-	head.add_theme_color_override("font_color", Color(0.96, 0.74, 0.46))
-	card.add_child(head)
-
-	var tn := Label.new()
-	tn.text = _tf("memo.trait_line", [str(t.get("name", "")), str(t.get("tag", ""))],
-		"性情 · %s（%s）")
-	tn.add_theme_font_size_override("font_size", 11)
-	tn.add_theme_color_override("font_color", Color(0.62, 0.78, 0.96))
-	card.add_child(tn)
-
-	var memo := Label.new()
-	memo.text = DossierData.interrogator_memo()
-	memo.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	memo.add_theme_font_size_override("font_size", 11)
-	memo.add_theme_color_override("font_color", Color(0.84, 0.86, 0.90))
-	card.add_child(memo)
-
-	var like := Label.new()
-	like.text = _tf("memo.like_line", [DossierData.interrogator_like()], "喜好：%s")
-	like.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	like.add_theme_font_size_override("font_size", 11)
-	like.add_theme_color_override("font_color", Color(0.52, 0.84, 0.64))
-	card.add_child(like)
-
-	var hate := Label.new()
-	hate.text = _tf("memo.hate_line", [DossierData.interrogator_hate()], "忌讳：%s")
-	hate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hate.add_theme_font_size_override("font_size", 11)
-	hate.add_theme_color_override("font_color", Color(0.94, 0.56, 0.50))
-	card.add_child(hate)
-
-	# 「该怎么答」—— 盲区题唯一的依据。
-	# 盘问里他忽然问起一件档案里没有、短信里也没提的事时，
-	# 你能用的就只有这一行。所以它不是装饰，是答案。
-	var howto := Label.new()
-	howto.text = _tf("memo.howto_line", [DossierData.interrogator_hint()], "该怎么答：%s")
-	howto.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	howto.add_theme_font_size_override("font_size", 11)
-	howto.add_theme_color_override("font_color", Color(0.72, 0.80, 0.94))
-	card.add_child(howto)
-
-# ---- 第二条 · 本局主人公速记 ----
-func _build_memo_cast() -> void:
-	var c := DossierData.cast()
+	var paras: Array = DossierData.level_memo_bodies()
+	if DossierData.level_memo_hint():
+		var howto := _tf("memo.howto_line", [DossierData.interrogator_hint()], "该怎么答：%s")
+		if howto.strip_edges() != "":
+			paras.append(howto)
+	if paras.is_empty():
+		return
 
 	var card := _card()
-	var head := Label.new()
-	head.text = _t("memo.head_cast", "【第二条】这一局的人")
-	head.add_theme_font_size_override("font_size", 12)
-	head.add_theme_color_override("font_color", Color(0.96, 0.74, 0.46))
-	card.add_child(head)
-
 	var body := Label.new()
-	body.text = _tf("memo.cast_body", [
-		c["true_name"], c["player_gender"], c["true_role"],
-		c["cover_role"],
-		c["interrogator"], c["interrogator_gender"], c["trait"],
-		c["companion"], c["companion_relation"], c["companion_gender"],
-		c["true_name"]],
-		("我（A 真身）：%s（%s）—— %s\n"
-		+ "我装的（B 马甲）：%s\n"
-		+ "问我的（审问者）：%s（%s·%s）—— 他认识 A\n"
-		+ "同行者（C）：%s（%s·%s）—— 知道我是 A，不站我这边\n"
-		+ "（「%s」这个名字，只有在被他认出来的时候才会被念出来。）"))
+	body.text = "\n\n".join(paras)
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_theme_font_size_override("font_size", 11)
 	body.add_theme_color_override("font_color", Color(0.84, 0.86, 0.90))
 	card.add_child(body)
 
-# ---- 第三条 · 本轮要点 ----
-#  ★ 第十三轮删掉了这一条 —— 备忘录的内容现在整局不变。
-#    留着函数体没意义，直接删干净（原来渲染的是轮次名 / 反差要求 / 强制装备）。
 
 # ============================================================
 #  App 4 · 备注（逐轮问答记录）

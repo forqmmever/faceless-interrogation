@@ -96,6 +96,8 @@ mainJs += `
   // ★ 第五十五轮：手机并入本编辑器 + 题目来源开关
   phoneSections, smsSection, smsThreadFields, SMS_GROUPS, PHONE_PAGES, PHONE_SEGS,
   PH_EXPECT, PH_MEANING, phone, phoneSec, bgQuestionsSource, countPh, questionTitle,
+  // ★ 第九十轮：每轮备忘录正文（两份字段表共用 memoFields）
+  memoFields, memoParaTitle, MEMO_PH_KEYS,
   optionFields, optionTitle, MANUAL_HIDDEN_META, MANUAL_HIDDEN_COMPANION,
   // ★ 第七十六轮：编辑器改成「直接编辑 data/story.json」—— 保存通道要能验
   get canSave(){ return canSave; }, set canSave(v){ canSave = v; },
@@ -329,6 +331,25 @@ try {
   });
   ok(badIntro.length === 0, "出厂背景每一轮都有自己的背景说明"
     + (badIntro.length ? " —— " + badIntro.join("；") : "（4 套 × 2 轮）"));
+
+  // ★★ 第九十轮（用户口径）：「备忘录改成每条都是有正文，第一条可以额外设置绑定盲题
+  //   的部分也可以不选，也自动填写到正文，最后效果是点进备忘录的每一套会是一段文字」。
+  //   正文按轮次存在 bg.levels[i].memo —— 所以**两份字段表都必须有**（第七十二轮教训）。
+  console.log("\n-- 7c3. 每轮的备忘录正文（第九十轮）--");
+  ok(P.levelsFields().some(f => f.k === "memo"), "全局轮次表里也有 memo 字段（与背景页同步）");
+  if (lvSec) {
+    const lvf2 = lvSec.fields.map(f => f.k);
+    ok(lvf2.indexOf("memo") >= 0, "⑦ 几轮里能改「这一轮的备忘录正文」（实际：" + lvf2.join(",") + "）");
+    ok(lvf2.indexOf("memo_hint") >= 0, "⑦ 几轮里有「末尾自动接该怎么答」开关");
+    const mf = lvSec.fields.find(f => f.k === "memo");
+    ok(!!mf && mf.t === "objlist" && (mf.fields || []).some(x => x.k === "body"),
+      "备忘录是一个可增删的清单，每条带 body 正文");
+    const hf = lvSec.fields.find(f => f.k === "memo_hint");
+    ok(!!hf && hf.t === "bool", "「末尾自动接该怎么答」是勾选框");
+  }
+  ok(P.MEMO_PH_KEYS.length === 10
+    && P.MEMO_PH_KEYS.every(k => /^\{[^{}]+\}$/.test(k)),
+    "备忘录占位符对照有 10 项且都是 {xx} 形式（实际 " + P.MEMO_PH_KEYS.length + " 项）");
   ["interrogator", "companion", "friends"].forEach(g => {
     const sec = P.smsSection(g, P.story.backgrounds[0])[0];
     ok(!!sec, "手机页里有「" + g + "」的短信一节");
@@ -608,8 +629,16 @@ try {
     const msgKeys = P.PHONE_SEGS.messages.map(f => f.k);
     ["btn_open", "interrogator_row", "interrogator_tail"].forEach(k =>
       ok(msgKeys.indexOf(k) < 0, "「" + k + "」已从消息页下线（审问官短信不再特殊）"));
-    ok(P.countPh(P.story.phone.memo.cast_body) === P.PH_EXPECT["memo.cast_body"],
-      "备忘录第二条正文的占位符个数 = " + P.PH_EXPECT["memo.cast_body"]);
+    // ★★ 第九十轮：原来验的是「备忘录第二条正文的 11 个占位符」——
+    //   那两条自动内容已经下线，正文改由玩家逐轮自己写（bg.levels[i].memo）。
+    //   这里改成验：手机页只剩标题 / 顶部提示 / 该怎么答那一行三栏，
+    //   且「该怎么答」的占位符个数与 PH_EXPECT 一致。
+    const memoKeys = P.PHONE_SEGS.memo.map(f => f.k);
+    ["head_interrogator", "trait_line", "like_line", "hate_line", "head_cast", "cast_body"]
+      .forEach(k => ok(memoKeys.indexOf(k) < 0, "「memo." + k + "」已从手机备忘录页下线"));
+    ok(memoKeys.length === 3, "手机备忘录页只剩 3 栏（标题 / 提示 / 该怎么答），实际 " + memoKeys.length);
+    ok(P.countPh(P.story.phone.memo.howto_line) === P.PH_EXPECT["memo.howto_line"],
+      "「该怎么答」那一行的占位符个数 = " + P.PH_EXPECT["memo.howto_line"]);
     // 三组短信都得是「每套背景一份」
     P.story.backgrounds.forEach(bg => {
       P.SMS_GROUPS.forEach(gr => {
@@ -678,8 +707,10 @@ try {
     const t = a.level; a.level = b.level; b.level = t;
   }, "没对齐");
   negCase("缺 true_name（A 真身名）", s => { delete s.backgrounds[0].true_name; }, "没有 true_name");
-  negCase("性情缺备忘录性格", s => { delete s.traits[0].memo; }, "没有备忘录「性格」");
-  negCase("性情缺备忘录喜好", s => { delete s.traits[1].like; }, "没有备忘录「喜好」");
+  // ★ 第九十轮：备忘录不再自动显示性情的性格 / 喜好，这两条提醒的措辞跟着变了
+  //   （「忌讳」仍然被「说漏嘴」的反馈用到，所以那一条保留原样）。
+  negCase("性情缺性格印象", s => { delete s.traits[0].memo; }, "没有性格印象");
+  negCase("性情缺喜好", s => { delete s.traits[1].like; }, "没有喜好");
   // ★ 第二十九轮改写：盲区题 = 不挂卡也不挂事实的题。
   //   注意「盲区题指向了档案卡」这条**已经删掉了** —— 在新设计里挂卡就
   //   自然变成档案题，那不是错误，正是「不再分类」的意思。
@@ -717,8 +748,10 @@ try {
   negCase("结局文案丢了占位符", s => { s.backgrounds[0].endings.recognized_line = "怎么是你。"; }, "丢了占位符");
   negCase("整块 endings 缺失（只提醒，不算错）", s => { delete s.backgrounds[0].endings; }, "endings 不是对象");
   // ---- 第五十五轮：手机并入 / 三组同构短信 ----
+  // ★ 第九十轮：`memo.cast_body` 已下线，这条「少写一个占位符」的用例
+  //   改用仍在的 `memo.howto_line`（它恰好也是唯一带占位符的备忘录文案）。
   negCase("手机文案少写一个占位符",
-    s => { s.phone.memo.cast_body = s.phone.memo.cast_body.replace("%s", "我"); }, "个占位符");
+    s => { s.phone.memo.howto_line = "该怎么答（没有占位符）"; }, "个占位符");
   // ★ 第七十四轮：删掉**某一页**不再报错（那一页会退回出厂文案，用户明确不要这类提醒）；
   //   整块 phone 缺失仍然算错（那是结构问题，不是「某栏空着」）。
   negCase("整块 phone 段缺失",

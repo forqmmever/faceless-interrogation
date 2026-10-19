@@ -4297,14 +4297,13 @@ func _test_phone_text() -> void:
 		and ScenarioData.phone_text("notes.a_line") != "")
 
 	# 占位符个数必须和 PhoneDesk 里 _tf 传的参数个数一致
+	# ★★ 第九十轮：`memo.head_interrogator` / `trait_line` / `like_line` / `hate_line` /
+	#   `cast_body` 五条随「两条自动备忘录」一起下线（正文改由玩家逐轮自己写），
+	#   所以这份表里也只剩 `memo.howto_line`。
 	var expect := {
 		"messages.hint": 2, "messages.thread_title": 1,
 		"messages.interrogator_row": 2,
-		"memo.head_interrogator": 2, "memo.trait_line": 2,
-		"memo.like_line": 1, "memo.hate_line": 1,
-		"memo.cast_body": 11,
-		# ★ 第十三轮删掉了备忘录的「第三条 · 这一轮」——内容整局不变，
-		#   所以 memo.level_body / forced_item / forced_none / forced_sep 都不再使用。
+		"memo.howto_line": 1,
 		"notes.head_round": 1, "notes.q_line": 1, "notes.a_line": 1,
 		# ★ 第四十三轮：一张照片可能同时拍到好几件 —— `cleared` 只带 1 个占位符
 		#   （拼好的列表），每件的格式与分隔符另开两条（piece 2 个 / list_sep 0 个）。

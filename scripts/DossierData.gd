@@ -255,7 +255,72 @@ func interrogator_gender() -> String:
 func trait_delta(kind: String) -> float:
 	return ScenarioData.trait_delta(interrogator_trait(), kind)
 
-# ---------------- 手机备忘录里那三条 ----------------
+# ---------------- 手机备忘录（第九十轮：改成每轮自己写的一段文字）----------------
+#  ★★ 用户口径：「备忘录改成每条都是有正文，第一条可以额外设置绑定盲题的部分
+#    也可以不选，也自动填写到正文，最后效果是点进备忘录的每一套会是一段文字」。
+#
+#  数据在 `bg.levels[i]`：
+#    "memo": [ {"body": "第一段"}, {"body": "第二段"} ]
+#    "memo_hint": true      ← 勾上 = 第一段正文后面自动接一行「该怎么答：…」
+#
+#  ★ 原来那两条自动内容（性情 / 这一局的人）**整块下线** —— 想写人物信息就用
+#    `memo_fill()` 的占位符自己写，见下面 MEMO_PH_KEYS。
+#  ★ 缺省（两轮都没配）→ 空数组 + 不绑盲题 = 备忘录这一页是空的（不报错）。
+
+# 本轮自己写的正文（已做占位符替换，空段已剔掉）
+func level_memo_bodies() -> Array:
+	var out := []
+	var lv: Dictionary = RunData.current_level()
+	var raw: Variant = lv.get("memo", null)
+	if typeof(raw) != TYPE_ARRAY:
+		return out
+	for it in (raw as Array):
+		var t := ""
+		if typeof(it) == TYPE_DICTIONARY:
+			t = str((it as Dictionary).get("body", ""))
+		elif typeof(it) == TYPE_STRING:
+			# 兼容「直接写一串字符串」的写法（编辑器存的是对象，但手改 JSON 更省事）
+			t = str(it)
+		t = memo_fill(t)
+		if t.strip_edges() != "":
+			out.append(t)
+	return out
+
+# 第一条要不要自动接「该怎么答」
+func level_memo_hint() -> bool:
+	var lv: Dictionary = RunData.current_level()
+	return bool(lv.get("memo_hint", false))
+
+# 占位符对照表 —— 编辑器里的提示与这里必须一致
+const MEMO_PH_KEYS := ["{真身}", "{我性别}", "{真身份}", "{马甲}",
+	"{审问者}", "{审问者性别}", "{性情}", "{同行者}", "{同行者关系}", "{同行者性别}"]
+
+# 把正文里的 {真身} / {审问者} 这类占位符换成这一局的实际值。
+# ★ 顺序无关：每个 key 都带右花括号，{审问者} 不会吃掉 {审问者性别}。
+func memo_fill(text: String) -> String:
+	if text == "":
+		return ""
+	var c: Dictionary = cast()
+	var out := text
+	out = out.replace("{真身}", str(c.get("true_name", "")))
+	out = out.replace("{我性别}", str(c.get("player_gender", "")))
+	out = out.replace("{真身份}", str(c.get("true_role", "")))
+	out = out.replace("{马甲}", str(c.get("cover_role", "")))
+	out = out.replace("{审问者性别}", str(c.get("interrogator_gender", "")))
+	out = out.replace("{审问者}", str(c.get("interrogator", "")))
+	out = out.replace("{性情}", str(c.get("trait", "")))
+	out = out.replace("{同行者关系}", str(c.get("companion_relation", "")))
+	out = out.replace("{同行者性别}", str(c.get("companion_gender", "")))
+	out = out.replace("{同行者}", str(c.get("companion", "")))
+	return out
+
+# 「该怎么答」那一行（只有绑定了盲题提示才用）
+func interrogator_hint() -> String:
+	return ScenarioData.trait_hint(interrogator_trait())
+
+# ★ 第九十轮：备忘录不再自动显示「性格 / 喜好 / 忌讳」这三行，但**访问器留着** ——
+#   盘问反馈（Interrogation 说漏嘴那句）还在用 `interrogator_hate()`，
+#   测试也拿它当「这一局的性情确实被读到了」的探针。
 func interrogator_memo() -> String:
 	return ScenarioData.trait_memo(interrogator_trait())
 
@@ -264,10 +329,6 @@ func interrogator_like() -> String:
 
 func interrogator_hate() -> String:
 	return ScenarioData.trait_hate(interrogator_trait())
-
-# 「该怎么答」—— 盲区题唯一的依据，显示在备忘录第一条的最后一行
-func interrogator_hint() -> String:
-	return ScenarioData.trait_hint(interrogator_trait())
 
 func trait_note(kind: String) -> String:
 	return ScenarioData.trait_note(interrogator_trait(), kind)

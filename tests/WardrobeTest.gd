@@ -139,7 +139,7 @@ func _test_slots() -> void:
 	for it in OutfitData.ITEMS:
 		if str(it["slot"]) == "tattoo":
 			tattoo_ids.append(str(it["id"]))
-	_check("纹身槽现有 11 件", tattoo_ids.size() == 11)
+	_check("纹身槽现有 7 件", tattoo_ids.size() == 7)
 	_check("含大腿心形纹身", tattoo_ids.has("tattoo_heart"))
 	_check("含大腿爪印", tattoo_ids.has("tattoo_paw"))
 	# ★ 第五十一轮：这一条原来是「胸口 / 脸颊两枚爪印都在」。
@@ -147,21 +147,22 @@ func _test_slots() -> void:
 	#   留着后半句是为了**防它被误加回来**：整件删除是本轮的明确口径。
 	_check("★ 爪印只剩胸口那枚（脸颊的已按口径删除）",
 		tattoo_ids.has("tattoo_paw_chest") and not tattoo_ids.has("tattoo_paw_face"))
-	_check("★ 四件刻字纹身都在（bitch / free-use / slave / cum-rag）",
-		tattoo_ids.has("tattoo_bitch") and tattoo_ids.has("tattoo_freeuse")
-		and tattoo_ids.has("tattoo_slave") and tattoo_ids.has("tattoo_cumrag"))
+	# ★ 第八十九轮（用户口径）：「去掉刻字」—— 第三十六轮那 4 件刻字纹身整组删除。
+	#   同上一段一样，留着反向断言是为了**防它们被误加回来**。
+	_check("★ 四件刻字纹身已按口径删除（bitch / free-use / slave / cum-rag）",
+		not tattoo_ids.has("tattoo_bitch") and not tattoo_ids.has("tattoo_freeuse")
+		and not tattoo_ids.has("tattoo_slave") and not tattoo_ids.has("tattoo_cumrag"))
 	_check("★ 每件纹身都写了目击描述（第三十五 / 三十六轮补齐）",
 		_tattoo_desc_ok())
 
 	# ★ 第三十九轮：从 AU `clothes/genitals/` 引入的平坦贞操笼
 	#   （用户口径「引入平坦贞操笼放在下内衣，暴露度取最高」）
-	_check("含平坦贞操笼（第三十九轮引入）",
-		not OutfitData.get_item("panties_flatcage").is_empty())
-	_check("平坦贞操笼挂在下内衣槽",
-		str(OutfitData.get_item("panties_flatcage").get("slot", "")) == "panties")
-	_check("平坦贞操笼的暴露值 = 下内衣这一栏的最高档",
-		int(OutfitData.get_item("panties_flatcage").get("exposure", -1))
-		== _max_exposure_of("panties"))
+	# ★ 第八十九轮（用户口径）：「贞操笼去掉」—— 整件删除。
+	#   ★ 注意连带影响：`panties` 的 9 档从 3 件回到 2 件，但**上限仍是 9**
+	#     （细绳丁字裤 / 系带开衩比基尼内裤都还是 9），曲线不用重标。
+	_check("★ 平坦贞操笼已按口径删除", OutfitData.get_item("panties_flatcage").is_empty())
+	_check("★ 下内衣仍然有 9 档的件（删了贞操笼也没把上限压下来）",
+		_max_exposure_of("panties") == 9)
 
 # ------------------------------------------------------------
 #  内衣内裤的曝光门控（第二十二轮）
@@ -347,9 +348,9 @@ func _test_tattoo_multi() -> void:
 
 	# ---- ③ 按件门控：大腿看下装 / 胸口看上装 / 面颊不受门控 ----
 	_check("大腿纹身的开门人是 bottom / dress",
-		OutfitData.outer_slots_of_item(OutfitData.get_item("tattoo_bitch")) == ["bottom", "dress"])
+		OutfitData.outer_slots_of_item(OutfitData.get_item("tattoo_thigh")) == ["bottom", "dress"])
 	_check("胸口纹身的开门人是 top / dress",
-		OutfitData.outer_slots_of_item(OutfitData.get_item("tattoo_slave")) == ["top", "dress"])
+		OutfitData.outer_slots_of_item(OutfitData.get_item("tattoo_paw_chest")) == ["top", "dress"])
 	_check("面颊纹身不受门控（没有衣服盖得住脸）",
 		not OutfitData.is_gated_item(OutfitData.get_item("tattoo_cheek")))
 	_check("内衣仍然走槽位级门控（按件表里没有它）",
@@ -359,17 +360,17 @@ func _test_tattoo_multi() -> void:
 	var m := WardrobeModel.new(OutfitData)
 	m.acceptance = 40
 	_check("开局纹身槽是「（无）」", m.ids_at("tattoo") == ["tattoo_none"])
-	m.equip(OutfitData.get_item("tattoo_bitch"))
-	_check("装第 1 件后槽里是它", m.ids_at("tattoo") == ["tattoo_bitch"])
-	m.equip(OutfitData.get_item("tattoo_slave"))
-	_check("装第 2 件后两件并存", m.ids_at("tattoo") == ["tattoo_bitch", "tattoo_slave"])
+	m.equip(OutfitData.get_item("tattoo_thigh"))
+	_check("装第 1 件后槽里是它", m.ids_at("tattoo") == ["tattoo_thigh"])
+	m.equip(OutfitData.get_item("tattoo_paw_chest"))
+	_check("装第 2 件后两件并存", m.ids_at("tattoo") == ["tattoo_thigh", "tattoo_paw_chest"])
 	_check("实体件计数为 2", m.solid_ids("tattoo").size() == 2)
-	m.equip(OutfitData.get_item("tattoo_cumrag"))
+	m.equip(OutfitData.get_item("tattoo_heart"))
 	_check("★ 装第 3 件时顶掉最早那件（上限 2）",
-		m.ids_at("tattoo") == ["tattoo_slave", "tattoo_cumrag"])
+		m.ids_at("tattoo") == ["tattoo_paw_chest", "tattoo_heart"])
 	_check("★ 再点已装备的那件 → 脱下",
-		m.toggle(OutfitData.get_item("tattoo_slave"))
-		and m.ids_at("tattoo") == ["tattoo_cumrag"])
+		m.toggle(OutfitData.get_item("tattoo_paw_chest"))
+		and m.ids_at("tattoo") == ["tattoo_heart"])
 	_check("装「（无）」= 全部卸掉",
 		m.equip(OutfitData.get_item("tattoo_none"))
 		and m.ids_at("tattoo") == ["tattoo_none"])
@@ -380,25 +381,25 @@ func _test_tattoo_multi() -> void:
 	# 大腿纹身 × 下装：下装穿着 = 盖住 → 0；下装「（不穿）」= 露着 → 2
 	g.equipped["bottom"] = "bottom_longskirt"        # 不透明长裙
 	g.equipped["top"] = "top_highneck"
-	g.equipped["tattoo"] = ["tattoo_bitch"]
-	_check("大腿纹身被长裙盖住 → 不计入", not g.item_counts("tattoo", "tattoo_bitch"))
+	g.equipped["tattoo"] = ["tattoo_thigh"]
+	_check("大腿纹身被长裙盖住 → 不计入", not g.item_counts("tattoo", "tattoo_thigh"))
 	_check("被盖住时「这一槽位不计入」", not g.counts_toward_totals("tattoo"))
 	_check("被盖住时这一槽位算 0 点", g.effective_stat("tattoo", "exposure") == 0)
-	_check("门控原因是 hidden", g.item_visibility("tattoo", "tattoo_bitch") == "hidden")
+	_check("门控原因是 hidden", g.item_visibility("tattoo", "tattoo_thigh") == "hidden")
 	g.equipped["bottom"] = "bottom_none"             # 直接外穿
 	_check("下装换成「（不穿）」→ 大腿纹身露出来",
-		g.item_counts("tattoo", "tattoo_bitch"))
+		g.item_counts("tattoo", "tattoo_thigh"))
 	_check("露出来之后这一槽位正好算 2 点", g.effective_stat("tattoo", "exposure") == 2)
 	g.equipped["bottom"] = "bottom_pleat"            # see = sheer
-	_check("半透下装也能透出纹身", g.item_counts("tattoo", "tattoo_bitch"))
-	_check("门控原因是 sheer", g.item_visibility("tattoo", "tattoo_bitch") == "sheer")
+	_check("半透下装也能透出纹身", g.item_counts("tattoo", "tattoo_thigh"))
+	_check("门控原因是 sheer", g.item_visibility("tattoo", "tattoo_thigh") == "sheer")
 
 	# 胸口纹身：下装换开不影响它，上装才是它的开门人
-	g.equipped["tattoo"] = ["tattoo_slave"]
-	_check("上装还穿着 → 胸口纹身仍被盖住", not g.item_counts("tattoo", "tattoo_slave"))
+	g.equipped["tattoo"] = ["tattoo_paw_chest"]
+	_check("上装还穿着 → 胸口纹身仍被盖住", not g.item_counts("tattoo", "tattoo_paw_chest"))
 	g.equipped["top"] = "top_none"
 	_check("上装换成「（不穿）」→ 胸口纹身露出来",
-		g.item_counts("tattoo", "tattoo_slave"))
+		g.item_counts("tattoo", "tattoo_paw_chest"))
 
 	# 面颊纹身不受门控
 	g.equipped["tattoo"] = ["tattoo_cheek"]
@@ -412,7 +413,7 @@ func _test_tattoo_multi() -> void:
 	two.acceptance = 40
 	two.equipped["top"] = "top_none"
 	two.equipped["bottom"] = "bottom_none"
-	two.equipped["tattoo"] = ["tattoo_bitch", "tattoo_slave"]
+	two.equipped["tattoo"] = ["tattoo_thigh", "tattoo_paw_chest"]
 	var two_bare := WardrobeModel.new(OutfitData)
 	two_bare.acceptance = 40
 	two_bare.equipped["top"] = "top_none"

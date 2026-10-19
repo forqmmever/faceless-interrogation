@@ -137,16 +137,6 @@
    "layers": [],
    "z": 105.0
   },
-  "bottom_chain": {
-   "icon": "icons/bottom_chain.png",
-   "layers": [
-    {
-     "file": "clothes/bottom_chain.png",
-     "name": "bottom_chain",
-     "z": 90.0
-    }
-   ]
-  },
   "bottom_cut": {
    "icon": "icons/bottom_cut.png",
    "layers": [
@@ -403,16 +393,6 @@
     {
      "file": "clothes/bra_plain.png",
      "name": "bra_plain",
-     "z": 70.0
-    }
-   ]
-  },
-  "bra_tape": {
-   "icon": "icons/bra_tape.png",
-   "layers": [
-    {
-     "file": "clothes/bra_tape.png",
-     "name": "bra_tape",
      "z": 70.0
     }
    ]
@@ -954,26 +934,6 @@
     }
    ]
   },
-  "panties_crotchless": {
-   "icon": "icons/panties_crotchless.png",
-   "layers": [
-    {
-     "file": "clothes/panties_crotchless.png",
-     "name": "panties_crotchless",
-     "z": 67.0
-    }
-   ]
-  },
-  "panties_flatcage": {
-   "icon": "icons/panties_flatcage.png",
-   "layers": [
-    {
-     "file": "clothes/panties_flatcage.png",
-     "name": "panties_flatcage",
-     "z": 67.0
-    }
-   ]
-  },
   "panties_gstring": {
    "icon": "icons/panties_gstring.png",
    "layers": [
@@ -1304,42 +1264,12 @@
     }
    ]
   },
-  "tattoo_bitch": {
-   "icon": "icons/tattoo_bitch.png",
-   "layers": [
-    {
-     "file": "clothes/tattoo_bitch.png",
-     "name": "tattoo_bitch",
-     "z": 36.0
-    }
-   ]
-  },
   "tattoo_cheek": {
    "icon": "icons/tattoo_cheek.png",
    "layers": [
     {
      "file": "clothes/tattoo_cheek.png",
      "name": "tattoo_cheek",
-     "z": 36.0
-    }
-   ]
-  },
-  "tattoo_cumrag": {
-   "icon": "icons/tattoo_cumrag.png",
-   "layers": [
-    {
-     "file": "clothes/tattoo_cumrag.png",
-     "name": "tattoo_cumrag",
-     "z": 36.0
-    }
-   ]
-  },
-  "tattoo_freeuse": {
-   "icon": "icons/tattoo_freeuse.png",
-   "layers": [
-    {
-     "file": "clothes/tattoo_freeuse.png",
-     "name": "tattoo_freeuse",
      "z": 36.0
     }
    ]
@@ -1389,16 +1319,6 @@
     }
    ]
   },
-  "tattoo_slave": {
-   "icon": "icons/tattoo_slave.png",
-   "layers": [
-    {
-     "file": "clothes/tattoo_slave.png",
-     "name": "tattoo_slave",
-     "z": 36.0
-    }
-   ]
-  },
   "tattoo_thigh": {
    "icon": "icons/tattoo_thigh.png",
    "layers": [
@@ -1440,16 +1360,6 @@
     {
      "file": "clothes/top_bustier.png",
      "name": "top_bustier",
-     "z": 95.0
-    }
-   ]
-  },
-  "top_chain": {
-   "icon": "icons/top_chain.png",
-   "layers": [
-    {
-     "file": "clothes/top_chain.png",
-     "name": "top_chain",
      "z": 95.0
     }
    ]

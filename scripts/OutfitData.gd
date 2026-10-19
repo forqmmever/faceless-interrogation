@@ -538,21 +538,17 @@ const ITEMS_BASE := [
 	#   用户还点了「小腿」，但那条**做不了** —— AU 的 bodywriting 里没有小腿这个位置，
 	#   而且实测小腿那一段两条腿各只有 8~11 px 宽（鞋子从 y≈161 起就盖住了），
 	#   塞不下一枚看得清的爪印。于是那一轮补了胸口与脸颊两件。
-	#   gate 照惯例：胸口看上衣与成装（同 tattoo_slave）；脸颊没有衣服盖得住，不给 gate。
+	#   gate 照惯例：胸口看上衣与成装（同胸口纹身那一系）；脸颊没有衣服盖得住，不给 gate。
 	#
 	# ★ 第五十一轮：用户口径「脸颊爪印去掉」—— 脸颊那件**整件删除**
 	#   （`tattoo_paw_face`：本条定义 + `dol_map` 的两条映射 + 烘焙产物一起清掉）。
 	#   爪印这一系还剩两件：大腿 `tattoo_paw` / 胸口 `tattoo_paw_chest`。
 	{"id": "tattoo_paw_chest", "name": "胸口爪印", "slot": "tattoo", "exposure": 2, "acceptance_req": 8, "contrast": 5, "covers": [], "tags": [], "gate": ["top", "dress"]},
-	# ★ 第三十六轮新增 4 件「刻字」纹身 —— 取自 AU `bodywriting/text/` 下的四组字，
-	#   按用户口径**分散到四个位置**（左大腿 / 右大腿 / 胸口 / 下腹），
-	#   免得两件刻字叠在同一处、贴图互相盖住。
-	#   `text/` 只有 5 个位置（forehead / 左·右 thigh / breasts / pubic），
-	#   正好够这四件各占一处。
-	{"id": "tattoo_bitch", "name": "左大腿刻字「bitch」", "slot": "tattoo", "exposure": 2, "acceptance_req": 9, "contrast": 7, "covers": [], "tags": [], "gate": ["bottom", "dress"]},
-	{"id": "tattoo_freeuse", "name": "右大腿刻字「free-use」", "slot": "tattoo", "exposure": 2, "acceptance_req": 9, "contrast": 7, "covers": [], "tags": [], "gate": ["bottom", "dress"]},
-	{"id": "tattoo_slave", "name": "胸口刻字「slave」", "slot": "tattoo", "exposure": 2, "acceptance_req": 9, "contrast": 7, "covers": [], "tags": [], "gate": ["top", "dress"]},
-	{"id": "tattoo_cumrag", "name": "下腹刻字「cum-rag」", "slot": "tattoo", "exposure": 2, "acceptance_req": 10, "contrast": 8, "covers": [], "tags": [], "gate": ["bottom", "dress"]},
+	# ★ 第八十九轮（用户口径）：「去掉刻字」—— 第三十六轮加的那 4 件**刻字纹身整组删除**：
+	#   `tattoo_bitch`（左大腿「bitch」）/ `tattoo_freeuse`（右大腿「free-use」）/
+	#   `tattoo_slave`（胸口「slave」）/ `tattoo_cumrag`（下腹「cum-rag」）。
+	#   本条定义 + `dol_map.py` 的映射 + 烘焙产物一起清（`prune_stale()` 自动收拾）。
+	#   这一栏现在剩 6 件：颈侧暗纹 / 面颊刺青 / 大腿藤蔓 / 大腿心形 / 大腿爪印 / 胸口爪印。
 
 	# ================= 颈饰 =================
 	# ★ 第二十六轮按用户口径「增加几款项圈」补了 5 件（spiked / ringed / lace /
@@ -645,7 +641,7 @@ const ITEMS_BASE := [
 	{"id": "top_tube", "name": "无肩带抹胸", "slot": "top", "exposure": 4, "acceptance_req": 5, "contrast": 4, "covers": [], "tags": []},
 	{"id": "top_swim", "name": "泳衣式上衣", "slot": "top", "exposure": 4, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
 	{"id": "top_leathercrop", "name": "皮质短上衣", "slot": "top", "exposure": 5, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
-	{"id": "top_chain", "name": "锁链挂脖上衣", "slot": "top", "exposure": 7, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": [], "see": "cutout"},
+	# ★ 第八十九轮（用户口径）：「去掉锁链挂脖上衣」—— `top_chain`（暴露 7）整件删除。
 	{"id": "top_graphiccrop", "name": "网眼印花短上衣", "slot": "top", "exposure": 8, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": [], "see": "sheer"},
 	# ★ 9 档两件：一件浴巾、一条床单 —— 都是「临时裹一下」，`see: sheer` 让内衣照算。
 	{"id": "top_towel", "name": "只围一条浴巾", "slot": "top", "exposure": 9, "acceptance_req": 10, "contrast": 6, "covers": [], "tags": [], "see": "sheer"},
@@ -681,7 +677,8 @@ const ITEMS_BASE := [
 	#   这正是用户那句「透明连体泳裤去掉」的由来：它不是被删，是被并进整装了。
 	{"id": "bra_bikini", "name": "系带比基尼上衣", "slot": "bra", "exposure": 4, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
 	{"id": "bra_latex", "name": "乳胶连体上衣", "slot": "bra", "exposure": 8, "acceptance_req": 9, "contrast": 7, "covers": [], "tags": []},
-	{"id": "bra_tape", "name": "胶带束胸", "slot": "bra", "exposure": 9, "acceptance_req": 10, "contrast": 8, "covers": [], "tags": []},
+	# ★ 第八十九轮（用户口径）：「去掉胶带束胸」—— `bra_tape`（暴露 9，原本是这一栏唯一 9 档）整件删除。
+	#   ★ 影响：`bra` 的暴露上限 9 → **8**（最高只剩 `bra_latex`）。
 
 	# ================= 手套 =================
 	{"id": "gloves_none", "name": "（不戴）", "slot": "gloves", "exposure": 0, "acceptance_req": 0, "contrast": 0, "covers": [], "tags": []},
@@ -802,7 +799,7 @@ const ITEMS_BASE := [
 	{"id": "bottom_pencil", "name": "包臀铅笔裙", "slot": "bottom", "exposure": 3, "acceptance_req": 4, "contrast": 4, "covers": [], "tags": []},
 	{"id": "bottom_shortshort", "name": "牛仔超短热裤", "slot": "bottom", "exposure": 4, "acceptance_req": 4, "contrast": 4, "covers": [], "tags": []},
 	{"id": "bottom_leathershort", "name": "皮质超短裤", "slot": "bottom", "exposure": 5, "acceptance_req": 6, "contrast": 6, "covers": [], "tags": []},
-	{"id": "bottom_chain", "name": "锁链短裙", "slot": "bottom", "exposure": 7, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": [], "see": "cutout"},
+	# ★ 第八十九轮（用户口径）：「去掉锁链短裙」—— `bottom_chain`（暴露 7）整件删除。
 	{"id": "bottom_sarong", "name": "一片式裹裙", "slot": "bottom", "exposure": 8, "acceptance_req": 8, "contrast": 6, "covers": [], "tags": [], "see": "cutout"},
 
 	# ================= 成装（整件式）★ 第二十六轮新增的槽位 =================
@@ -885,7 +882,7 @@ const ITEMS_BASE := [
 	{"id": "panties_thong", "name": "黑色丁字裤", "slot": "panties", "exposure": 5, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
 	{"id": "panties_lace", "name": "黑色蕾丝内裤", "slot": "panties", "exposure": 5, "acceptance_req": 6, "contrast": 5, "covers": [], "tags": []},
 	{"id": "panties_micro", "name": "微型比基尼内裤", "slot": "panties", "exposure": 6, "acceptance_req": 7, "contrast": 6, "covers": [], "tags": []},
-	{"id": "panties_crotchless", "name": "开裆蕾丝内裤", "slot": "panties", "exposure": 7, "acceptance_req": 8, "contrast": 7, "covers": [], "tags": []},
+	# ★ 第八十九轮（用户口径）：「去掉开档蕾丝内裤」—— `panties_crotchless`（暴露 7）整件删除。
 	{"id": "panties_none", "name": "（不穿）", "slot": "panties", "exposure": 8, "acceptance_req": 8, "contrast": 7, "covers": [], "tags": []},
 
 	# ================= ★★ 第三十七轮：下内衣从 5 件补到 11 件 =================
@@ -900,6 +897,8 @@ const ITEMS_BASE := [
 	#   ★ 后者不是「删了不要」，是**并进整装**了：它和 `bra_seethrough` 本来就是
 	#     AU 那件 `seethroughswimsuit` 的上下两半，现在合成 `dress_seethrough`。
 	#   ★ 于是这一栏的 9 档从 5 件变 3 件（细绳丁字裤 / 系带开衩比基尼 / 平坦贞操笼）。
+	#   ★★ 第八十九轮：用户口径「贞操笼去掉」→ `panties_flatcage` 也删了，
+	#      这一栏的 9 档只剩 **2 件**（细绳丁字裤 / 系带开衩比基尼）。
 	{"id": "panties_bikini", "name": "系带比基尼内裤", "slot": "panties", "exposure": 4, "acceptance_req": 5, "contrast": 5, "covers": [], "tags": []},
 	{"id": "panties_shibari", "name": "绳缚式内裤", "slot": "panties", "exposure": 8, "acceptance_req": 9, "contrast": 8, "covers": [], "tags": []},
 	{"id": "panties_gstring", "name": "细绳丁字裤", "slot": "panties", "exposure": 9, "acceptance_req": 10, "contrast": 8, "covers": [], "tags": []},
@@ -909,9 +908,8 @@ const ITEMS_BASE := [
 	# 用户口径：「引入平坦贞操笼放在下内衣，暴露度取最高」。
 	# 贴图取 AU 自己的 `genitals/flatchastitycage/full.png` —— 金属笼，正面几乎全开，
 	# 所以它的暴露值就该是这一栏最高的那一档。
-	# ★ 「取最高」的实现依据：`panties` 现有 9 档的几件里（细绳丁字裤 / 系带开衩比基尼 /
-	#   平坦贞操笼，第 51 轮删掉遮羞布与透明连体泳裤后剩这三件；空件是 8）—— 这一件也取 9。
-	{"id": "panties_flatcage", "name": "平坦贞操笼", "slot": "panties", "exposure": 9, "acceptance_req": 10, "contrast": 8, "covers": [], "tags": []},
+	# ★ 第八十九轮（用户口径）：「去掉贞操笼」—— `panties_flatcage` 整件删除。
+	#   9 档因此从 3 件回到 2 件（细绳丁字裤 / 系带开衩比基尼内裤）。
 
 	# ================= 袜类（第三十七轮起含「吊袜带」）=================
 	# ★ 第三十七轮合并：原 `garterbelt` 一栏的两件（蕾丝 / 黑色皮革吊袜带）挪到这里，

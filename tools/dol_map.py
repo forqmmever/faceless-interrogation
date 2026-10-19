@@ -280,16 +280,10 @@ ITEMS = {
                       "scale": 3.2, "align": ("bbox_center", 49.0, 66.0)}],
     "tattoo_paw":   [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
                       "scale": 2.6, "align": ("bbox_center", 51.0, 62.0)}],
-    # ★ 第三十六轮补的四件刻字（bitch / free-use / slave / cum-rag）。
-    #   可读的整字图案同样取自 AU 的 bodywriting，见下方 AU_OVERRIDE。
-    "tattoo_bitch":   [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
-                        "scale": 3.0, "align": ("bbox_center", 49.0, 66.0)}],
-    "tattoo_freeuse": [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
-                        "scale": 3.0, "align": ("bbox_center", 67.0, 66.0)}],
-    "tattoo_slave":   [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
-                        "scale": 3.0, "align": ("bbox_center", 58.0, 52.0)}],
-    "tattoo_cumrag":  [{"src": ("clothes", "head", "hairclip"), "tint": (0.22, 0.30, 0.26),
-                        "scale": 3.0, "align": ("bbox_center", 58.0, 70.0)}],
+    # ★ 第八十九轮（用户口径）：「去掉刻字」—— 第三十六轮补的四件刻字
+    #   （`tattoo_bitch` / `tattoo_freeuse` / `tattoo_slave` / `tattoo_cumrag`）整组删除：
+    #   这里的四条映射 + 下方 AU_OVERRIDE 里真正生效的四条一起撤掉。
+    #   产物（`assets/dol_au/clothes/tattoo_*.png` 与图标）由 `prune_stale()` 自动清。
     # ★ 第四十七轮补的两件「爪印」扩展（胸口 / 脸颊），参数同样见下方 AU_OVERRIDE。
     # ★ 第五十一轮：脸颊那件（`tattoo_paw_face`）按用户口径整件删除 —— 两条映射
     #   （这里的占位条 + AU_OVERRIDE 里真正生效的那条）一起撤掉。
@@ -477,7 +471,7 @@ ITEMS = {
     #   括号里是它在 68 px 宽取景框里的实际尺寸（AU 全身像列的人物只有 40×145 px）。
     #   门控照旧：内裤在 UNDER_GATE 里，下面被普通下装盖住时这几件一律不计入暴露 / 反差
     #   —— 想让它真的算数，就得配「（不穿下装）」或者标了 see 的下装。
-    "panties_crotchless": [{"src": ("clothes", "under-lower", "crotchlesspanties"), "tint": BLACK}],      # 25×14 开裆
+    # ★ 第八十九轮：`panties_crotchless`（开裆蕾丝内裤）按用户口径删除，映射一并撤掉。
     "panties_micro":      [{"src": ("clothes", "under-lower", "highmicrokini"),     "tint": (0.62, 0.24, 0.32)}],  # 23×19 微型
     "panties_janties":    [{"src": ("clothes", "under-lower", "janties"),           "tint": (0.30, 0.34, 0.44)}],  # 27×18 牛仔丁字
     "panties_thong":      [{"src": ("clothes", "under-lower", "thong"),             "tint": BLACK}],      # 25×12 丁字
@@ -589,7 +583,7 @@ ITEMS = {
     "top_tube":        [{"src": ("clothes", "upper", "tubetop"),        "tint": WINE}],
     "top_swim":        [{"src": ("clothes", "under-upper", "swimsuit"), "tint": NAVY}],
     "top_leathercrop": [{"src": ("clothes", "upper", "leathercroptop"), "tint": LEATHER}],
-    "top_chain":       [{"src": ("clothes", "upper", "chain tunic"),    "tint": SILVER}],
+    # ★ 第八十九轮：`top_chain`（锁链挂脖上衣）按用户口径删除，映射一并撤掉。
     "top_graphiccrop": [{"src": ("clothes", "upper", "graphiccrop"),    "tint": BLACK}],
     # ★ 这两件是 9 档的「临时裹一下」：源图本身就是布，染成米白
     "top_towel":       [{"src": ("clothes", "upper", "towel"),          "tint": IVORY}],
@@ -600,13 +594,13 @@ ITEMS = {
     # jorts 源图本来就是彩色牛仔布，不再染色（tint=None → 保持原色）
     "bottom_shortshort":   [{"src": ("clothes", "lower", "jorts"),         "tint": None}],
     "bottom_leathershort": [{"src": ("clothes", "lower", "leathershorts"), "tint": LEATHER}],
-    "bottom_chain":        [{"src": ("clothes", "lower", "chain tunic"),   "tint": SILVER}],
+    # ★ 第八十九轮：`bottom_chain`（锁链短裙）按用户口径删除，映射一并撤掉。
     "bottom_sarong":       [{"src": ("clothes", "lower", "sarong"),        "tint": GREEN}],
 
     # ---- 上内衣（4 件）----
     "bra_bikini":     [{"src": ("clothes", "under-upper", "classicbikini"),      "tint": WINE}],
     "bra_latex":      [{"src": ("clothes", "under-upper", "latexleotard"),       "tint": BLACK}],
-    "bra_tape":       [{"src": ("clothes", "under-upper", "tape"),               "tint": IVORY}],
+    # ★ 第八十九轮：`bra_tape`（胶带束胸）按用户口径删除，映射一并撤掉。
     # ★ 第五十一轮：原 `bra_seethrough`（透明泳衣上衣）撤掉 —— 与 `panties_seethrough`
     #   合并成成装 `dress_seethrough`（见上面「成装」那一节）。
 
@@ -623,7 +617,7 @@ ITEMS = {
     #   直接取 `full.png` 那一帧、按取景框裁掉即可。
     #   四态（full / torn / tattered / frayed）在第三十八轮的清点里已实测**内容完全相同**，
     #   所以只取 full 一张。
-    "panties_flatcage":   [{"src": ("clothes", "genitals", "flatchastitycage", "full"), "tint": CHROME}],
+    # ★ 第八十九轮：`panties_flatcage`（平坦贞操笼）按用户口径删除，映射一并撤掉。
 
     # ---- 袜类（4 件）----
     "stockings_sheer":         [{"src": ("clothes", "legs", "sheer stockings"),   "tint": BLACK}],
@@ -721,24 +715,15 @@ AU_OVERRIDE = {
     #   现存那一件的实测落点：chest bbox 32,56-52,76（100% 落在躯干上）。
     "tattoo_paw_chest": {"src": ("bodywriting", "paw print", "breasts-0"), "tint": INK,
                          "scale": 2.6667, "align": ("bbox_center", 56.67, 54.00)},
-    # ★ 第三十六轮补的四件刻字，取 AU 的 `bodywriting/text/<词>/<位置>`。
-    #   这一组和上面几件**不一样**：AU 的 text 贴图是**按部位画好的整字**
-    #   （不是小图案），所以位置和尺寸都沿用图包自己的落点 ——
-    #   s=1.0 即原生尺寸，只要把 bbox 中心搬到它本来待的地方。
-    #   反算公式同上：ax=(cx−106)/1.5+58、ay=(cy−30.5)/1.5+30。
-    #   · bitch    左大腿竖排 7×39 → 缩到 0.72（5×28）才不越过膝盖
-    #   · free-use 右大腿竖排 8×17 → 放大 1.6（13×27）才看得清
-    #   · slave    胸口横排 19×5  → 放大 1.4（27×7）
-    #   · cum-rag  下腹横排 13×11 → 放大 1.4（18×15）
-    #   四件分占四个位置，正好对上「可同时装备 2 件」的搭配空间。
-    "tattoo_bitch":   {"src": ("bodywriting", "text", "bitch", "left-thigh"), "tint": INK,
-                       "scale": 0.4800, "align": ("bbox_center", 61.67, 84.33)},
-    "tattoo_freeuse": {"src": ("bodywriting", "text", "free-use", "right-thigh"), "tint": INK,
-                       "scale": 1.0667, "align": ("bbox_center", 52.00, 85.33)},
-    "tattoo_slave":   {"src": ("bodywriting", "text", "slave", "breasts"), "tint": INK,
-                       "scale": 0.9333, "align": ("bbox_center", 57.00, 53.67)},
-    "tattoo_cumrag":  {"src": ("bodywriting", "text", "cum-rag", "pubic"), "tint": INK,
-                       "scale": 0.9333, "align": ("bbox_center", 57.00, 78.00)},
+    # ★ 第八十九轮（用户口径）：「去掉刻字」—— 四件刻字纹身整组删除，这里四条生效映射
+    #   （bitch 左大腿 / free-use 右大腿 / slave 胸口 / cum-rag 下腹）一起撤掉。
+    #   下面这段推导**保留**，理由同脸颊那件 —— 它是方法，将来要往某个部位补
+    #   「按部位画好的整字」时照着做即可：
+    #     AU 的 `bodywriting/text/<词>/<位置>` 是按部位画好的整字（不是小图案），
+    #     位置和尺寸都沿用图包自己的落点，s=1.0 即原生尺寸，只需把 bbox 中心搬过去；
+    #     反算公式 ax=(cx−106)/1.5+58、ay=(cy−30.5)/1.5+30。
+    #     · 竖排字（大腿）要按长度缩：7×39 → 0.72 才不越过膝盖；8×17 → 1.6 才看得清
+    #     · 横排字（胸口 / 下腹）：19×5 → 1.4、13×11 → 1.4
     # ★ 位置说明：AU 的 bodywriting **没有 neck 这个位置**（只有 forehead /
     #   left·right-cheek / left·right-shoulder / left·right-thigh / breasts-0..6 /
     #   pubic），所以「颈侧刺青」只能落在最近的左肩。已在 README 记为已知取舍。

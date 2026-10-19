@@ -533,17 +533,20 @@ func _run() -> void:
 	#  这一张一次拍出两件事：
 	#    ① 纹身槽能**同时装 2 件** —— 两张卡片同时是「已装备」；
 	#    ② 门控是**逐件**的 —— 同一屏里一件露着（点阵正常）、一件被盖住（点阵压暗）。
-	_plog("--- 1g: 纹身 · 同时 2 件 + 逐件门控 —— 上装「（不穿）」露出胸口刻字、长裙盖住大腿刻字 ---")
+	#  ★ 第八十九轮：原来这一屏用的是「胸口刻字 slave + 大腿刻字 bitch」，
+	#    那两件按用户口径删了 —— 换成剩下两件同样分属「胸口 / 大腿」的：
+	#    `tattoo_paw_chest`（胸口爪印，上装盖）与 `tattoo_thigh`（大腿藤蔓，下装盖）。
+	_plog("--- 1g: 纹身 · 同时 2 件 + 逐件门控 —— 上装「（不穿）」露出胸口爪印、长裙盖住大腿藤蔓 ---")
 	gm.equipped["dress"] = "dress_none"
-	gm.equipped["top"] = "top_none"              # 胸口刻字露出来
-	gm.equipped["bottom"] = "bottom_longskirt"   # 大腿刻字被盖住
-	gm.equipped["tattoo"] = ["tattoo_slave", "tattoo_bitch"]
+	gm.equipped["top"] = "top_none"              # 胸口爪印露出来
+	gm.equipped["bottom"] = "bottom_longskirt"   # 大腿藤蔓被盖住
+	gm.equipped["tattoo"] = ["tattoo_paw_chest", "tattoo_thigh"]
 	wardrobe._refresh()
 	_scroll_to_slot(wall, "tattoo")
 	await _wait(14)
-	_plog("     胸口「slave」%s ｜ 大腿「bitch」%s ｜ 纹身槽合计 %d 点（满 2 件 = 4 点）"
-		% ["计入" if gm.item_counts("tattoo", "tattoo_slave") else "不计入",
-		   "计入" if gm.item_counts("tattoo", "tattoo_bitch") else "不计入",
+	_plog("     胸口爪印%s ｜ 大腿藤蔓%s ｜ 纹身槽合计 %d 点（满 2 件 = 4 点）"
+		% ["计入" if gm.item_counts("tattoo", "tattoo_paw_chest") else "不计入",
+		   "计入" if gm.item_counts("tattoo", "tattoo_thigh") else "不计入",
 		   gm.effective_stat("tattoo", "exposure")])
 	_plog("     两张卡片都是「已装备」；再点已装备的那张 = 脱下来，装满 2 件再点第三张 = 顶掉最早那件")
 	await _shot("01g_tattoo_multi")
@@ -922,6 +925,23 @@ func _run() -> void:
 	if a_idx < 0:
 		a_idx = _goto_level_with_card_owner("A")
 		interro.set_process(false)
+	# ★ 第八十九轮：两套 scene_* 都是「自行编辑」，**一道挂卡的题都没有** ——
+	#   上面两条路都拿不到 A 类题，这张图就一直拍不到（目录里留着带下腹部小图的旧图）。
+	#   19 号图要展示的是 **QTE 面板本身**，跟题目属于哪张卡无关，退而用任意一道非首题。
+	#   第 1 题固定不出 QTE，所以退路从第 2 题起挑。
+	var qte_only := false
+	if a_idx < 0 and interro.level_questions().size() > 1:
+		a_idx = 1
+		qte_only = true
+		# ★ 借来的这张图要展示「答题中 + QTE 面板」，不能带着前面 18b 打满的怀疑度
+		#   和已经收过场的状态 —— 否则拍出来是「失败收场文字」叠着一条 QTE 条。
+		#   三处都要复位：数据（怀疑度）、UI（结果提示 / 按钮）、标记（_result_shown）。
+		interro._result_shown = false
+		interro._end_reason = ""
+		gd.suspicion_level = 30.0
+		interro._update_suspicion_ui()
+		interro.result_hint.visible = false
+		interro.result_btn.hide()
 	if a_idx >= 0:
 		interro._ended = false
 		interro._running = true
@@ -938,6 +958,8 @@ func _run() -> void:
 			a_idx, str(interro.qte_container.visible),
 			interro.qte_progress, Interrogation.EXPR_QTE_PASS])
 		await _shot("19_expression_qte")
+		if qte_only:
+			_plog("     （本局没有 A 类题，这张是借第 2 道普通题拍的 QTE 面板）")
 		_plog("     面板实际位置 = %s（屏幕高 720 ｜ 底边距屏底 16）"
 			% str(interro.qte_strip.get_global_rect()))
 		# 答题 → 本题的 QTE 立刻收掉（单阶段，不再续下一轮）
@@ -951,7 +973,9 @@ func _run() -> void:
 	interro._running = true
 	interro.is_qte_active = false
 	interro.qte_container.hide()
-	if a_idx >= 0:
+	# ★ 第八十九轮：`qte_only` = 第 19 步退而借了道普通题来拍 QTE 面板，
+	#   它身上没有 A 卡，这张「说漏嘴」也就拍不成（没东西可塞进 B 的档案）。
+	if a_idx >= 0 and not qte_only:
 		var a_card := str(interro.level_questions()[a_idx]["card"])
 		gd.dossier_kept.append(a_card)
 		# ★ 第五十五轮：这里原来只复位了 `_ended` / `_running` / QTE，**没复位递话干扰**。
@@ -990,6 +1014,8 @@ func _run() -> void:
 		await _wait(16)
 		await _shot("20_leak_exposed")
 		gd.dossier_kept.erase(a_card)
+	else:
+		_plog("     !! 本局没有 A 类题（或第 19 步借的是普通题），跳过")
 
 	_plog("--- 21: 一眼认出 —— 阶段一不判定，门一开他才开口：「怎么是你，XX。」---")
 	main._start_new_run(SHOT_SEED)

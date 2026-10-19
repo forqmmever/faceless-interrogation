@@ -774,7 +774,9 @@ try {
     // ★ 第七十八轮：删掉 13 条「回答反馈句」（card_* / fact_correct_* / companion_no_value 等，
     //   用户口径「原来的反馈句删除」）→ 86 → 73
     // ★ 第八十七轮：新增启动声明 splash_text → 73 → 74
-  ok(P.uiLeafCount() === 74, "story.ui 共 74 条文案，实际 " + P.uiLeafCount());
+    // ★ 第八十九轮：用户给准备室和盘问界面各加了一组「返回主界面」
+    //   （wardrobe.home_btn / home_tip + interrogation.home_btn / home_tip）→ 74 → 78
+  ok(P.uiLeafCount() === 78, "story.ui 共 78 条文案，实际 " + P.uiLeafCount());
     const rs = P.rulesSections(), us = P.uiSections(), es = P.endingsSections();
     // ★ 第三十三轮：删 3 项（exposure_qte_threshold / interference_min / interference_per_exposure）
     //   加 2 项（exposure_qte_min / exposure_qte_full）→ 31 − 3 + 2 = 30
@@ -873,8 +875,10 @@ try {
     });
 
     // ---- catalog：编辑器靠它做下拉，缺了就没法挑衣服 ----
+    // ★ 这个数字跟着 `OutfitData.ITEMS` 走 —— 第八十九轮删了 9 件（165 → 156）。
+    //   改物品表时**这一处和下面「catalog 能往返」那处都要同步**。
     const C = S.catalog || {};
-    ok((C.items || []).length === 165, "catalog 里有 165 件衣物，实际 " + ((C.items || []).length));
+    ok((C.items || []).length === 156, "catalog 里有 156 件衣物，实际 " + ((C.items || []).length));
     ok(Array.isArray(C.tags) && C.tags.length >= 4, "catalog 里有标签池：" + (C.tags || []).join(" / "));
     ok(C.items.every(x => x.id && x.name && x.slot), "catalog 每件都有 id / name / slot");
     ok(P.itemById("panties_lace") !== null, "itemById 能查到黑色蕾丝内裤");
@@ -952,7 +956,8 @@ try {
     // ---- 往返无损 ----
     const t2 = P.toJSON();
     ok(JSON.parse(t2).qte_plan !== undefined, "全局 qte_plan 段仍然保留（新背景回落用）");
-    ok(JSON.parse(t2).catalog.items.length === 165, "catalog 能往返");
+    // ★ 跟上面「catalog 里有 N 件衣物」同一个数字，改物品表时两处一起改。
+    ok(JSON.parse(t2).catalog.items.length === 156, "catalog 能往返");
     P.loadStory(JSON.parse(JSON.stringify(pristine)), "t.json", false);
   }
 

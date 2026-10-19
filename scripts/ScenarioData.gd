@@ -1455,11 +1455,8 @@ const DEFAULT_ITEM_DESC := {
 	"tattoo_paw_chest": "胸口正中印着一枚小小的兽爪",
 	# ★ 第五十一轮：`tattoo_paw_face`（脸颊爪印）按用户口径整件删除 ——
 	#   它的目击描述也一并撤掉（与撤销眉钉 / 黄铜胸针 / 金脚链同一档处理）。
-	# ★ 第三十六轮新增的四件刻字纹身（各占一处，见 OutfitData 的 tattoo 段）
-	"tattoo_bitch": "左大腿内侧刻着「bitch」一行小字",
-	"tattoo_freeuse": "右大腿上刻着「free-use」一行小字",
-	"tattoo_slave": "胸口正中刻着「slave」一行小字",
-	"tattoo_cumrag": "小腹下方刻着「cum-rag」一行小字",
+	# ★ 第八十九轮（用户口径）：「去掉刻字」—— 第三十六轮那 4 件刻字纹身整组删除，
+	#   这 4 条目击描述一起撤（`tattoo_bitch` / `tattoo_freeuse` / `tattoo_slave` / `tattoo_cumrag`）。
 	# ---- neckwear ----
 	"neck_none": "从来不挂东西，说是碍事",
 	"neck_collar": "领子总是立着，硬挺挺的",

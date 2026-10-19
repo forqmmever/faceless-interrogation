@@ -2406,11 +2406,11 @@ func _test_expression_qte() -> void:
 	_check("★ 表情 QTE 只映射空格（没有鼠标 / 回车）",
 		qte_events.size() == 1 and qte_events[0] is InputEventKey
 		and (qte_events[0] as InputEventKey).physical_keycode == KEY_SPACE)
-	_check("★ 表情 QTE 同时出现换装下腹部小图", interro.body_layer.visible == true)
-	_check("下腹部小图有截图纹理", interro.body_tex.texture != null)
-	_check("★ 下腹部缩略图塞在 QTE 条里（64×64）",
-		interro.qte_strip.is_ancestor_of(interro.body_layer)
-		and interro.body_layer.custom_minimum_size == Vector2(64, 64))
+	# ★ 第八十九轮（用户口径）：「去掉表情 qte 同时出现的那个图片」。
+	#   QTE 条右侧那块 64×64 的下腹部小图已整块删掉 —— 这里守一句，
+	#   防止以后有人又把缩略图挂回 QTE 条上（`_make_bar_overlay` 不再写 `thumb` 这个 meta）。
+	_check("★ QTE 条上不再挂下腹部缩略图",
+		interro.qte_container.get_meta("thumb", null) == null)
 
 	# ★ 第六十七轮：QTE 未到 80% 之前，选项和手机都锁着。
 	_check("★ QTE 未到 80% 时选项锁着", interro.option_btns[0].disabled == true)
@@ -2441,7 +2441,6 @@ func _test_expression_qte() -> void:
 	# 压完表情（QTE 收掉）→ 手机要重新解锁
 	interro._cancel_qte()
 	_check("★ QTE 收掉后手机解锁", interro.phone_btn.disabled == false)
-	_check("★ QTE 收掉 → 下腹部小图一起消失", interro.body_layer.visible == false)
 	interro._toggle_phone()
 	_check("★ QTE 收掉后能正常掏出手机", interro.phone_layer.visible == true)
 	interro._close_phone()
@@ -2451,7 +2450,6 @@ func _test_expression_qte() -> void:
 	interro._start_expression_qte()
 	_check("★ 重新排上 QTE 后手机又锁上", interro.phone_btn.disabled == true)
 	_check("★ 重排 QTE 后选项又锁上", interro.option_btns[0].disabled == true)
-	_check("★ 重排 QTE → 下腹部小图一起出现", interro.body_layer.visible == true)
 	_check("★ 重排时手机被自动收回", interro.phone_layer.visible == false)
 	# ★ 两条提示条共用屏幕最下方那一层 —— 压表情期间不许再排递话（否则会叠）
 	interro.interference_active = false
@@ -2476,7 +2474,6 @@ func _test_expression_qte() -> void:
 	interro._select_option(1)
 	_check("答题后 QTE 立刻结束", interro.is_qte_active == false)
 	_check("答题后 QTE 面板收起", interro.qte_container.visible == false)
-	_check("答题结束后下腹部小图一起收起", interro.body_layer.visible == false)
 	_check("★ QTE 成功不加不减（只算了「撒谎」那一笔）",
 		is_equal_approx(gd.suspicion_level - susp_answered, answer_cost))
 	_check("QTE 成功提示写明「没有露出破绽」",

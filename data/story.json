@@ -79,6 +79,8 @@
 			"intro_btn": "本局背景",
 			"intro_tip": "再看一遍这一局的开场介绍。",
 			"help_btn": "玩法说明",
+			"home_btn": "🏠 返回主界面",
+			"home_tip": "回到主界面。这一局的进度会存下来，下次用「继续游戏」接着走。",
 			"phone_btn": "📱 手机",
 			"phone_tip": "短信里写着你和他人的短信来往；相册里是你的自拍；\n备忘录里是其他登场人物的补充信息。备注里自动记录上轮问题",
 			"phone_help_btn": "玩法说明：手机里四个界面",
@@ -91,6 +93,8 @@
 			"speaker_companion": "黄毛",
 			"speaker_you": "你",
 			"phone_open_btn": "📱 掏出手机",
+			"home_btn": "🏠 返回主界面",
+			"home_tip": "回到主界面。这一局的进度会存下来，下次用「继续游戏」接着走。",
 			"phone_close_btn": "📱 收起手机",
 			"phone_locked_btn": "📱 压表情时收起来",
 			"phone_tip": "答题时也能掏出来看一眼。\n",
@@ -103,7 +107,7 @@
 			"qte_prompt": "按住 [空格] 压制心跳 —— 把进度顶过 80% 才能答题！、",
 			"qte_pass": "【表情控制成功】你的呼吸稳住了，脸上没有露出破绽。",
 			"qte_fail": "【表情控制失败】你急促的呼吸引起了苦主的注意。",
-			"intf_default_line": "黄毛的手伸向了你",
+			"intf_default_line": "你感觉到黄毛的动作很奇怪",
 			"intf_single": "⚠ 立刻按 [空格] 打断他！",
 			"intf_combo_prefix": "⚠ 依次敲 ",
 			"intf_combo_suffix": " 打断他！",
@@ -170,37 +174,80 @@
 	],
 	"forced_rules": [
 		{
-			"mode": "none",
-			"rules": []
+			"mode": "fixed",
+			"rules": [
+				{
+					"pick": "all",
+					"items": [
+						"top_school_navy",
+						"bottom_school_navy"
+					]
+				},
+				{
+					"pick": "all",
+					"items": [
+						"panties_none"
+					]
+				}
+			]
 		},
 		{
-			"mode": "none",
-			"rules": []
+			"mode": "fixed",
+			"rules": [
+				{
+					"pick": "all",
+					"items": [
+						"tattoo_none"
+					]
+				},
+				{
+					"pick": "all",
+					"items": [
+						"panties_none"
+					]
+				}
+			]
 		}
 	],
 	"qte_plan": [],
-	"item_overrides": {},
+	"item_overrides": {
+
+	},
 	"true_presets": {
 		"pool": [],
 		"by_level": [
 			{
-				"name": "第一轮 · 只有脚上露一点",
+				"name": "第 1 轮",
 				"slots": {
-					"top": "top_highneck",
-					"bottom": "bottom_longskirt",
-					"panties": "panties_plain",
-					"stockings": "stockings_none",
-					"shoes": "shoes_open_sandal"
+					"hair": "hair_long",
+					"glasses": "glasses_none",
+					"makeup": "makeup_none",
+					"tattoo": "tattoo_none",
+					"neckwear": "neck_none",
+					"top": "top_sailor_white",
+					"bra": "bra_lace",
+					"bottom": "bottom_sailor_white",
+					"dress": "dress_none",
+					"panties": "panties_lace",
+					"stockings": "stockings_school_green",
+					"shoes": "shoes_school_green"
 				}
 			},
 			{
-				"name": "第二轮 · 腿上只剩一层透肉薄袜",
+				"name": "第 2 轮",
 				"slots": {
-					"top": "top_highneck",
-					"bottom": "bottom_longskirt",
-					"panties": "panties_plain",
-					"stockings": "stockings_sheerskin",
-					"shoes": "shoes_open_sandal"
+					"hair": "hair_long",
+					"glasses": "glasses_none",
+					"makeup": "makeup_light",
+					"tattoo": "tattoo_none",
+					"neckwear": "acc_locket",
+					"top": "top_sailor_white",
+					"bra": "bra_pasties",
+					"bottom": "bottom_sailor_white",
+					"dress": "dress_eveninggown",
+					"panties": "panties_shibari",
+					"stockings": "stockings_sheer",
+					"shoes": "shoes_heels"
 				}
 			}
 		]
@@ -593,50 +640,6 @@
 				"disabled": false
 			},
 			{
-				"id": "tattoo_bitch",
-				"name": "左大腿刻字「bitch」",
-				"slot": "tattoo",
-				"slot_name": "纹身",
-				"exposure": 2,
-				"contrast": 7,
-				"acceptance_req": 9,
-				"tags": [],
-				"disabled": false
-			},
-			{
-				"id": "tattoo_freeuse",
-				"name": "右大腿刻字「free-use」",
-				"slot": "tattoo",
-				"slot_name": "纹身",
-				"exposure": 2,
-				"contrast": 7,
-				"acceptance_req": 9,
-				"tags": [],
-				"disabled": false
-			},
-			{
-				"id": "tattoo_slave",
-				"name": "胸口刻字「slave」",
-				"slot": "tattoo",
-				"slot_name": "纹身",
-				"exposure": 2,
-				"contrast": 7,
-				"acceptance_req": 9,
-				"tags": [],
-				"disabled": false
-			},
-			{
-				"id": "tattoo_cumrag",
-				"name": "下腹刻字「cum-rag」",
-				"slot": "tattoo",
-				"slot_name": "纹身",
-				"exposure": 2,
-				"contrast": 8,
-				"acceptance_req": 10,
-				"tags": [],
-				"disabled": false
-			},
-			{
 				"id": "neck_none",
 				"name": "（不戴）",
 				"slot": "neckwear",
@@ -1015,17 +1018,6 @@
 				"disabled": false
 			},
 			{
-				"id": "top_chain",
-				"name": "锁链挂脖上衣",
-				"slot": "top",
-				"slot_name": "上衣",
-				"exposure": 7,
-				"contrast": 6,
-				"acceptance_req": 8,
-				"tags": [],
-				"disabled": false
-			},
-			{
 				"id": "top_graphiccrop",
 				"name": "网眼印花短上衣",
 				"slot": "top",
@@ -1132,17 +1124,6 @@
 				"exposure": 8,
 				"contrast": 7,
 				"acceptance_req": 9,
-				"tags": [],
-				"disabled": false
-			},
-			{
-				"id": "bra_tape",
-				"name": "胶带束胸",
-				"slot": "bra",
-				"slot_name": "上内衣",
-				"exposure": 9,
-				"contrast": 8,
-				"acceptance_req": 10,
 				"tags": [],
 				"disabled": false
 			},
@@ -1483,17 +1464,6 @@
 				"disabled": false
 			},
 			{
-				"id": "bottom_chain",
-				"name": "锁链短裙",
-				"slot": "bottom",
-				"slot_name": "下装",
-				"exposure": 7,
-				"contrast": 6,
-				"acceptance_req": 8,
-				"tags": [],
-				"disabled": false
-			},
-			{
 				"id": "bottom_sarong",
 				"name": "一片式裹裙",
 				"slot": "bottom",
@@ -1681,17 +1651,6 @@
 				"disabled": false
 			},
 			{
-				"id": "panties_crotchless",
-				"name": "开裆蕾丝内裤",
-				"slot": "panties",
-				"slot_name": "下内衣",
-				"exposure": 7,
-				"contrast": 7,
-				"acceptance_req": 8,
-				"tags": [],
-				"disabled": false
-			},
-			{
 				"id": "panties_none",
 				"name": "（不穿）",
 				"slot": "panties",
@@ -1743,17 +1702,6 @@
 				"exposure": 9,
 				"contrast": 8,
 				"acceptance_req": 15,
-				"tags": [],
-				"disabled": false
-			},
-			{
-				"id": "panties_flatcage",
-				"name": "平坦贞操笼",
-				"slot": "panties",
-				"slot_name": "下内衣",
-				"exposure": 9,
-				"contrast": 8,
-				"acceptance_req": 10,
 				"tags": [],
 				"disabled": false
 			},
@@ -2261,22 +2209,6 @@
 				"exposure": 2,
 				"acceptance_req": 8
 			},
-			"tattoo_bitch": {
-				"exposure": 2,
-				"acceptance_req": 9
-			},
-			"tattoo_freeuse": {
-				"exposure": 2,
-				"acceptance_req": 9
-			},
-			"tattoo_slave": {
-				"exposure": 2,
-				"acceptance_req": 9
-			},
-			"tattoo_cumrag": {
-				"exposure": 2,
-				"acceptance_req": 10
-			},
 			"neck_none": {
 				"exposure": 0,
 				"acceptance_req": 0
@@ -2409,10 +2341,6 @@
 				"exposure": 5,
 				"acceptance_req": 6
 			},
-			"top_chain": {
-				"exposure": 7,
-				"acceptance_req": 8
-			},
 			"top_graphiccrop": {
 				"exposure": 8,
 				"acceptance_req": 8
@@ -2452,10 +2380,6 @@
 			"bra_latex": {
 				"exposure": 8,
 				"acceptance_req": 9
-			},
-			"bra_tape": {
-				"exposure": 9,
-				"acceptance_req": 10
 			},
 			"gloves_none": {
 				"exposure": 0,
@@ -2577,10 +2501,6 @@
 				"exposure": 5,
 				"acceptance_req": 6
 			},
-			"bottom_chain": {
-				"exposure": 7,
-				"acceptance_req": 8
-			},
 			"bottom_sarong": {
 				"exposure": 8,
 				"acceptance_req": 8
@@ -2649,10 +2569,6 @@
 				"exposure": 6,
 				"acceptance_req": 7
 			},
-			"panties_crotchless": {
-				"exposure": 7,
-				"acceptance_req": 8
-			},
 			"panties_none": {
 				"exposure": 8,
 				"acceptance_req": 8
@@ -2672,10 +2588,6 @@
 			"panties_tieside": {
 				"exposure": 9,
 				"acceptance_req": 15
-			},
-			"panties_flatcage": {
-				"exposure": 9,
-				"acceptance_req": 10
 			},
 			"stockings_none": {
 				"exposure": 0,
@@ -4135,7 +4047,7 @@
 				}
 			],
 			"interference_lines": [
-				"你感觉到陈虎的手轻轻的从肩膀往下滑"
+				"你感觉到陈虎的动作很奇怪"
 			],
 			"endings": {
 				"recognized_line": "【伪装失败 · 一眼认出】",
@@ -4678,7 +4590,9 @@
 				}
 			],
 			"interference_lines": [],
-			"endings": {},
+			"endings": {
+
+			},
 			"levels": [
 				{
 					"name": "第一轮 · 服装店试衣间",
@@ -4779,7 +4693,9 @@
 			"interference_lines": [
 				"球球在你腿边转圈"
 			],
-			"endings": {},
+			"endings": {
+
+			},
 			"levels": [],
 			"forced_rules": [
 				{
@@ -4931,10 +4847,6 @@
 		"tattoo_heart": "大腿上串着一列小小的暗色心形",
 		"tattoo_paw": "大腿外侧印着一枚小小的兽爪",
 		"tattoo_paw_chest": "胸口正中印着一枚小小的兽爪",
-		"tattoo_bitch": "左大腿内侧刻着「bitch」一行小字",
-		"tattoo_freeuse": "右大腿上刻着「free-use」一行小字",
-		"tattoo_slave": "胸口正中刻着「slave」一行小字",
-		"tattoo_cumrag": "小腹下方刻着「cum-rag」一行小字",
 		"neck_none": "从来不挂东西，说是碍事",
 		"neck_collar": "领子总是立着，硬挺挺的",
 		"neck_scarf": "总围着一条暗红的羊毛围巾",
@@ -5101,6 +5013,7 @@
 			"title": "消息",
 			"hint": "（%d/%d 已读）",
 			"btn_read": "读",
+			"btn_open": "看",
 			"btn_back": "‹ 返回",
 			"thread_title": "与 %s 的对话",
 			"reveals_head": "\n",
@@ -5113,7 +5026,9 @@
 			"group_friends": "与朋友",
 			"group_friends_hint": "东家、家人、旧相识。",
 			"group_friends_empty": "（这一段还没有新消息）",
-			"companion_thread_hint": "（这些话，别让对面的人看见。）"
+			"companion_thread_hint": "（这些话，别让对面的人看见。）",
+			"interrogator_tail": "（这条线只会变长，不会变短。）",
+			"interrogator_row": "%s  ●  %d 条"
 		},
 		"memo": {
 			"title": "备忘录",

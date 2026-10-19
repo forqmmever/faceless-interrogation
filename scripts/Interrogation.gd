@@ -74,12 +74,13 @@ const EXPR_QTE_FAIL := 48.0          # 表情没绷住 → 怀疑度 +48（★ 7
 # ★ 第六十七轮（用户口径）：「只能用空格控制」。
 #   不再读鼠标左键，也不读 ui_accept（那个还包含回车）—— 单独注册一个只映射空格的动作。
 const QTE_ACTION := "qte_space"
-# ★ 第六十三轮：表情 QTE 旁边那块「换装 · 下腹部」小图。
-#   截图由 SubViewport 按 BODY_CROP 从当前换装渲染，BodyPreview 再画屁股轮廓 + 五指手。
-#   BODY_CROP 是 DolDoll 取景框（68×203）里的坐标，按 1:1 铺满 BODY_BOX。
-const BODY_BOX := Vector2(64, 64)
-const BODY_CROP := Rect2(18, 90, 32, 32)
-const BODY_PREVIEW_SCRIPT := preload("res://scripts/BodyPreview.gd")
+# ★ 第八十九轮（用户口径）：「去掉表情 qte 同时出现的那个图片」——
+#   原来 QTE 条右侧挂着一块 64×64 的「换装 · 下腹部」小图
+#   （SubViewport 现拍当前换装 + BodyPreview 画屁股轮廓与五指手），已整块删掉。
+#   连带删掉：BODY_BOX / BODY_CROP / BODY_PREVIEW_SCRIPT 三个常量、body_* 五个成员、
+#   五个函数（_build_body_preview / set_outfit_preview / _rebuild_body_preview /
+#   _ensure_body_preview / _set_body_preview_visible）、scripts/BodyPreview.gd，
+#   以及 QTE 条右侧那块 64×64 占位（右边距回到 170，和递话条一致）。
 # 按住型 QTE 在「切到新题」之后延迟这么久才开始 —— 让你先看清题目，
 # 而不是题刚蹦出来就被迫按住空格。
 const EXPR_QTE_DELAY := 2.5
@@ -254,13 +255,6 @@ var strip_band: Control                 # 底部常驻占位带（给两条提�
 var result_hint: Label
 var result_btn: Button
 
-# ---- 换装 · 下腹部小图（随表情 QTE 一起出现 / 消失）----
-var body_layer: Control
-var body_sub: SubViewport
-var body_tex: TextureRect
-var body_art: Control
-var _body_outfit: Dictionary = {}
-
 # 视角晃动
 var shake_target: Control                # 被抖的那一层（整屏内容）
 var _shake_time: float = 0.0
@@ -422,7 +416,7 @@ func _build_ui() -> void:
 	#  ★ 两条都贴在**屏幕最下方**（用户口径：「qte改为显示在最下方」），
 	#    而且是**同一层** —— 它们互斥（压表情时不排递话、递话那 2.6 秒不弹 QTE），
 	#    不会同时出现；共用一层才能让底部占位带做得够矮、塞得进 720 的屏。
-	qte_container = _make_bar_overlay(Color(0.22, 0.54, 0.87), QTE_FROM_BOTTOM, true)
+	qte_container = _make_bar_overlay(Color(0.22, 0.54, 0.87), QTE_FROM_BOTTOM)
 	qte_label = qte_container.get_meta("label")
 	qte_bar = qte_container.get_meta("bar")
 	qte_strip = qte_container.get_meta("strip")
@@ -471,7 +465,6 @@ func _build_ui() -> void:
 	root.add_child(strip_band)
 
 	_build_phone_layer()
-	_build_body_preview()
 
 # ---------------- 掏出手机（覆盖在右侧，左边选项照样能点）----------------
 func _build_phone_layer() -> void:
@@ -521,103 +514,6 @@ func _build_phone_layer() -> void:
 	close.custom_minimum_size = Vector2(0, 32)
 	close.pressed.connect(_close_phone)
 	col.add_child(close)
-
-# ---------------- 换装 · 下腹部小图（第六十三轮）----------------
-#  用户口径：「第二阶段时，把换装的结果下腹部截图，然后画出屁股的形状，
-#  最后在上面画一个张开五指的手，并且随表情 QTE 一起出现和消失」。
-#
-#  截图不是抓整屏，而是把当前这一身按 BODY_CROP 重新铺进一个 SubViewport
-#  （和手机相册那条路一样）—— 换装结果改了，图就跟着改，也不会把 UI 拍进去。
-func _build_body_preview() -> void:
-	# ★ 第六十八轮：不再往屏幕右侧贴一块大面板 —— 那样会盖住题面 / 选项，
-	#   看起来像界面坏了。改成 QTE 条右侧的 64×64 小图，跟提示条同生同灭。
-	if qte_container == null:
-		return
-	var thumb: Control = qte_container.get_meta("thumb", null)
-	if thumb == null:
-		return
-	body_layer = thumb
-	body_layer.visible = false
-
-	body_sub = SubViewport.new()
-	body_sub.size = Vector2i(int(BODY_BOX.x), int(BODY_BOX.y))
-	body_sub.transparent_bg = true
-	body_sub.disable_3d = true
-	# 这一身只在进盘问前变一次 —— 用 UPDATE_ONCE，别每帧重渲染一张 64×64。
-	body_sub.render_target_update_mode = SubViewport.UPDATE_ONCE
-	body_layer.add_child(body_sub)
-
-	body_tex = TextureRect.new()
-	body_tex.set_anchors_preset(Control.PRESET_FULL_RECT)
-	body_tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	body_tex.stretch_mode = TextureRect.STRETCH_SCALE
-	body_tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	body_tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body_tex.texture = body_sub.get_texture()
-	body_layer.add_child(body_tex)
-
-	body_art = BODY_PREVIEW_SCRIPT.new()
-	body_art.set_anchors_preset(Control.PRESET_FULL_RECT)
-	body_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body_layer.add_child(body_art)
-
-	# 一圈细边框，让它在 QTE 条里看起来是「一块缩略图」而不是一个黑洞。
-	var frame := Panel.new()
-	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var fs := StyleBoxFlat.new()
-	fs.bg_color = Color(0, 0, 0, 0)
-	fs.draw_center = false
-	fs.set_border_width_all(1)
-	fs.border_color = Color(0.46, 0.50, 0.58, 0.90)
-	frame.add_theme_stylebox_override("panel", fs)
-	body_layer.add_child(frame)
-
-# 换一套打扮 → 重铺这张小图。Main 在「进入盘问」前把 wardrobe.model.equipped 传进来。
-func set_outfit_preview(eq: Dictionary) -> void:
-	_body_outfit = eq.duplicate(true)
-	if body_sub != null:
-		_rebuild_body_preview()
-
-func _rebuild_body_preview() -> void:
-	if body_sub == null:
-		return
-	for c in body_sub.get_children():
-		body_sub.remove_child(c)
-		c.queue_free()
-	var eq := _body_outfit
-	if eq.is_empty():
-		# 测试 / 截图脚本直接调 _start_expression_qte() 时没有换装结果 —— 用 A 的原貌兜底。
-		eq = RunData.true_appearance()
-	if eq.is_empty():
-		return
-	var scale := BODY_BOX.x / BODY_CROP.size.x
-	var off := -BODY_CROP.position * scale
-	var full := DolDoll.frame_size() * scale
-	for L in DolDoll.plan(eq):
-		var tr := TextureRect.new()
-		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.stretch_mode = TextureRect.STRETCH_SCALE
-		tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		tr.position = off
-		tr.size = full
-		tr.texture = DolDoll.tex(str(L["file"]))
-		body_sub.add_child(tr)
-	body_sub.render_target_update_mode = SubViewport.UPDATE_ONCE
-
-func _ensure_body_preview() -> void:
-	if body_sub == null:
-		return
-	if _body_outfit.is_empty():
-		_body_outfit = RunData.true_appearance().duplicate(true)
-	if body_sub.get_child_count() == 0:
-		_rebuild_body_preview()
-
-func _set_body_preview_visible(on: bool) -> void:
-	if body_layer != null:
-		body_layer.visible = on
-	if on and body_sub != null:
-		body_sub.render_target_update_mode = SubViewport.UPDATE_ONCE
 
 # ---------------- 掏出手机 ----------------
 #  ★ 表情 QTE 期间**手机用不了**（用户口径：「按住空格的 qte 时不再能够使用手机」——
@@ -746,18 +642,19 @@ func _make_bar_panel(parent: VBoxContainer, fill: Color) -> Control:
 #   那是内容的**内边距** —— 它只把内容往上推，容器自身照样贴到屏幕底边，
 #   结果两条提示条都贴死在底边、叠在一起（试过，正是这个现象）。
 #   正确做法是「贴底对齐的 VBox + 底部一个占位块」：占位块多高，面板就抬多高。
-func _make_bar_overlay(fill: Color, from_bottom: int, with_thumb: bool = false) -> Control:
+func _make_bar_overlay(fill: Color, from_bottom: int) -> Control:
 	var host := Control.new()
 	host.set_anchors_preset(Control.PRESET_FULL_RECT)
 	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(host)
 
 	# 左右各留 170 —— 让面板别压住左下角的「掏出手机」按钮。
-	# ★ 第六十八轮：QTE 条右侧要塞 64×64 小图，右边距收到 24，否则内容会把缩略图挤出面板。
+	# ★ 第八十九轮：QTE 条右侧那块 64×64 小图删掉之后，右边距从 24 回到 170，
+	#   与「同行者递话」那条完全一致（两条本来就共用同一层、互斥出现）。
 	var side := MarginContainer.new()
 	side.set_anchors_preset(Control.PRESET_FULL_RECT)
 	side.add_theme_constant_override("margin_left", 170)
-	side.add_theme_constant_override("margin_right", 24 if with_thumb else 170)
+	side.add_theme_constant_override("margin_right", 170)
 	side.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	host.add_child(side)
 
@@ -824,14 +721,6 @@ func _make_bar_overlay(fill: Color, from_bottom: int, with_thumb: bool = false) 
 	bar_host.add_child(pass_mark)
 	if fill == Color(0.22, 0.54, 0.87):
 		qte_pass_mark = pass_mark      # 只有表情 QTE 那条才有通过线
-		# ★ 第六十八轮：下腹部小图不再做成悬浮大面板，缩成 64×64 塞进 QTE 条右侧。
-		if with_thumb:
-			var thumb := Control.new()
-			thumb.custom_minimum_size = Vector2(64, 64)
-			thumb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			row.add_child(thumb)
-			host.set_meta("thumb", thumb)
 
 	col.add_child(panel)
 
@@ -2190,9 +2079,6 @@ func _begin_qte() -> void:
 			+ "把进度顶过 80% 才能答题！（手机得先收起来）")
 	qte_bar.value = qte_progress
 	qte_container.show()
-	# ★ 第六十三轮：下腹部小图跟表情 QTE 同生同灭。
-	_ensure_body_preview()
-	_set_body_preview_visible(true)
 	# ★ 第六十七轮：QTE 没顶过 80% 之前，选项锁着。
 	_options_locked_by_qte = true
 	_set_options_enabled(false)
@@ -2209,7 +2095,6 @@ func _finish_qte_for_question() -> void:
 	if is_qte_active:
 		is_qte_active = false
 		qte_container.hide()
-		_set_body_preview_visible(false)
 		if _qte_passed or qte_progress >= _rf("expr_qte_pass", EXPR_QTE_PASS):
 			# ★ 压住表情只是「没露破绽」—— 它不把怀疑度往下压。
 			feedback_label.text = _ut("interrogation.qte_pass",
@@ -2244,7 +2129,6 @@ func _cancel_qte() -> void:
 	_intf_suppressed = false
 	if qte_container != null:
 		qte_container.hide()
-	_set_body_preview_visible(false)
 	if not _ended:
 		_set_phone_locked(false)
 

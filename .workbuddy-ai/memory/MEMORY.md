@@ -9,7 +9,7 @@
 
 1. `CHANGELOG.md` 追加一节 → **git 提交一次**，提交信息 = 那节第一行。填「测试」那行**必须是真跑过的数字**。同一轮第二块工作写「第 N 轮（续）」。
 2. `README.md` 写「为什么这么改 / 机制 / 数值表 / 踩坑」；被新改动作废的旧句**加 ★ 作废说明**。
-3. `memory/` 写明细 —— 分文件，进版本库（`.workbuddy-ai/tmp/` **不进**）。
+3. `memory/` 写明细 —— 分文件，进版本库（`.workbuddy-ai/tmp/` **不进**）；`MEMORY.md` **控在 17KB 内**。
 
 ★ **memory 权威目录 = `D:\workbuddy\2026-10-11-09-19-59\.workbuddy-ai\memory\`（进版本库）**；
 系统注入读的是 `C:\Users\...\WorkBuddy AI\2026-10-11-09-19-59\.workbuddy-ai\memory\MEMORY.md`
@@ -19,24 +19,23 @@
 
 ```bash
 godot --headless --path . res://tests/WardrobeTest.tscn   # 换装 + 数据层（~70 秒）
-godot --headless --path . res://tests/TestRunner.tscn     # 端到端（~4~7 分钟）
+godot --headless --path . res://tests/TestRunner.tscn     # 端到端（~3 分钟）
 node tools/editor_smoke.js                                 # 编辑器（含手机那 8 页）
-godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ 非 headless（~80 秒）
+godot --path . res://tests/Screenshot.tscn                 # 截图 ★ 非 headless（~50 秒；实测 42 张）
 ```
 
 ★ **只有一个编辑器** `tools/story_editor.html`。两套 Godot 测试**跑完都打印耗时前 8 段** —— 提速看那个。
 ★ 编辑器直接读写 `data/story.json`：`open_story_editor.bat` 起 `story_server.py`（8765）；`file://` = **只读**。
 ★ **改完 story.json 要跑 `python tools/build_story_editor.py` 重建快照**（冒烟读的就是那份）。
-★ **`open_story_editor.bat` 必须纯 ASCII + CRLF**。★ `--check-only --script` **不加载 autoload**，报
-  `Identifier not found` 不是语法错。
+★ **`open_story_editor.bat` 必须纯 ASCII + CRLF**。★ `--check-only --script` **不加载 autoload**。
 ★ 用户 2026-10-15：「没动代码不用跑四套验证」—— 纯文档 / 清点 / 加工具**跳过**。
-★ 长测试用 `run_in_background` + 重定向到 `.workbuddy-ai/tmp/*.log`；**跑时别改它读的资源**。
+★ 长测试用 `run_in_background` + 重定向到 `.workbuddy-ai/tmp/*.log`；跑时别改它读的资源。
 
-### 术语（用户 2026-10-15 定义）
+### 术语（2026-10-15 定义）
 
-**一局** = 一套背景 + 若干轮；**一轮** = 一次换装 + 问答（代码 `level_index`）。统一用「轮」。
+**一局** = 一套背景 + 若干轮；**一轮** = 一次换装 + 问答（`level_index`）。统一用「轮」。
 ★ 批量替换用「本关→本轮 / 每关→每轮 / 关卡→轮次」，**不动**「通关 / 过关 / 关键 / 相关 / 关闭」。
-★ 别用 `line.split('#')[0]` 切注释 —— BBCode 的 `[color=#8a919c]` 会被当注释起点。
+★ 别用 `line.split('#')[0]` 切注释（BBCode 的 `[color=#8a919c]` 会被当注释起点）。
 
 ## 二、改数据的几条链路
 
@@ -44,14 +43,13 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 
 「🎬 背景 → ⑦ 本局覆写 · 几轮」写 `bg.levels[i]`，**游戏真正读的就是它**。
 ★ **标题写着「说明」不等于有说明字段** —— 排查「改不了」先数 `fields` 的键。
-★ 选关面板要显示「这套背景的轮次名」，得用 `Main._levels_for_panel(bg_id)`：
-`OutfitData.level_at()` 与 `RunData.levels()` 都取「当前这一局」，面板里还没开局。
+★ 选关面板显示「这套背景的轮次名」要用 `Main._levels_for_panel(bg_id)`（另两个都取「当前这一局」）。
 
 ### 改一句界面文案 → 同时找三处
 
 ① `ScenarioData.gd` 的 `DEFAULT_*`（兜底）；② `data/story.json`（**实际读的**，优先）；③ `tests/*.gd` 的**期望值**。
 ★ **改了占位符数量 = 改了接口**。六处同步：`_tf(...)` → `DEFAULT_*` → `story.json` → **占位符守卫断言**（两处）
-→ 编辑器字段表 → `ui` 段的 `ph:true`。★ `phone.*` 另有两处登记：`PHONE_SEGS` / `PH_EXPECT`。
+→ 编辑器字段表 → `ui` 的 `ph:true`。★ `phone.*` 另有 `PHONE_SEGS` / `PH_EXPECT` 两处登记。
 ★ 数据里的**空串**会静默盖掉 `DEFAULT_*` 的整句（第 71 轮「掏手机越界一片空白」）。
 
 ### ★ story.json 的合并规则
@@ -71,64 +69,62 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 - `screenshots/_flow_overview.png` → **重跑** `python tools/flow_overview.py`（**最容易漏**，不在四套验证里）
 
 ★ 改完权威表问一句「**哪些地方抄了它**」——出厂数据一改，**冒烟的「出厂状态」断言要跟着改**。
+★ **`item_desc` 不会自动删**（`story.json` 是权威源，`DumpStory` 只导出）→ 直接逐行改 JSON；
+  冒烟的 catalog 计数有**两处**（条目数 + 能往返），漏一处就多一条失败。
 
 ### 加新物品的固定顺序
 
-`改代码 → 烘图 → godot --headless --path . --import → 导出 story.json → 重建快照 → 跑测试`
+`改代码 → 烘图 → --import → 导出 story.json → 重建快照 → 跑测试`。
 漏 `--import` → WardrobeTest 报「每件物品都有卡片图标」挂；漏重建快照 → 冒烟报 catalog 件数旧值。
 删物品靠烘焙脚本 `prune_stale()` 自动清产物。
 
-### ★★ 加「会被随机抽到 / 会被测试遍历」的内容型数据 → 先想草稿标志（第 53 轮）
+### ★★ 重烘后几百张 png 变 M = 纯字节噪声（第 89 轮）
+
+`dol_prepare.py` 跑完 `git status` 一片 `M` —— 像素一模一样，只是 PNG 压缩字节不同（Pillow / zlib 差异）。
+**别一张张看**：`git archive HEAD assets/dol_au` 解到临时目录，Pillow 逐张比，
+`getbbox()` 为 `None` 的 `git checkout --` 还原。★ 清单在 Windows 上是 `\r\n`，
+`xargs -0` 前先 `tr -d '\r'`，否则报 `pathspec 'x.png?'`。
+
+### ★★ 会被随机抽到 / 被测试遍历的内容型数据 → 先想草稿标志（第 53 轮）
 
 两个「会」→ 需要 `enabled`（草稿）标志（`b.get("enabled", true) != false`，缺省 = 启用）。
 过滤只放在**产生新选择**的地方；**按 id 取对象的地方不过滤**。展开见 `REFERENCE.md` 六章。
 
-### ★★ 「自行编辑」模式（`questions_source = manual`）
+### ★★ 自行编辑模式（`questions_source = manual`）
 
 编辑器把用不到的字段**整节收起来**（数据一条不动）：`MANUAL_HIDDEN_META` / `MANUAL_HIDDEN_COMPANION`、
-③ 档案卡与 ④ 事实两节、题目 `recall`、选项 `tone` / `value`。★ **`interrogator`（称呼）不在此列**。
+③④ 两节、`recall`、选项 `tone` / `value`。★ **`interrogator`（称呼）不在此列**。
 运行时三处：① `_is_unified_question()` 判据放宽成「有 `tone` 或 `text`」（否则掉进旧「档案题」路，
 **完全不读你写的选项**）；② `is_blind` 加 `and not questions_are_manual()`；③ 未知 / 空 `tone` 取 `correct_delta`。
+★★ **`scene_*` 是 manual、没有 `cards`** → 找「挂 A 卡的题」的截图会**整段跳过**（第 89 轮踩）。
 ★★ **代价只认选项上的 `suspicion`**（第 77 轮）——「说漏嘴」也不例外。**每个选项都必须写它**（有守卫）。
 
 ### ★★ 盘问左栏四块（第 78 / 81 轮定稿 · 第 82 轮改布局）
 
-`echo_label`（回应）→ `dialogue_label`（题面）→ `feedback_label`（只放判定解释）→ 掏出手机 + 选项。
+`echo_label`（回应）→ `dialogue_label`（题面）→ `feedback_label`（判定解释）→ 掏出手机 + 选项。
 没写回应 / 第一题 → `echo_label.visible = false`。★ **换题别调 `_show_choice_echo()`**（它顺手清空反馈区）。
 ★★ **这三块必须在「有界滚动区」里**，否则 720 的屏装不下 —— 展开见 `REFERENCE.md` 六章。
 
 ### ★★ QTE 与强制穿着的默认语义（第 80 轮起 · 第 83 轮修正）
 
-- **没写 `qte` 的题 = `none`**（`OutfitData.question_qte_plan()`：题目自带 > 按题号表 > none）。
-  `QTE_NONE` 连**随机递话**一起关（`_intf_suppressed`）。
-- **强制穿着 `fixed` 第 1 轮也生效**；`li <= 0` 只挡 `random`。
-- ★★ **第 83 轮撤掉了「有规则就自动升级成 fixed」**：那条让 `{"mode":"none","rules":[...]}`
-  的脏数据**真的强制了玩家**。现在 `mode` 说 none 就是没有要求，矛盾配置由编辑器**报错**。
-- ⚠ `scene_1` 第 1 轮强制短袖校服 → 反差只到 **105 < 125**，120 种子里 6 个第 1 轮无解。
-  **是用户配的内容、不是脏数据**，只报告不擅改。
+- **没写 `qte` 的题 = `none`**（`question_qte_plan()`：题目自带 > 按题号表 > none）；`QTE_NONE` 连
+  **随机递话**一起关。**强制穿着 `fixed` 第 1 轮也生效**（`li <= 0` 只挡 `random`）。
+- ★★ **第 83 轮撤掉「有规则就自动升级成 fixed」**：那条让 `{"mode":"none","rules":[...]}` 的脏数据
+  **真的强制了玩家**。现在 `mode` 说 none 就是没有要求，矛盾配置由编辑器**报错**。
+- ⚠ `scene_1` 第 1 轮强制短袖校服 → 反差只到 **105 < 125**（用户配的内容、不是脏数据，只报告不擅改）。
 
 ### ★★ 缺陷（defects）只有背景一层（第 83 轮续 2 定稿）
 
-- **全局 defects 层已彻底删掉**（编辑器那页、`story.json` 顶层段、`defects_override()`）。
-  ★ 判据：**没有编辑入口的数据不许留**（会变成「改不了却偷偷生效」的隐形脏数据）。
-- 只有两级：本套写过 `defects`（哪怕 `[]`）→ 用它，空就是没有；没写 → `DEFAULT_DEFECTS`。
-  门面 `bg_has_defects(id)`。★ `levels` / `forced_rules` / `qte_plan` 的全局段**还在**。
+- **全局 defects 层已彻底删掉**（编辑器页 / `story.json` 顶层段 / `defects_override()` 全拆，第 89 轮清掉最后一处残留）。
+  ★ 判据：**没有编辑入口的数据不许留**（改不了却偷偷生效 = 隐形脏数据）。
+- 只有两级：本套写过 `defects`（哪怕 `[]`）→ 用它，空就是没有；没写 → `DEFAULT_DEFECTS`（门面 `bg_has_defects`）。
+  ★ `levels` / `forced_rules` / `qte_plan` 的全局段**还在**。
 
-### ★ 选关面板与通关按钮（第 86 / 87 轮）
+### ★ 相册废片预算 / 选关面板 / 启动声明（第 86~88 轮）
 
-- `_levels_for_panel()` 只返回轮次名 —— **别再把 `derived_profile` 拼上去**（兜上来的是全局默认值）。
-- 通关后 `_pending_action = "home"`；`"new_run"` 只留给测试 / 截图脚本显式设。
-- 启动声明：`splash_layer` 盖在标题**之上** 3 秒，文案 `ui.common.splash_text`；
-  测试 / 截图调 `_skip_splash()` 别真等。
-
-### ★★ 相册：废片预算与发型（第 88 轮）
-
-- 「救不回来」= `start + max_wipes × 0.25 < PHOTO_CLEAR_AT(0.70)`；出厂取值天然废片率 **≈ 1/3**。
-- 预算 `_photo_dead_budget` **按批重置**（`_append_photos()` 开头）：开局 2 / 每批 1。
-  判据 = `photos.is_empty()`，**别给函数加「第几轮」参数**。
-- 预算用完只**抬 `max_wipes`**（`_photo_wipes_to_clear()`），**绝不重抽照片**（白吃点缀名额 + 挪随机流）。
-- `PHOTO_ONE_OF` 只剩 `["glasses","shoes"]`；**上半身一律带 hair**（取原貌那件）→
-  少走一次「补一件」兜底 → **同种子整局随机流偏移**（截图会变，非故障）。
+细节见 `REFERENCE.md` 八章。一句话版：废片预算**按批重置**（开局 2 / 每批 1），用完**只抬 `max_wipes`
+不重抽照片**；上半身**一律带 hair**（→ 随机流偏移，截图会变不是故障）；`_levels_for_panel()` **别拼
+`derived_profile`**；通关后 `_pending_action = "home"`，`"new_run"` 只给测试用；`splash_layer` 盖 3 秒。
 
 ### ★★ 反差公式（第 85 轮定稿）
 
@@ -136,15 +132,13 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 单槽位 = |你穿的 exposure − 原貌那件| × contrast_per_exposure(5)
        + (暴露值相同 且 不是原貌那件) ? 「换了件」分 : 0
 ```
-「换了件」分：基础 2 / **发型 12** / 妆容 10（三键都在 `DEFAULT_RULES` 与编辑器「⑥ 反差」）。
-★ 两个条件缺一不可（暴露值不同时前半截已在给分）；穿回原貌仍须 0。
-★ `base_id == ""`（原貌该栏没穿）**不加分** —— 没有「原貌那件」可比。
-★ 发型 7 件全暴露 0 / 眼镜 3 / 妆 6 里 5 件 / 鞋 3 件全是 0 —— 这几栏以前怎么换都白换。
+「换了件」分：基础 2 / **发型 12** / 妆容 10（`DEFAULT_RULES` + 编辑器「⑥ 反差」）。
+★ 两条件缺一不可；穿回原貌仍须 0；`base_id == ""` **不加分**。
+★ 发型 7 件 / 眼镜 3 / 妆 6 里 5 件 / 鞋 3 件全是暴露 0 —— 那几栏以前白换。
 
-★★ **`contrast_req` 是每套背景自己的**（`bg.levels[i]`），同一个 125 不可能适配三套：
-三套能到的上限实测 **126 / 193 / 162**（第 1 轮）。改它要按「随机搭配约 1/4 能过」定。
-★★ **接受度不是瓶颈**（第 85 轮实测）：scene_1 第 1 轮 10 → 16 时 DP 最优恒为 126，
-最优解只用 24/30 暴露 —— 卡住的是**结构**（强制件把某格锁死），不是额度。别先动它。
+★★ **`contrast_req` 是每套背景自己的**（`bg.levels[i]`），同一个 125 不可能适配三套：上限实测
+**126 / 193 / 162**（第 1 轮）。改它按「随机搭配约 1/4 能过」定。★ **接受度不是瓶颈**（第 85 轮）：
+10 → 16 时 DP 最优恒为 126、只用 24/30 暴露 —— 卡住的是**结构**（强制件锁死某格），别先动它。
 
 ★★ **`story.json` 逐行替换：先打印区间结束行看一眼**，写盘后断言「**所有**同级段条数没变」——
 第 83 轮用括号深度算结束行时 `forced_rules` 的 `{...}` 提前闭合，把 `defects` 整段吞了。
@@ -153,12 +147,10 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 
 ### ★★ 结局文案「不写就不显示」（第 81 轮定稿）
 
-- **三层兜底全拆**：`_fill_endings(false)` 不填模板、`endings_of()` 原样返回、
-  `end_t` 没有 `dflt` 参数（没写就是 `""`）。只有「根本没有 story.json」那条演示路径填 `DEFAULT_ENDINGS`。
-- ★ `_fill_endings(false)` 必须给「从文件读但没写 endings」的背景补一个**空字典**，
-  否则 `endings_of()` 会判成内置常量、又退回模板。
-- 界面：标题 / 正文 / 提示空 → `visible = false` 整块收起；**按钮空 → 只显示箭头（➔ / ↺）**。
-- 调用点一律 `_et(key)` / `_etf(key, args)`，**不要再写兜底长句**。
+- **三层兜底全拆**：`_fill_endings(false)` 不填模板、`endings_of()` 原样返回、`end_t` 没有 `dflt`；
+  只有「根本没有 story.json」那条演示路径填 `DEFAULT_ENDINGS`。★ 要给「读文件但没写 endings」的
+  背景补**空字典**，否则又退回模板。
+- 界面：标题 / 正文 / 提示空 → `visible = false`；**按钮空 → 只显示箭头（➔ / ↺）**。调用点一律 `_et()`。
 
 ## 三、测试怎么写（细则见 `REFERENCE.md` 五章）
 
@@ -179,12 +171,11 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 
 ### ★★ 基线对照：HEAD 数据已经是脏的（第 88 轮起）
 
-第 86 轮提交把用户当时工作区的 `story.json` 一起带进去了：`border_post` 停用、`bg_new_1` 是空背景、
-两套 `scene_*` 全是 `manual`。后果：`TestRunner._canonical_bg()` **返回空** →
-`start_new_run(-1, 0, "")` 用**毫秒种子随机**挑背景 → 同一份代码跑两次，失败数会在 **71 / 73** 之间跳。
-★ 判「有没有新增失败」前，先看 `★ 本测试钉在一套「完整档案」背景上（实际 scene_X）` 那行挑到了谁。
-★ 对照做法：同一个 `git worktree` 里 `git checkout -- scripts tests` 跑一次 = 基线，`cp` 回来再跑 = 本轮；
-**失败集用 `grep FAIL | sed | sort` + `diff` 比，比数数字可靠**。
+第 86 轮提交把用户工作区的 `story.json` 一起带进去了：`border_post` 停用、`bg_new_1` 空、
+两套 `scene_*` 全 `manual`。后果：`TestRunner._canonical_bg()` **返回空** → 用**毫秒种子随机**挑背景
+→ 同一份代码跑两次失败数在 **71 / 73** 之间跳。★ 先看「钉在…实际 scene_X」那行挑到了谁。
+★ 对照：`git worktree` 里跑一次 = 基线，`cp` 回来再跑 = 本轮；
+**失败集 `grep FAIL | sed | sort` + `diff` 比，比数数字可靠**。
 
 ### ★★ 截图「变了」怎么判（细则见 `REFERENCE.md`）
 
@@ -195,11 +186,17 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
    ★ 相册 / 带 shake / QTE 判负**每次跑都不同** → 与旧版差异量级 ≈ 同代码两次跑量级 → `git checkout --`。
 4. ★ **报「真变」要给机制上的量** + 差异百分比 + bbox。★ 工具 `tools/cmp_shots.py`（PIL 逐像素，三方比对）。
 
+### ★★ 截图脚本「前置不满足就跳过」= 静默留过期图（第 89 轮）
+
+`Screenshot.gd` 里 `else: _plog("!! 跳过")` 的分支，数据一变就整屏不拍，
+目录里留着旧轮次那张（**可能还带着已经删掉的功能**）。日志里 `!! 跳过` 要当**失败**看。
+修法优先「给这张图找退路」（借一道普通题拍），不是删图。
+
 ## 四、数值曲线的规矩（展开见 `REFERENCE.md` 七章）
 
 ★ **一局 2 轮**；**反差要求 125 / 150**；**暴露上限 = 10 + 接受度 × 2**（第 1 轮 10 → 30，第 2 轮 19 → 48）。
 ★ **怀疑度**：起点 20、过关线 100、`leak_delta = 100`。改过关线按「预算 = 线 − 起点」等比重标增量。
-★ **接受度 vs 衣服**：165 件、`acceptance_req` 最大 **15**。第 1 轮 10 → 160/165；第 2 轮 19 → 全开。
+★ **接受度 vs 衣服**：156 件、`acceptance_req` 最大 **15**。第 1 轮 10 基本全开；第 2 轮 19 → 全开。
 ★ 标定用 `WardrobeModel.auto_complete_outfit()`（`_dp_optimum` 会高估）；探针要覆盖测试种子池。
 ★ **反差 = 全槽位求和**；改口径要同时**拉开原貌池** + **重标 `contrast_req`**。
 ★ **下装 / 成装是命门**：`FORCED_NEVER_SLOTS := ["bottom","dress"]`、不抽「与原貌完全相同」那件；
@@ -207,12 +204,12 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 
 ## 五、架构约定（细节见 `REFERENCE.md` 六章）
 
-- **★ 只用 AU 图包（第 37 轮）**：产物只有 `assets/dol_au/` + `data/doll_au.json`。取景框 **68×203**。
-- **★ 成装（`dress`）= 两层源图叠加**：只取一层只有上半身。加新成装先查 `upper/` 与 `lower/`。
-- **两条槽位名单语义相反**：`DISABLED_SLOTS` = 下架；`MANUAL_SLOTS` = 只能手动装备。`active_slots()` / `auto_slots()` **别混用**。
-- **多件槽位（`MULTI_SLOTS := {"tattoo": 2}`）**：`equipped` 里**单件 = `String`，多件 = `Array`** → **一律走访问器**。★ 测试里自己读写 `equipped[slot]` 最容易踩。
-- **运行时覆写用 `static var`**：**「原地改容器」而非换新容器**；由 `_load_story()` 读完反调 `apply_*()`；落盘**只写「与内置值不同」的条目**。
-- **★★ 多个调用点顺序不一致 → 改「写」的时机，不改调用点（第 71 轮）**：累加 + `call_deferred` 本帧末统一追加。
+- **★ 只用 AU 图包（第 37 轮）**：产物只有 `assets/dol_au/` + `data/doll_au.json`，取景框 **68×203**。
+  **成装（`dress`）= 两层源图叠加**（只取一层只有上半身）；加新成装先查 `upper/` 与 `lower/`。
+- **两条槽位名单语义相反**：`DISABLED_SLOTS` = 下架、`MANUAL_SLOTS` = 只能手动装备（`active_slots()` / `auto_slots()` **别混用**）。
+  **多件槽位（`MULTI_SLOTS := {"tattoo": 2}`）**：`equipped` 里单件 = `String`、多件 = `Array` → **一律走访问器**。
+- **运行时覆写用 `static var`**：**「原地改容器」而非换新容器**；`_load_story()` 读完反调 `apply_*()`；落盘**只写与内置值不同的条目**。
+  **★★ 多个调用点顺序不一致 → 改「写」的时机，不改调用点（第 71 轮）**：累加 + `call_deferred` 本帧末统一追加。
 - **★ 一个文本变量服务多个选项时别整句替换**（第 77 轮）：只给「⚠ 前缀」。
 
 ### 五条硬规矩（展开见 `REFERENCE.md`）

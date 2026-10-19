@@ -3336,23 +3336,51 @@ func _test_shake() -> void:
 # ------------------------------------------------------------
 func _test_new_mechanics() -> void:
 	print("\n-- 强制装备：本轮随机 0~2 件高暴露，换掉就当场识破 --")
+	# ★★ 第八十四轮：这一段原来直接跑「随机背景 + 出厂规则」——
+	#   而用户那两套背景第 1 轮写的是 `fixed`（校服 / 短发），于是
+	#   ①「第 1 轮没有强制装备」这条必然假红；② 后面几条拿到的强制件与
+	#   实际这一轮的对不上。改成**注入一份两轮规则 + 钉住一套没有本局覆写的背景**，
+	#   与 WardrobeTest 第 83 轮的做法一致：这一段验机制，不验用户数据。
+	var keep_forced_ov: Array = ScenarioData._forced_ov.duplicate(true)
+	ScenarioData._forced_ov = [
+		{"mode": OutfitData.FORCED_MODE_NONE, "rules": []},
+		{"mode": OutfitData.FORCED_MODE_RANDOM, "rules": []},
+	]
+	var plain_bg := ""
+	for bid in ScenarioData.background_ids():
+		if ScenarioData.bg_forced_rules(str(bid)).is_empty():
+			plain_bg = str(bid)
+			break
+	if plain_bg == "":
+		_check("★ 找不到「没有本局强制覆写」的背景，本节跳过", false)
+		ScenarioData._forced_ov = keep_forced_ov
+		OutfitData.reload_forced_rules()
+		return
+
 	ProfileData.reset_all()
 	ProfileData.add_gain(30)          # 把强制池撑大，保证抽得出来
-	var forced: Array = []
+	# ① 第 1 轮不抽（random 模式）
 	var first_level_clean := true
 	for k in 60:
-		RunData.start_new_run(310000 + k * 131)
-		# ★ 每局第一轮没有强制服装要求
+		RunData.start_new_run(310000 + k * 131, 0, plain_bg)
 		if RunData.has_forced_items():
 			first_level_clean = false
-		RunData._roll_forced_items(1)
+	_check("★ 每局第一轮没有强制服装要求", first_level_clean)
+
+	# ② 第 2 轮会抽 —— ★ 直接以「第 2 轮开局」跑，RunData 停在那一轮，
+	#    后面几条断言才和实际这一局对得上（以前是临时 `_roll_forced_items(1)`
+	#    抽一把就断言，状态其实是错位的）。
+	var forced: Array = []
+	for k in 60:
+		RunData.start_new_run(310000 + k * 131, 1, plain_bg)
 		if RunData.has_forced_items():
 			forced = RunData.forced_item_ids().duplicate()
 			break
-	_check("★ 每局第一轮没有强制服装要求", first_level_clean)
 	_check("第 2 轮起仍然会抽到强制装备（机制不是空转）", not forced.is_empty())
 	if forced.is_empty():
 		ProfileData.reset_all()
+		ScenarioData._forced_ov = keep_forced_ov
+		OutfitData.reload_forced_rules()
 		return
 
 	main._start_level()
@@ -3398,6 +3426,10 @@ func _test_new_mechanics() -> void:
 			m.missing_forced().is_empty() and gd.outfit_passed == true)
 	else:
 		print("      （该槽位只有一件可选，跳过换装判定）")
+
+	# 还原注入的强制规则（后面几节要用用户自己的数据）
+	ScenarioData._forced_ov = keep_forced_ov
+	OutfitData.reload_forced_rules()
 
 	print("\n-- 短信逐关解锁：每过一关，手机里多一条 --")
 	ProfileData.reset_all()

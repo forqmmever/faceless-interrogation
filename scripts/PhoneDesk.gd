@@ -448,11 +448,20 @@ func _build_thread_view() -> void:
 
 		var sp_l := Control.new()
 		sp_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		# ★ 第八十四轮（用户口径）：「短信中每条消息的显示调宽一点」。
+		#   以前三个子项都是 EXPAND_FILL → 各占 1/3，气泡只有约 100px，一句话断成三四行。
+		#   现在给两个垫片设较小的拉伸权重（1 : 5 : 1），气泡拿到约 71%（≈215px）；
+		#   垫片本身仍有固定最小宽度，短消息不会贴到屏幕边缘。
+		sp_l.size_flags_stretch_ratio = 1.0
+		sp_l.custom_minimum_size = Vector2(10, 0)
 		var sp_r := Control.new()
 		sp_r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		sp_r.size_flags_stretch_ratio = 1.0
+		sp_r.custom_minimum_size = Vector2(10, 0)
 
 		var bubble := PanelContainer.new()
 		bubble.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bubble.size_flags_stretch_ratio = 5.0
 		bubble.custom_minimum_size = Vector2(0, 0)
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = Color(0.16, 0.34, 0.24) if mine else Color(0.17, 0.18, 0.22)

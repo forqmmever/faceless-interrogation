@@ -62,6 +62,8 @@ var credits_back_btn: Button
 # 「开始游戏」之后先出这一层：本局背景 + 各轮入口，只有开放的那几轮点得动。
 var level_select: Control
 var level_select_rows: Array = []      # [{btn, note, li}]
+# ★ 第八十四轮：轮次行单独一个容器 —— 换背景时整个清掉重建（名字要跟着变）
+var level_rows_box: VBoxContainer
 var level_select_back_btn: Button
 # ★ 第五十三轮：本局背景选择 —— [{btn, id}]
 # ★ 第七十三轮：不再有 id 为空串的「随机」那一颗 —— 每颗都是具体背景。
@@ -289,18 +291,91 @@ func _build_level_select() -> void:
 
 	vb.add_child(HSeparator.new())
 
-	# 轮次入口 —— 名字从 OutfitData.levels() 取（数值曲线那张表，跨背景通用）
+	# 轮次入口 —— ★★ 第八十四轮：改成「跟着选中的背景重建」。
+	#   以前这里只在启动时建一次、名字取 `OutfitData.level_at(li)`（那是**上一局生效的那份**），
+	#   所以在面板里换背景时，轮次名一直是旧的（用户报「切换背景，每轮的名字不会随之变化」）。
+	#   现在把行放进一个独立容器，换背景就 `_rebuild_level_rows()` 重来一遍，
+	#   名字取「这套背景自己的 levels[i].name」（见 `_levels_for_panel`）。
+	level_rows_box = VBoxContainer.new()
+	level_rows_box.add_theme_constant_override("separation", 12)
+	vb.add_child(level_rows_box)
+	_rebuild_level_rows()
+
+	vb.add_child(HSeparator.new())
+
+	var back_row := HBoxContainer.new()
+	back_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vb.add_child(back_row)
+	level_select_back_btn = _title_button(_ut("title.select_back", "◀  返回"), Color(0.30, 0.30, 0.36))
+	level_select_back_btn.custom_minimum_size = Vector2(220, 44)
+	level_select_back_btn.pressed.connect(_on_level_select_back)
+	back_row.add_child(level_select_back_btn)
+
+	level_select.hide()
+
+# 点了某套背景（第七十三轮起没有「随机」那一颗了）
+func _on_bg_choice(bid: String) -> void:
+	_pending_bg_id = bid
+	_sync_bg_choice_style()
+	# ★★ 第八十四轮（用户口径）：「切换背景，每轮的名字不会随之变化」——
+	#   以前只改了按钮的选中态，轮次那几行是启动时一次性建好的，名字一直停在上一套。
+	#   现在换背景就把轮次行整个重建一遍。
+	_rebuild_level_rows()
+
+# 「如果这一局用的是 bg_id 这套背景，第 1..N 轮各叫什么」——**只读，不改运行时状态**。
+#
+#   不能直接用 `OutfitData.level_at()`：那是「当前这一局生效的那份」，
+#   在选关面板里还没开局，读到的是上一套背景留下的东西（这就是名字不变的根因）。
+#   也不能调 `RunData.levels()`：它同样取 `background()`（当前局的背景）。
+#   所以这里照 `_ensure_levels()` + `RunData.levels()` 的叠加口径**重算一份**：
+#     基线 = 全局轮次表（`story.levels`，为空才用出厂 DEFAULT_LEVELS）
+#     轮数 = 这套背景自己的 levels 条数（没写才跟全局一样多）
+#     名字 / 推导形象 = 这套背景写了的优先，否则用基线那份。
+func _levels_for_panel(bg_id: String) -> Array:
+	var base: Array = OutfitData.global_levels()
+	var own: Array = ScenarioData.bg_levels(bg_id)
+	var n: int = own.size() if not own.is_empty() else base.size()
+	if n <= 0:
+		n = maxi(1, OutfitData.DEFAULT_LEVELS.size())
+	var out := []
+	for i in n:
+		var name := ""
+		var prof := ""
+		if i < base.size() and typeof(base[i]) == TYPE_DICTIONARY:
+			name = str((base[i] as Dictionary).get("name", ""))
+			prof = str((base[i] as Dictionary).get("derived_profile", ""))
+		if name == "":
+			name = "第 %d 轮" % (i + 1)
+		if i < own.size() and typeof(own[i]) == TYPE_DICTIONARY:
+			var o: Dictionary = own[i]
+			if str(o.get("name", "")) != "":
+				name = str(o.get("name", ""))
+			if str(o.get("derived_profile", "")) != "":
+				prof = str(o.get("derived_profile", ""))
+		out.append({"name": name, "derived_profile": prof})
+	return out
+
+# 按当前选中的背景重建轮次那几行
+func _rebuild_level_rows() -> void:
+	if level_rows_box == null:
+		return
+	for c in level_rows_box.get_children():
+		level_rows_box.remove_child(c)
+		c.queue_free()
 	level_select_rows = []
-	for li in OutfitData.level_count():
+
+	var lvs := _levels_for_panel(_pending_bg_id)
+	for li in lvs.size():
+		var lv: Dictionary = lvs[li]
 		var unlocked: bool = OutfitData.level_unlocked(li)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
-		vb.add_child(row)
+		level_rows_box.add_child(row)
 
 		var btn := Button.new()
-		var lv := OutfitData.level_at(li)
 		var lv_name := str(lv.get("name", "第 %d 轮" % (li + 1)))
-		btn.text = "%s   ·   %s" % [lv_name, str(lv.get("derived_profile", ""))]
+		var prof := str(lv.get("derived_profile", ""))
+		btn.text = lv_name if prof == "" else "%s   ·   %s" % [lv_name, prof]
 		btn.custom_minimum_size = Vector2(0, 48)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.focus_mode = Control.FOCUS_NONE
@@ -319,9 +394,9 @@ func _build_level_select() -> void:
 		dsb.set_border_width_all(1)
 		dsb.border_color = Color(0.22, 0.24, 0.29)
 		btn.add_theme_stylebox_override("disabled", dsb)
-		for c in ["font_color", "font_pressed_color", "font_hover_color",
+		for c2 in ["font_color", "font_pressed_color", "font_hover_color",
 				"font_hover_pressed_color", "font_focus_color"]:
-			btn.add_theme_color_override(c, Color(0.96, 0.98, 1.0))
+			btn.add_theme_color_override(c2, Color(0.96, 0.98, 1.0))
 		btn.add_theme_color_override("font_disabled_color", Color(0.44, 0.47, 0.53))
 		btn.disabled = not unlocked
 		if unlocked:
@@ -340,23 +415,6 @@ func _build_level_select() -> void:
 		row.add_child(note)
 
 		level_select_rows.append({"btn": btn, "note": note, "li": li})
-
-	vb.add_child(HSeparator.new())
-
-	var back_row := HBoxContainer.new()
-	back_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	vb.add_child(back_row)
-	level_select_back_btn = _title_button(_ut("title.select_back", "◀  返回"), Color(0.30, 0.30, 0.36))
-	level_select_back_btn.custom_minimum_size = Vector2(220, 44)
-	level_select_back_btn.pressed.connect(_on_level_select_back)
-	back_row.add_child(level_select_back_btn)
-
-	level_select.hide()
-
-# 点了某套背景（第七十三轮起没有「随机」那一颗了）
-func _on_bg_choice(bid: String) -> void:
-	_pending_bg_id = bid
-	_sync_bg_choice_style()
 
 # 背景按钮的选中态：选中的那颗涂成主色，其余是暗色
 func _sync_bg_choice_style() -> void:

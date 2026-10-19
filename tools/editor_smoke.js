@@ -70,7 +70,7 @@ mainJs += `
   loadStory, validateNow, buildIndex, renderAll, go, toJSON, getSeed, openSet, foldSet,
   commit, undo, redo,
   get undoStack(){ return undoStack; }, get redoStack(){ return redoStack; },
-  bgSections, traitSections, globalSections,
+  bgSections, traitSections,
   rulesSections, uiSections, endingsSections, uiLeafCount, normalizeStory, stripNum,
   renderSection, renderField,
   // 第二十三轮：流程四页的字段定义与目录查询
@@ -82,7 +82,7 @@ mainJs += `
   // ★ 第五十三轮：renderQuestions 已删除（题库页并进每套背景），不再导出
   questionFields, optionFields, TONE_OPTS, QUESTION_QTE_OPTS, totalQuestions,
   bgEnabled, enabledBgs, blankBackground,
-  SLOTS, POOL_IDS, TRUE_POOL, GENDERS, PLAYER_GENDER,
+  TRUE_POOL, GENDERS, PLAYER_GENDER,
   // ★ 第四十轮：服装数值页 / 原貌页
   renderItemsEditor, renderTrueAppEditor, renderPresetList,
   setItemOverride, effValueOf, baseValueOf, catalogItems, overriddenItemCount,
@@ -239,11 +239,18 @@ try {
   ok(text.includes('"backgrounds"') && text.includes('"questions"'), "输出含关键字段");
   console.log("   输出 " + Buffer.byteLength(text, "utf8") + " 字节");
 
-  console.log("\n-- 7. 槽位/池 常量 --");
-  ok(P.SLOTS.length === 19, "SLOTS = 19（第三十九轮新增妙妙工具）");
-  ok(P.POOL_IDS.length === 34, "候选池 = 34 件（吊袜带并入袜类后少 1），实际 " + P.POOL_IDS.length);
-  const idsc = P.story.item_desc || {};
-  ok(P.POOL_IDS.every(id => id in idsc), "ITEM_DESC 覆盖候选池全部");
+  console.log("\n-- 7. 常量 --");
+  // ★★ 第九十二轮：SLOTS / SLOT_CN / POOL_IDS 随「外貌情报」页删掉了。
+  //   这里改成守「它们确实没了」+ 还在的那个常量还在。
+  ok(typeof P.SLOTS === "undefined", "★ SLOTS 常量已删（外貌情报页的槽位表）");
+  ok(typeof P.POOL_IDS === "undefined", "★ POOL_IDS 常量已删（衣物描述的候选池）");
+  // ★ 18 个键（`tool` 妙妙工具不进原貌，池里没有它）。
+  ok(Object.keys(P.TRUE_POOL).length === 18,
+    "TRUE_POOL 仍在 18 个槽位（反差上界校验要用），实际 " + Object.keys(P.TRUE_POOL).length);
+  ok(P.story.item_desc === undefined, "★ story.json 里不再有 item_desc 段");
+  ok(P.story.clue_frame === undefined, "★ story.json 里不再有 clue_frame 段");
+  ok(P.story.clue_sources === undefined, "★ story.json 里不再有 clue_sources 段");
+  ok(P.story.photo_notes === undefined, "★ story.json 里不再有 photo_notes 段");
   ok(P.PLAYER_GENDER === "女", "玩家（B 的马甲）性别 = 女");
 
   console.log("\n-- 7b. 主人公 / 性别 / 短信关卡（本轮新增字段）--");
@@ -490,15 +497,18 @@ try {
   const lvSecIntro = P.bgSections(P.story.backgrounds[0]).find(s => s.key === "levels");
   ok(!!lvSecIntro && lvSecIntro.fields.some(f => f.k === "intro"),
     "每轮的说明仍然能改（⑦ 本局几轮 → 这一轮的背景说明）");
-  console.log("\n-- 7f2. 衣物描述的「多出来的项」提示（第五十四轮从校验面板挪到这一节）--");
+  console.log("\n-- 7f2. 「外貌情报 / 全局文本」这一页已删（第九十二轮）--");
   {
-    const gsec = P.globalSections().find(s => s.key === "item_desc");
-    ok(!!gsec, "全局文本页里有衣物描述这一节");
-    ok(typeof gsec.extra === "function", "这一节声明了 extra（多出来的项）");
-    const ex = gsec.extra ? gsec.extra() : [];
-    ok(ex.length > 0, "出厂数据里确实有多出来的项（实际 " + ex.length + " 条）");
-    ok(ex.every(k => !P.POOL_IDS.includes(k)), "extra 列出的都不在候选池里");
-    ok(gsec.missing().length === 0, "同时「缺失的」是 0 条（该有的都有）");
+    // ★ 判据用**源码里还在不在**，不是 `typeof P.xxx === "undefined"` ——
+    //   后者对我们自己删掉的导出永远成立，是空转断言（这条坑踩过）。
+    ok(!/function globalSections/.test(mainJs), "★ globalSections() 函数已删");
+    ok(!/function renderStrMap/.test(mainJs), "★ strmap / strarrmap 渲染器已删（只服务这一页）");
+    ok(P.NAV_KINDS.indexOf("global") < 0, "★ 导航清单里没有 \"global\" 这一页");
+    // ★ 只查**渲染用的字符串字面量**，不查注释 —— 注释里留着说明改动轨迹是好事。
+    ok(!/text:"📝 外貌情报/.test(mainJs), "★ 源码里不再有那一页的标题字面量");
+    // 反向：还该在的东西不能被连带删掉
+    ok(/function renderStrList/.test(mainJs), "strlist 渲染器还在（干扰台词 / 照片备注之外的地方还在用）");
+    ok(/function renderObjList/.test(mainJs), "objlist 渲染器还在");
   }
 
   console.log("\n-- 7g. 题目：逐题编辑的字段结构（★ 第五十三轮起在每套背景页里）--");
@@ -677,8 +687,7 @@ try {
   }, "没有「顶回去」的选项");
   negCase("短信揭示指向不存在的事实",
     s => { s.backgrounds[0].sms[0].reveals[0].fact = "nope"; }, "不存在的事实");
-  negCase("句式模板丢了 %s", s => { s.clue_frame.hair = "「那人头发。」"; }, "%s");
-  negCase("衣物描述缺一件", s => { delete s.item_desc.hair_short; }, "衣物描述缺 hair_short");
+  // ★★ 第九十二轮：这两条随「外貌情报」页一起删掉（那两段数据不存在了）。
   negCase("事实只剩一个版本",
     s => { s.backgrounds[0].facts[0].values = [s.backgrounds[0].facts[0].values[0]]; }, "至少要 2 个版本");
   negCase("性情 dangerous 值非法", s => { s.traits[0].dangerous = "nonsense"; }, "dangerous 只能是");

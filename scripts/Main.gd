@@ -984,7 +984,7 @@ func _sync_wardrobe_to_gamedata() -> void:
 	#   放在 reset_level_state() 之后（那一步会把 outfit_passed 复位成 true）。
 	wardrobe.sync_outfit_verdict()
 
-	# 手机浮层的操作本身已实时写入 GameData（dossier_* / revealed_slots），这里再兜一次
+	# 手机浮层的操作本身已实时写入 GameData（dossier_*），这里再兜一次
 	wardrobe.intel.sync_to_gamedata()
 
 	# 反差值越高，越能转移审讯官注意力（上限 0.9）

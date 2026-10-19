@@ -152,8 +152,11 @@ func _test_slots() -> void:
 	_check("★ 四件刻字纹身已按口径删除（bitch / free-use / slave / cum-rag）",
 		not tattoo_ids.has("tattoo_bitch") and not tattoo_ids.has("tattoo_freeuse")
 		and not tattoo_ids.has("tattoo_slave") and not tattoo_ids.has("tattoo_cumrag"))
-	_check("★ 每件纹身都写了目击描述（第三十五 / 三十六轮补齐）",
-		_tattoo_desc_ok())
+	# ★ 第九十二轮：「衣物目击描述（ITEM_DESC）」整套删掉 —— 原来这里守着
+	#   「每件纹身都要有描述」，那条已经没有意义，换成守「它确实没了」。
+	#   （不能只写 `true` —— 恒真断言是空转，等于什么都没测。）
+	_check("★ 衣物目击描述已随外貌情报删除（ScenarioData 没有 ITEM_DESC）",
+		not ("ITEM_DESC" in ScenarioData))
 
 	# ★ 第三十九轮：从 AU `clothes/genitals/` 引入的平坦贞操笼
 	#   （用户口径「引入平坦贞操笼放在下内衣，暴露度取最高」）
@@ -535,7 +538,6 @@ func _test_disabled_slots() -> void:
 		and OutfitData.get_items_for_slot("tool").is_empty())
 	_check("下架槽位不进强制装备池", _forced_pool_excludes_disabled())
 	_check("下架的物品仍然完整定义着（28 件：4×5 栏 + 配饰 6 + 妙妙工具 2）", _disabled_items_intact())
-	_check("下架的物品仍有目击描述（恢复后立刻可用）", _disabled_items_have_desc())
 	_check("每局原貌不含下架的槽位", _true_appearance_excludes_disabled())
 	_check("每局相册不含下架的槽位", _photos_exclude_disabled())
 
@@ -560,19 +562,6 @@ func _disabled_items_intact() -> bool:
 	#     它按用户口径挪到颈饰去了，现在是**可见**物品（这正是本条断言的意义：
 	#     它替我们抓住「挪栏之后还剩几件真正下架」这件事）。
 	return n == 28
-
-func _disabled_items_have_desc() -> bool:
-	# 只有「可能是 A 的原貌」的那些才需要目击描述（robe_none / robe_travel）；
-	# robe_lace / robe_leather 不在 TRUE_POOL 里，本来就没有描述
-	for it in OutfitData.ITEMS:
-		if OutfitData.slot_enabled(str(it["slot"])):
-			continue
-		if not (OutfitData.TRUE_POOL.get(str(it["slot"]), []) as Array).has(str(it["id"])):
-			continue
-		if ScenarioData.desc_of(str(it["id"])) == "":
-			print("      missing ITEM_DESC: ", it["id"])
-			return false
-	return true
 
 func _true_appearance_excludes_disabled() -> bool:
 	for s in range(1, 8):
@@ -656,7 +645,6 @@ func _test_manual_slot_tool() -> void:
 	_check("默认装备是「不携带」（系统不主动送）", _manual_default_is_bare())
 	_check("妙妙工具不进强制装备池", _manual_excluded_from_forced())
 	_check("每局原貌不含妙妙工具", _manual_excluded_from_true())
-	_check("每局情报不含妙妙工具", _manual_excluded_from_clues())
 	_check("每局相册不含妙妙工具", _manual_excluded_from_photos())
 	_check("「与原貌一致 / 已改掉」统计不含妙妙工具", _manual_excluded_from_matching())
 	_check("一键达标不会替玩家装 / 脱妙妙工具", _manual_excluded_from_auto())
@@ -686,15 +674,6 @@ func _manual_excluded_from_true() -> bool:
 		RunData.start_new_run(s)
 		for slot in RunData.true_appearance().keys():
 			if OutfitData.is_manual_slot(str(slot)):
-				return false
-	return true
-
-func _manual_excluded_from_clues() -> bool:
-	for s in range(1, 8):
-		ProfileData.reset_all()
-		RunData.start_new_run(s)
-		for c in RunData.clues:
-			if OutfitData.is_manual_slot(str((c as Dictionary).get("slot", ""))):
 				return false
 	return true
 
@@ -962,22 +941,16 @@ func _test_true_presets() -> void:
 	_check("★ 直接进第 1 轮时开局原貌就是覆写那套：" + str(RunData.true_item("top")),
 		str(RunData.true_item("top")) == "top_highneck")
 
-	# ---- 换原貌时情报要跟着换（条数不变、文案跟着新原貌）----
+	# ---- 切关换原貌：原貌跟着这一轮的覆写走 ----
+	#   ★ 第九十二轮：「外貌情报」删掉之后，这里只能看原貌本身有没有换 ——
+	#     以前是拿情报文案来间接验的。
 	ProfileData.reset_all()
 	RunData.start_new_run(4242)
-	var clue_before := ""
-	for c in RunData.clues:
-		if str((c as Dictionary).get("slot", "")) == "top":
-			clue_before = str((c as Dictionary).get("text", ""))
+	var top_before := str(RunData.true_item("top"))
 	RunData.advance_level()
-	var clue_after := ""
-	for c in RunData.clues:
-		if str((c as Dictionary).get("slot", "")) == "top":
-			clue_after = str((c as Dictionary).get("text", ""))
-	_check("★ 切关换原貌后情报文案跟着换（不是还说着旧的那件）",
-		clue_before != "" and clue_after != "" and clue_before != clue_after)
-	_check("情报条数不变（还是每个可覆写槽位一条）",
-		RunData.clues.size() == OutfitData.auto_slots().size())
+	var top_after := str(RunData.true_item("top"))
+	_check("★ 切关后原貌的上衣跟着换（不是还穿着上一轮那件）",
+		top_before != "" and top_after != "" and top_before != top_after)
 
 	# ★ 收尾必须清干净：上面反复调了 advance_level()，而它会
 	#   `ProfileData.add_gain()` —— 接受度是**跨局保留**的，不 reset 就会污染后面所有用例
@@ -1521,7 +1494,6 @@ func _test_true_pool() -> void:
 	_check("池内物品 id 全部存在", _pool_items_resolve())
 	_check("池内物品都属于它所在的槽位", _pool_slots_match())
 	_check("每个槽位至少 1 个候选", _pool_non_empty())
-	_check("池内每件物品都有目击描述（ITEM_DESC）", _pool_has_desc())
 	_check("默认原貌取自候选池", _default_true_in_pool())
 	# ★ 第四十九轮：下面两条是**配套的一对**，缺一不可 ——
 	#   ① 池里必须有中高暴露的候选（否则全槽位求和会退化成
@@ -1612,7 +1584,7 @@ func _test_scenario_data() -> void:
 	_check("全部背景（含草稿）不少于已启用的",
 		ScenarioData.all_bg_count() >= ScenarioData.bg_count())
 	_check("性情表读到 ≥ 5 种", ScenarioData.INTERROGATOR_TRAITS.size() >= 5)
-	_check("衣物目击描述非空", ScenarioData.ITEM_DESC.size() > 0)
+	_check("★ 衣物目击描述已删（第九十二轮）", not ("ITEM_DESC" in ScenarioData))
 	_check("至少 4 套背景", ScenarioData.bg_count() >= 4)
 	_check("背景 id 唯一", _bg_ids_unique())
 	_check("每套背景字段齐全", _bg_fields_ok())
@@ -1692,10 +1664,13 @@ func _test_scenario_data() -> void:
 	_check("每个性情 id 都能取回", _trait_lookup_ok())
 
 	print("\n-- 外貌情报句式 --")
-	_check("CLUE_FRAME 覆盖全部槽位", _frame_covers_all_slots())
-	_check("CLUE_SOURCES 覆盖全部槽位", _sources_covers_all_slots())
-	_check("每个槽位至少 2 个来源", _sources_enough())
-	_check("ITEM_DESC 与候选池完全对齐", _desc_matches_pool())
+	# ★ 第九十二轮：这三条守的是「外貌情报的句式 / 来源表覆盖全部槽位」——
+	#   那两张表已经删了。换成守「它们确实没了」，不留恒真断言。
+	_check("★ 不再有 CLUE_FRAME / CLUE_SOURCES 两张表",
+		not ("CLUE_FRAME" in ScenarioData) and not ("CLUE_SOURCES" in ScenarioData))
+	_check("★ 不再有 desc_of / clue_text 这类拼句子的接口",
+		not ScenarioData.has_method("desc_of") and not ScenarioData.has_method("clue_text")
+		and not ScenarioData.has_method("frame_of") and not ScenarioData.has_method("sources_of"))
 
 # ------------------------------------------------------------
 #  每局随机化
@@ -1707,12 +1682,10 @@ func _test_run_randomization() -> void:
 	RunData.start_new_run(20261011)
 	var bg_a := RunData.background_id
 	var ta_a := RunData.true_appearance().duplicate()
-	var clue_a := RunData.clues.size()
 	var tr_a := RunData.interrogator_trait_id
 	RunData.start_new_run(20261011)
 	_check("同一种子 → 同一背景", RunData.background_id == bg_a)
 	_check("同一种子 → 同一原貌", _dict_eq(RunData.true_appearance(), ta_a))
-	_check("同一种子 → 同样条数的外貌情报", RunData.clues.size() == clue_a)
 	_check("同一种子 → 同一审问者性情", RunData.interrogator_trait_id == tr_a)
 
 	print("\n-- 审问者性情确实每局在变 --")
@@ -1740,8 +1713,6 @@ func _test_run_randomization() -> void:
 	var all_slots_ok := true
 	var exposure_ok := true
 	var pool_ok := true
-	var clue_ok := true
-	var source_ok := true
 	# ★ 第四十九轮：出厂把四轮的**主干槽位**按轮钉死（story.json `true_presets.by_level`），
 	#   所以「取自候选池」要放宽成「取自候选池 ∪ 钉死的预设」——
 	#   否则这条会误报（钉死的那几件本来就不在随机池里）。
@@ -1772,32 +1743,20 @@ func _test_run_randomization() -> void:
 			exp += int(OutfitData.get_item(id).get("exposure", 0))
 		if exp > OutfitData.exposure_cap(OutfitData.START_ACCEPTANCE):
 			exposure_ok = false
-		if RunData.clues.size() != n_slots:
-			clue_ok = false
-		for c in RunData.clues:
-			if str(c.get("source", "")).length() < 2 or str(c.get("text", "")).length() < 6:
-				source_ok = false
 	_check("每局原貌覆盖全部 %d 个槽位" % n_slots, all_slots_ok)
 	_check("每局原貌都取自候选池", pool_ok)
 	_check("每局原貌暴露值都不超第 1 关上限", exposure_ok)
-	_check("每局生成 %d 条外貌情报" % n_slots, clue_ok)
-	_check("每条情报都有来源与文案", source_ok)
-
-	print("\n-- 外貌情报必须与本局原貌一致 --")
-	RunData.start_new_run(7)
-	var mismatch := 0
-	for slot in OutfitData.auto_slots():
-		var clue := DossierData.clue_for_slot(slot)
-		if clue.is_empty():
-			mismatch += 1
-			continue
-		var want := ScenarioData.clue_text(slot, RunData.true_item(slot))
-		if str(clue["text"]) != want:
-			mismatch += 1
-	_check("%d 条情报文案全部由本局原貌拼出" % n_slots, mismatch == 0)
-	_check("DossierData.clue_count() = %d" % n_slots, DossierData.clue_count() == n_slots)
 
 	print("\n-- 按关抽题 --")
+	# ★★ 第九十二轮：**显式钉一局**，别再吃上一段留下的状态。
+	#   以前这里靠的是「上一段结尾刚好是 start_new_run(7)」（那是「外貌情报必须与本局
+	#   原貌一致」那段的最后一句）；那段随外貌情报一起删掉之后，这里就变成吃
+	#   「随机原貌的合法性」循环留下的 seed=40 —— 于是同一份数据换了一局，
+	#   题库结构断言成片翻转，看起来像回归，其实只是「用的是哪一局」变了。
+	#   钉死之后「按关抽题」只依赖这一行。
+	RunData.start_new_run(40)
+	print("      [钉死] seed=", RunData.seed_value, " bg=", RunData.background_id,
+		" manual=", RunData.questions_are_manual())
 	var q0: Array = RunData.questions_for_level(0, Interrogation.QUESTIONS_PER_LEVEL)
 	var q1: Array = RunData.questions_for_level(1, Interrogation.QUESTIONS_PER_LEVEL)
 	_check("每轮抽 %d 道题" % Interrogation.QUESTIONS_PER_LEVEL,
@@ -2320,8 +2279,6 @@ func _test_level_curve() -> void:
 		not _dict_eq(ta_next, ta0))
 	var t1 := _true_total_exposure(ta_next)
 	_check("第二轮的暴露总和 ≥ 第一轮（A 逐轮变露）", t1 >= t0)
-	_check("进入下一轮后外貌情报跟着换（不再复述上一轮的脸）",
-		str(DossierData.clue_for_slot("hair")["text"]) == ScenarioData.clue_text("hair", ta_next["hair"]))
 	# ★ 第五十二轮：一局只剩两轮，不再有「第三、四轮」——
 	#   原来这里连推两次 `advance_level()` 再取原貌，两轮制下那两次推进
 	#   会把 level_index 推过末尾（`is_run_complete()` 在 index==2 时才成立，
@@ -3922,26 +3879,6 @@ func _pool_has_exposed_candidates() -> bool:
 		return false
 	return true
 
-func _pool_has_desc() -> bool:
-	for slot in OutfitData.SLOT_ORDER:
-		for id in OutfitData.TRUE_POOL.get(slot, []):
-			if ScenarioData.desc_of(str(id)) == "":
-				print("      missing ITEM_DESC: ", id)
-				return false
-	return true
-
-func _tattoo_desc_ok() -> bool:
-	# ★ 第三十五轮：纹身不在原貌候选池里，所以 _pool_has_desc 管不到它们 ——
-	#   但玩家能穿，目击情报会用到描述（缺了就退化成「看不真切」）。
-	#   这里把「除空件以外的纹身都要有描述」钉死。
-	for it in OutfitData.ITEMS:
-		if str(it["slot"]) != "tattoo" or str(it["id"]) == "tattoo_none":
-			continue
-		if ScenarioData.desc_of(str(it["id"])) == "":
-			print("      missing ITEM_DESC: ", it["id"])
-			return false
-	return true
-
 func _default_true_in_pool() -> bool:
 	for slot in OutfitData.SLOT_ORDER:
 		# ★ 第三十九轮：妙妙工具不在原貌相关的表里（它是玩家手动揣的道具），跳过
@@ -3968,43 +3905,6 @@ func _garter_items_moved_to_stockings() -> bool:
 				return false
 			moved += 1
 	return moved == 2
-
-func _desc_matches_pool() -> bool:
-	# 候选池里的每一件都必须有描述；反过来，多余的描述不算错（便于以后扩池）
-	for slot in OutfitData.SLOT_ORDER:
-		for id in OutfitData.TRUE_POOL.get(slot, []):
-			if not ScenarioData.ITEM_DESC.has(str(id)):
-				return false
-	return true
-
-func _frame_covers_all_slots() -> bool:
-	for slot in OutfitData.SLOT_ORDER:
-		# ★ 第三十九轮：妙妙工具不在原貌相关的表里（它是玩家手动揣的道具），跳过
-		if OutfitData.is_manual_slot(slot):
-			continue
-		if not ScenarioData.CLUE_FRAME.has(slot):
-			print("      CLUE_FRAME missing: ", slot)
-			return false
-	return true
-
-func _sources_covers_all_slots() -> bool:
-	for slot in OutfitData.SLOT_ORDER:
-		# ★ 第三十九轮：妙妙工具不在原貌相关的表里（它是玩家手动揣的道具），跳过
-		if OutfitData.is_manual_slot(slot):
-			continue
-		if not ScenarioData.CLUE_SOURCES.has(slot):
-			print("      CLUE_SOURCES missing: ", slot)
-			return false
-	return true
-
-func _sources_enough() -> bool:
-	for slot in OutfitData.SLOT_ORDER:
-		# ★ 第三十九轮：妙妙工具不在原貌相关的表里（它是玩家手动揣的道具），跳过
-		if OutfitData.is_manual_slot(slot):
-			continue
-		if (ScenarioData.CLUE_SOURCES.get(slot, []) as Array).size() < 2:
-			return false
-	return true
 
 func _bg_ids_unique() -> bool:
 	var seen := {}

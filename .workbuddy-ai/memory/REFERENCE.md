@@ -309,9 +309,9 @@ Godot 报 `SCRIPT ERROR: Out of bounds get index '3'` 并**跳过这一行**，
 **规矩**：涉及「状态随时间 / 轮次推进而变」的功能，除了纯函数测试，
 **必须再写一个走完整流程的探针**（哪怕临时、用完就删）。
 判据：**测试里如果没出现两次以上的状态推进，它就测不到时间线。**
-★ **探针要跑真实链路** —— 第 44 轮直接调 `RunData.start_new_run()` 得到
-`revealed_slots = 0`（看起来像「原貌不可见」），真相是那个字段由**情报台（UI 层）**写入。
-验游戏行为要用 `load("res://scenes/Main.tscn").instantiate()` 起真实场景。
+★ **探针要跑真实链路** —— 第 44 轮直接调 `RunData.start_new_run()` 看到某个字段是 0
+（看起来像「功能没生效」），真相是它由 **UI 层**写入。验游戏行为要用
+`load("res://scenes/Main.tscn").instantiate()` 起真实场景。
 
 ### 其它两条
 
@@ -804,3 +804,30 @@ func fmt_args(t: String, args: Array) -> String:
   某条不是字符串 → 错误。
 - 结局页顶部说明：**留空 = 用「玩玩的关系」那一条**；占位符写不写都行；想恢复就清空。
 - ★ 副作用：**做不到「这一句不显示」**了 —— 模板里有字就一定有字。
+
+## 十一、第 92 轮删掉的东西（防止被当成「丢了」再找回来）
+
+「外貌情报 / 全局文本」整页 + 整套机制已按用户口径删除。**它们不存在了，不是坏了**：
+
+| 删掉的 | 原来在哪 |
+|---|---|
+| `story.json` 顶层 `item_desc` / `clue_frame` / `clue_sources` / `photo_notes` | 数据文件 |
+| `ScenarioData.ITEM_DESC` / `CLUE_FRAME` / `CLUE_SOURCES` / `PHOTO_NOTES` 四个属性与 `DEFAULT_*` 四个常量 | 代码 |
+| `ScenarioData.desc_of()` / `frame_of()` / `sources_of()` / `clue_text()` | 查询函数 |
+| `RunData.clues` / `_build_clues()` | 每局拼 18 条情报 |
+| `DossierData.appearance_clues()` / `clue_count()` / `get_clue()` / `clue_for_slot()` | 门面 |
+| `IntelDesk.revealed` / `_fill_revealed()` / `_reveal()` / `clues_done_count()` / `_on_phone_slot_revealed()` | 已还原槽位 |
+| `GameData.revealed_slots` / `clues_total` | 状态 |
+| `PhoneDesk.slot_revealed` 信号、照片卡片底部的 `note` Label | 相册 |
+| `Wardrobe._slot_revealed()`；「原貌未知 ?」那一档与悬停提示 | 准备室 |
+| 编辑器「📝 外貌情报 / 全局文本」页 + `renderStrMap()` + `SLOTS` / `SLOT_CN` / `POOL_IDS` | 编辑器 |
+
+**为什么删**：那三段数据拼出的 18 条文案在界面上从来没显示过（只被测试调），
+纯属「算了个没人看的结果」；`revealed_slots` 从第 39 轮起开局即全满，
+所以「原貌未知」那档也从没出现过。**游戏行为零变化**（除了随机流前移）。
+
+★ 现在 A 的原貌**一律可见**：`Wardrobe._refresh_preview()` 的 peek 分支直接铺整副原貌，
+不再有「只铺已还原部位」的分支。
+
+★ 想恢复「信息不全」这条体验，别照抄旧实现 —— 见 README「下一步」那条：
+应该让**相册成为唯一的原貌来源**，而不是重新引入一套没人读的文案。

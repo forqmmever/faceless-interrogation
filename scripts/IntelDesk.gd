@@ -14,21 +14,17 @@ extends Control
 #      所以「翻开过备忘录」就等于「记下了他的脾性」——
 #      盘问里 B 类题选项上的 ⚠ 从此以它为准（见 PhoneDesk._switch_app）。
 #
-#  数据层一行没动：identity_assign / revealed 依旧在开局自动填好，
-#  依旧实时写进 GameData，Interrogation 与 Wardrobe 的判定逻辑不用改。
+#  数据层：`identity_assign` 在开局按卡的 owner 自动填好（B 卡 = 可照答，A 卡 = 禁区）。
 #
-#  为什么那两套状态是「开局即自动填好」：
-#    早期的「身份情报」「外貌情报」两栏各自要玩家手动点 12 次 / 18 次，
-#    是纯粹的体力活，玩家读的是同一批信息，只是多按了几十下。
-#    现在改成：归类按卡的 owner 自动填好（B 卡 = 可照答，A 卡 = 禁区），
-#    原貌开局即全部可见 —— 换装时直接照着相反方向改就行。
-#    信息一条没少，少的是那几十次点击。
+#  ★★ 第九十二轮（用户口径「编辑器外貌情报/全局文本 删掉，并且删除这一功能」）：
+#    `revealed`（已还原的槽位）这套状态**整块删掉** ——
+#    「外貌情报」没了，相册擦亮也不再往「哪个部位已知」里登记，
+#    换装界面不再有「原貌未知 ?」这一档（原貌一律可看）。
 # ============================================================
 
 signal changed
 
 var identity_assign: Dictionary = {}   # card_id -> "kept" | "sealed"（开局即按 owner 自动填好）
-var revealed: Dictionary = {}          # slot -> true（开局即全满）
 
 var phone: PhoneDesk
 var phone_btn: Button                  # 造好之后由 Wardrobe 摆进左下角
@@ -38,7 +34,6 @@ var phone_center: CenterContainer
 
 func _ready() -> void:
 	_fill_identity()
-	_fill_revealed()
 	_build_ui()
 	rebuild()
 	sync_to_gamedata()
@@ -60,12 +55,6 @@ func _fill_identity() -> void:
 	identity_assign.clear()
 	for card in DossierData.cards():
 		identity_assign[str(card["id"])] = "kept" if str(card["owner"]) == "B" else "sealed"
-
-func _fill_revealed() -> void:
-	revealed.clear()
-	# ★ 第三十九轮：走 auto_slots() —— 「妙妙工具」没有原貌可比，不该被标成「已还原」。
-	for slot in OutfitData.auto_slots():
-		revealed[slot] = true
 
 # ---------------- UI ----------------
 func _build_ui() -> void:
@@ -139,7 +128,6 @@ func _build_phone_layer() -> void:
 
 	phone = PhoneDesk.new()
 	phone.changed.connect(_on_phone_changed)
-	phone.slot_revealed.connect(_on_phone_slot_revealed)
 	vb.add_child(phone)
 	# ⚠ 高度必须写在 add_child 之后 —— PhoneDesk._build_shell() 会把
 	#   custom_minimum_size 覆写成 (PHONE_W, 0)，那是给「有父容器撑高」的场合用的。
@@ -221,24 +209,8 @@ func _assign(card_id: String, state: String) -> void:
 	sync_to_gamedata()
 	changed.emit()
 
-func _reveal(clue_id: String) -> void:
-	var clue := DossierData.get_clue(clue_id)
-	if clue.is_empty():
-		return
-	revealed[str(clue["slot"])] = true
-	rebuild()
-	sync_to_gamedata()
-	changed.emit()
-
 # 手机里读了短信 / 擦了照片 —— 手机的进度也是情报进度
 func _on_phone_changed() -> void:
-	rebuild()
-	sync_to_gamedata()
-	changed.emit()
-
-# 照片擦清楚了：等于白捡一处原貌还原
-func _on_phone_slot_revealed(slot: String) -> void:
-	revealed[slot] = true
 	rebuild()
 	sync_to_gamedata()
 	changed.emit()
@@ -250,9 +222,6 @@ func identity_done_count() -> int:
 		if str(identity_assign[k]) != "":
 			n += 1
 	return n
-
-func clues_done_count() -> int:
-	return revealed.size()
 
 func unassigned_count() -> int:
 	return DossierData.card_count() - identity_done_count()
@@ -275,7 +244,6 @@ func is_identity_complete() -> bool:
 # 整局重来：清空全部整理进度（换背景 / 换原貌之后必须调用）
 func reset() -> void:
 	_fill_identity()
-	_fill_revealed()
 	close_phone()
 	rebuild()
 	if phone != null:
@@ -299,14 +267,7 @@ func sync_to_gamedata() -> void:
 	GameData.dossier_mistakes = identity_mistakes()
 	GameData.dossier_total = DossierData.card_count()
 
-	var slots := []
-	# ★ 第三十九轮：同上 —— reached_slots 只统计「与原貌有关」的槽位，
-	#   妙妙工具不参与原貌比对，所以不进这张表（否则会白占一处「情报」）。
-	for slot in OutfitData.auto_slots():
-		if revealed.has(slot):
-			slots.append(slot)
-	GameData.revealed_slots = slots
-	GameData.clues_total = DossierData.clue_count()
+	# ★★ 第九十二轮：`GameData.revealed_slots` / `clues_total` 已随「外貌情报」一起删掉。
 
 # ---------------- 重建 ----------------
 # 页签没了，这里只剩两件事：手机内容跟着本局进度刷新，按钮上的数字跟着刷新

@@ -107,18 +107,6 @@ func _wait(frames: int) -> void:
 		await get_tree().process_frame
 
 # ---------------- 测试辅助（与 TestRunner 同款） ----------------
-func _reveal_first(n: int) -> void:
-	var i := 0
-	for clue in DossierData.appearance_clues():
-		if i >= n:
-			break
-		intel._reveal(str(clue["id"]))
-		i += 1
-
-func _reveal_all() -> void:
-	for clue in DossierData.appearance_clues():
-		intel._reveal(str(clue["id"]))
-
 func _assign_all() -> void:
 	for card in DossierData.cards():
 		intel._assign(card["id"], "kept" if card["owner"] == "B" else "sealed")
@@ -243,7 +231,6 @@ func _viable_build(m: WardrobeModel) -> void:
 			improved = true
 
 func _prepare_and_enter() -> void:
-	_reveal_all()
 	_assign_all()
 	var m: WardrobeModel = wardrobe.model
 	_viable_build(m)
@@ -684,23 +671,18 @@ func _run() -> void:
 	phone._back_to_list()
 
 	# ---------- 换装 ----------
-	_plog("--- 10: 只拼到 6 处外貌情报时按 👁 —— 只能看见残缺的「A」---")
+	# ★★ 第九十二轮：「外貌情报 / 已还原部位」整套删掉 —— 原来这一屏拍的是
+	#   「只拼到 6 处情报时按 👁，只能看见残缺的 A」；现在原貌**一律可见**，
+	#   所以这一屏改成拍「按 👁 看见整副原貌」，文件名也跟着改。
+	_plog("--- 10: 按 👁 看「审讯官记忆里的你」—— 整副原貌都在（不再有残缺）---")
 	intel.close_phone()          # 收起手机，换装界面整块露出来
-	#  earrings 已下架（第二十五轮），这里换成 tattoo，凑满 6 处「全是还在架上的」情报。
-	var keep_slots := ["hair", "headgear", "glasses", "tattoo", "makeup", "piercing"]
-	var partial := []
-	for slot in OutfitData.SLOT_ORDER:
-		if keep_slots.has(slot):
-			partial.append(slot)
-	gd.revealed_slots = partial
 	wardrobe.peek_btn.button_pressed = true
 	await _wait(16)
-	await _shot("10_peek_partial")
+	await _shot("10_peek_true")
 	wardrobe.peek_btn.button_pressed = false
 	await _wait(8)
 
 	_plog("--- 11: 情报整理完 + 换装完成（强制装备已穿齐、反差达标、缺陷全遮、不超上限）---")
-	_reveal_all()
 	_assign_all()
 	var m: WardrobeModel = wardrobe.model
 	_viable_build(m)

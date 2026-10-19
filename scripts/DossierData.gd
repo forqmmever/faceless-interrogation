@@ -48,25 +48,6 @@ func a_cards() -> Array:
 			out.append(c)
 	return out
 
-# ---------------- 外貌情报 ----------------
-func appearance_clues() -> Array:
-	return RunData.clues
-
-func clue_count() -> int:
-	return RunData.clues.size()
-
-func get_clue(id: String) -> Dictionary:
-	for c in RunData.clues:
-		if str(c["id"]) == id:
-			return c
-	return {}
-
-func clue_for_slot(slot: String) -> Dictionary:
-	for c in RunData.clues:
-		if str(c["slot"]) == slot:
-			return c
-	return {}
-
 # ---------------- 盘问 ----------------
 func question_pool() -> Array:
 	return RunData.background().get("questions", [])

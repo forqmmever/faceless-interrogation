@@ -78,8 +78,7 @@ var dossier_kept: Array = []         # 归入「B 的伪装档案」的情报 id
 var dossier_sealed: Array = []       # 被标为「禁区 · 绝不能说」的情报 id
 var dossier_mistakes: int = 0        # 归类错误数
 var dossier_total: int = 0           # 身份情报总数
-var revealed_slots: Array = []       # 已还原出原貌的槽位（外貌情报读过的部分）
-var clues_total: int = 0             # 外貌情报总数
+# ★ 第九十二轮：`revealed_slots` / `clues_total` 随「外貌情报」一起删掉。
 
 # --- 手机（短信 / 相册）---
 # 短信里明明白白写着 B 的官方说法 —— 读短信 = 学到「我该怎么说」
@@ -130,8 +129,6 @@ func reset_run_state() -> void:
 	dossier_sealed = []
 	dossier_mistakes = 0
 	dossier_total = 0
-	revealed_slots = []
-	clues_total = 0
 	sms_read = []
 	known_facts = {}
 	photo_wipes = {}

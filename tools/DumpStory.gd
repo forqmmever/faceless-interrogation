@@ -68,10 +68,8 @@ func _ready() -> void:
 		"catalog": ScenarioData.CATALOG_EXPORT(),
 		"backgrounds": bgs,
 		"traits": ScenarioData.INTERROGATOR_TRAITS,
-		"item_desc": ScenarioData.ITEM_DESC,
-		"clue_frame": ScenarioData.CLUE_FRAME,
-		"clue_sources": ScenarioData.CLUE_SOURCES,
-		"photo_notes": ScenarioData.PHOTO_NOTES,
+		# ★ 第九十二轮：item_desc / clue_frame / clue_sources / photo_notes 四段
+		#   随「外貌情报」一起删掉，不再导出。
 		"phone": ScenarioData.PHONE,
 	}
 
@@ -87,10 +85,9 @@ func _ready() -> void:
 	f.store_string(JSON.stringify(out, "\t", false))
 	f.close()
 
-	print("已导出 %s：%d 套背景 / %d 种性情 / %d 条衣物描述 / %d 项数值 / %d 段界面文案" % [
+	print("已导出 %s：%d 套背景 / %d 种性情 / %d 项数值 / %d 段界面文案" % [
 		OUT_PATH, bgs.size(),
 		(out["traits"] as Array).size(),
-		(out["item_desc"] as Dictionary).size(),
 		(out["rules"] as Dictionary).size(),
 		(out["ui"] as Dictionary).size(),
 	])

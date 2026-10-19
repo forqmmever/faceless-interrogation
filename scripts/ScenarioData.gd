@@ -12,9 +12,9 @@ extends Node
 #    · 8 道盘问题（每轮从中确定性抽 2 道 + 2 道说法题 + 1 道同行者提问）
 #    · 6 条同行者干扰台词
 #
-#  注意：A 的原貌**不在这里** —— 那是每局随机生成的，见 OutfitData.TRUE_POOL
-#  与 RunData。这里只提供「怎么描述某件衣服」的句式（CLUE_FRAME / ITEM_DESC），
-#  好让外貌情报永远和本局抽到的原貌对得上。
+#  注意：A 的原貌**不在这里** —— 那是每局随机生成的，见 OutfitData.TRUE_POOL 与 RunData。
+#  ★ 第九十二轮：原来还有「外貌情报句式 / 衣物目击描述 / 照片背面字」四段，
+#    用户口径「编辑器外貌情报/全局文本 删掉，并且删除这一功能」—— 那四段已整块拆掉。
 # ============================================================
 
 const DEFAULT_BACKGROUNDS := [
@@ -1369,152 +1369,6 @@ const DEFAULT_BACKGROUNDS := [
 	},
 ]
 
-# ============================================================
-#  外貌情报的句式
-#
-#  原貌是每局随机生成的，所以情报不能写死 —— 得按「本局抽到的那件衣服」
-#  现场拼出来。CLUE_FRAME 给每个槽位一句模板，ITEM_DESC 给每件候选衣物一句
-#  描述，两者拼起来就是目击者的话。
-# ============================================================
-
-const DEFAULT_CLUE_FRAME := {
-	"hair": "「那人头发%s。」",
-	"headgear": "「他头上%s。」",
-	"glasses": "「他脸上%s。」",
-	"earrings": "「他耳朵上%s。」",
-	"makeup": "「他那张脸%s。」",
-	"piercing": "「他身上%s。」",
-	"tattoo": "「他皮肤上%s。」",
-	"neckwear": "「他脖子上%s。」",
-	"top": "「他穿的那件上衣%s。」",
-	"bra": "「他里头穿的%s。」",
-	"gloves": "「他那双手%s。」",
-	"accessory": "「他衣襟上%s。」",
-	"bottom": "「他下身那条%s。」",
-	"dress": "「他%s。」",
-	"panties": "「贴身的衣物%s。」",
-	"stockings": "「他两条腿%s。」",
-	"shoes": "「他脚上%s。」",
-	"robe": "「他外头%s。」",
-}
-
-# 目击者来源：每局从对应槽位的三条里随机挑一条，让每局的「档案来源」也不一样
-const DEFAULT_CLUE_SOURCES := {
-	"hair": ["客栈掌柜的回忆", "码头理发匠", "城门值守的口供"],
-	"headgear": ["城门口的值守记录", "雨夜巡丁的报告", "客栈伙计的说法"],
-	"glasses": ["同队伙计的口供", "当铺朝奉的回忆", "街上小贩的说法"],
-	"earrings": ["码头理发匠", "首饰铺的账单", "同船水手的证词"],
-	"makeup": ["药铺伙计", "胭脂铺的账目", "同住旅人的印象"],
-	"piercing": ["帮中兄弟的说法", "澡堂杂役的回忆", "巡丁的报告"],
-	"tattoo": ["澡堂杂役", "医馆的记录", "同伙的口供"],
-	"neckwear": ["旧识的证词", "裁缝铺的订单", "车夫的说法"],
-	"top": ["裁缝铺的订单", "洗衣妇的回忆", "当铺朝奉的记录"],
-	"bra": ["旧衣铺的账单", "同一张账单背面", "内院仆妇的说法"],
-	"gloves": ["车夫的说法", "皮匠铺的账目", "同队伙计的口供"],
-	"accessory": ["当铺朝奉", "街上小贩的回忆", "线人的报告"],
-	"bottom": ["街头目击", "洗衣妇的回忆", "巡夜人的记录"],
-	"dress": ["成衣铺的订单", "同船女客的说法", "码头洗衣妇的回忆"],
-	"panties": ["同一张账单背面", "内院仆妇的说法", "旧衣铺的账目"],
-	"stockings": ["医馆的记录", "洗衣妇的回忆", "码头脚夫的口供"],
-	"shoes": ["马夫的印象", "鞋匠铺的账目", "城门口的值守记录"],
-	"robe": ["雨天路人的目击", "客栈掌柜的回忆", "巡丁的报告"],
-}
-
-# 每件「可能是原貌」的衣物对应的目击描述。
-# 必须与 OutfitData.TRUE_POOL 完全对齐（测试会断言）。
-const DEFAULT_ITEM_DESC := {
-	# ---- hair ----
-	"hair_short": "剪得极短，几乎贴着头皮",
-	"hair_braid": "在耳侧编成一条辫子，用素绳扎着",
-	"hair_long": "垂到肩下，常年不束",
-	# ---- headgear ----
-	"head_none": "空着，什么也没戴",
-	"head_hat": "压着一顶宽檐的旧旅行帽",
-	# ---- glasses ----
-	"glasses_none": "干干净净，从没见他戴过镜子",
-	"glasses_round": "架着一副旧圆框眼镜，镜腿缠过线",
-	# ---- earrings ----
-	"ear_none": "光秃秃的，连个孔都没有",
-	"ear_stud": "只挂着一枚素银耳钉",
-	# ---- makeup ----
-	"makeup_none": "素净得很，从不施粉",
-	"makeup_light": "只薄薄描了一层，远看像没化",
-	# ---- piercing ----
-	"piercing_none": "一处环也没穿",
-	"piercing_multi": "耳骨上排着一串小银环",
-	# ---- tattoo ----
-	"tattoo_none": "除了手背上那一块，干净得很",
-	"tattoo_neck": "颈侧有一小片暗青色的纹路",
-	# ★ 第三十五轮补齐：面颊 / 大腿这两件一直没有描述（不在原貌候选池里，所以没人发现
-	#   「他皮肤上看不真切」这句），本轮连同新补的两件一起写全。
-	"tattoo_cheek": "脸颊上藏着一颗很小的暗色星纹",
-	"tattoo_thigh": "大腿上攀着一枝暗色的藤蔓",
-	"tattoo_heart": "大腿上串着一列小小的暗色心形",
-	"tattoo_paw": "大腿外侧印着一枚小小的兽爪",
-	# ★ 第四十七轮：爪印扩到胸口与脸颊（小腿做不了，见 OutfitData / dol_map 的说明）
-	"tattoo_paw_chest": "胸口正中印着一枚小小的兽爪",
-	# ★ 第五十一轮：`tattoo_paw_face`（脸颊爪印）按用户口径整件删除 ——
-	#   它的目击描述也一并撤掉（与撤销眉钉 / 黄铜胸针 / 金脚链同一档处理）。
-	# ★ 第八十九轮（用户口径）：「去掉刻字」—— 第三十六轮那 4 件刻字纹身整组删除，
-	#   这 4 条目击描述一起撤（`tattoo_bitch` / `tattoo_freeuse` / `tattoo_slave` / `tattoo_cumrag`）。
-	# ---- neckwear ----
-	"neck_none": "从来不挂东西，说是碍事",
-	"neck_collar": "领子总是立着，硬挺挺的",
-	"neck_scarf": "总围着一条暗红的羊毛围巾",
-	# ---- top ----
-	"top_highneck": "是高领长袖，领口扣到最上面那颗",
-	"top_plain": "是件素色棉布衫，短袖，洗得发白",
-	"top_longsleeve": "是长袖的丝绸衬衣，袖口磨起了毛",
-	# ★ 第四十九轮：这一件新入原貌池（放开原貌暴露分布，见 OutfitData.TRUE_POOL）。
-	#   描述必须写 —— 它是「目击者眼里的 A」，池内件缺了就会在情报台退化成
-	#   「看不真切」，而 `WardrobeTest._pool_has_desc()` 也堵着这个缺口。
-	"top_sheer": "罩衫薄得透光，底下的轮廓隐约能看见",
-	# ---- bra ----
-	"bra_plain": "是素色无痕的，账单上写着两件",
-	# ---- gloves ----
-	"gloves_none": "从不戴手套，抓缰绳都是赤着手",
-	"gloves_leather": "总戴着一副磨旧了的皮手套",
-	# ---- accessory ----
-	# ★ 第三十四轮：黄铜胸针整件删掉 → 这条目击描述一并撤掉。
-	#   这一栏现在只有空件，所以只见得到上面那一句。
-	"acc_none": "没有一件多余的物件，干干净净",
-	# ★ 第四十八轮新增的四件配饰 —— 这一栏本来只有 acc_none 有描述（另两件不入原貌池），
-	#   但目击情报会用到，缺了就退化成「看不真切」，所以一并写上。
-	#   ★ 第四十九轮删掉两条腿环（`acc_legband_belted` / `acc_legband_leather`），
-	#     描述同步删掉（只剩下面四条颈圈）。
-	"acc_locket": "锁骨上垂着一枚银质的心形吊坠",
-	"acc_belt": "腰上系着一条宽皮带，扣得很紧",
-	"acc_choker_bunny": "脖子上是一个带扣的兔女郎项圈",
-	"acc_choker_whitney": "脖子上扣着一个刻了字的项圈",
-	"acc_choker_leash": "脖子上扣着项圈，垂着一条牵引绳",
-	"acc_choker_whitney_leash": "脖子上扣着刻字的项圈，还连着一条牵引绳",
-	# ---- bottom ----
-	"bottom_longskirt": "裙摆几乎扫地，看不见鞋面",
-	"bottom_trousers": "是条直筒长裤，裤脚沾着泥",
-	# ★ 第四十九轮新入原貌池
-	"bottom_cut": "裙侧开了道高衩，走动时一晃一晃",
-	# ---- dress（第二十六轮新增的整件式槽位）----
-	"dress_none": "从没见穿过裙子，一贯是上衣配长裤",
-	"dress_sundress": "夏天会穿一条素色吊带连衣裙，肩上有两道晒痕",
-	# ---- panties ----
-	"panties_plain": "是素色棉质的，账单背面写着三条",
-	# ★ 第四十九轮新入原貌池
-	"panties_thong": "只有细细一条，几乎勒进肉里",
-	# ---- stockings ----
-	# ★ 第三十七轮：吊袜带整栏并入袜类，`garter_none` 一并撤掉。
-	"stockings_none": "从不穿袜，脚踝上留着一道旧疤",
-	"stockings_opaque": "常年裹着不透明的深色连裤袜",
-	# ★ 第四十九轮新入原貌池
-	"stockings_sheer": "丝袜薄得像一层雾，脚背上的青筋都看得见",
-	# ---- shoes ----
-	"shoes_boots": "是双及踝皮靴，穿了三年没换过",
-	# ★ 第四十九轮新入原貌池
-	"shoes_heels": "鞋跟又细又高，走在石板路上咯噔咯噔",
-	# ---- robe ----
-	"robe_none": "从不披外袍，下雨也只是淋着",
-	"robe_travel": "总裹着一件厚重的旅行斗篷",
-}
-
 # ---------- 查询接口 ----------
 func get_background(id: String) -> Dictionary:
 	# ★ 第五十三轮：这里**不过滤草稿** —— 存档里可能记着一套后来被停用的背景
@@ -1565,22 +1419,6 @@ func bg_count() -> int:
 
 func all_bg_count() -> int:
 	return BACKGROUNDS.size()
-
-func desc_of(item_id: String) -> String:
-	return str(ITEM_DESC.get(item_id, ""))
-
-func frame_of(slot: String) -> String:
-	return str(CLUE_FRAME.get(slot, "「他%s。」"))
-
-func sources_of(slot: String) -> Array:
-	return CLUE_SOURCES.get(slot, ["来源不明"])
-
-# 把「某槽位的原貌物品」拼成一句目击者的话
-func clue_text(slot: String, item_id: String) -> String:
-	var d := desc_of(item_id)
-	if d == "":
-		d = "看不真切"
-	return frame_of(slot) % d
 
 # 照片的取景框 —— 按**半身**取（第四十三轮起照片是一段身体，不是一处特写）
 func photo_focus_half(half: String) -> Rect2:
@@ -1684,17 +1522,6 @@ const PHOTO_FOCUS := {
 	"shoes": Rect2(22, 158, 42, 36),
 	"robe": Rect2(22, 44, 44, 90),
 }
-
-# 照片背面用铅笔写的字
-const DEFAULT_PHOTO_NOTES := [
-	"背面用铅笔写着：「北门，午后。」",
-	"背面用铅笔写着：「他走得很快。」",
-	"背面用铅笔写着：「这张是去年冬天的。」",
-	"背面用铅笔写着：「人太多了，只拍到半边。」",
-	"背面用铅笔写着：「隔着窗玻璃拍的。」",
-	"背面用铅笔写着：「底片泡过水，救不回来了。」",
-	"背面用铅笔写着：「不知道是谁塞进我门缝的。」",
-]
 
 # ============================================================
 #  审问者的情报（性情）
@@ -2409,26 +2236,6 @@ var INTERROGATOR_TRAITS: Array:
 		_ensure_story()
 		return _traits
 
-var ITEM_DESC: Dictionary:
-	get:
-		_ensure_story()
-		return _item_desc
-
-var CLUE_FRAME: Dictionary:
-	get:
-		_ensure_story()
-		return _clue_frame
-
-var CLUE_SOURCES: Dictionary:
-	get:
-		_ensure_story()
-		return _clue_sources
-
-var PHOTO_NOTES: Array:
-	get:
-		_ensure_story()
-		return _photo_notes
-
 # 手机的全部界面文案（外壳 / 消息三组 / 备忘录 / 相册 / 备注 / 与审问官的短信）
 var PHONE: Dictionary:
 	get:
@@ -2449,10 +2256,6 @@ var UI: Dictionary:
 
 var _backgrounds: Array = []
 var _traits: Array = []
-var _item_desc: Dictionary = {}
-var _clue_frame: Dictionary = {}
-var _clue_sources: Dictionary = {}
-var _photo_notes: Array = []
 var _phone: Dictionary = {}
 var _rules: Dictionary = {}
 var _ui: Dictionary = {}
@@ -2475,10 +2278,6 @@ func _load_story() -> void:
 	# 先装出厂文本，再让 JSON 逐段覆盖 —— 这样「文件里只写了一半」也不会崩
 	_backgrounds = DEFAULT_BACKGROUNDS
 	_traits = DEFAULT_TRAITS
-	_item_desc = DEFAULT_ITEM_DESC
-	_clue_frame = DEFAULT_CLUE_FRAME
-	_clue_sources = DEFAULT_CLUE_SOURCES
-	_photo_notes = DEFAULT_PHOTO_NOTES
 	_phone = DEFAULT_PHONE
 	_rules = DEFAULT_RULES
 	_ui = DEFAULT_UI
@@ -2508,18 +2307,6 @@ func _load_story() -> void:
 	var tr: Variant = d.get("traits", null)
 	if tr is Array and not (tr as Array).is_empty():
 		_traits = tr
-	var idesc: Variant = d.get("item_desc", null)
-	if idesc is Dictionary and not (idesc as Dictionary).is_empty():
-		_item_desc = idesc
-	var cframe: Variant = d.get("clue_frame", null)
-	if cframe is Dictionary and not (cframe as Dictionary).is_empty():
-		_clue_frame = cframe
-	var csrc: Variant = d.get("clue_sources", null)
-	if csrc is Dictionary and not (csrc as Dictionary).is_empty():
-		_clue_sources = csrc
-	var pnotes: Variant = d.get("photo_notes", null)
-	if pnotes is Array and not (pnotes as Array).is_empty():
-		_photo_notes = pnotes
 	_phone = _merge_phone(DEFAULT_PHONE, d.get("phone", null))
 	# 数值规则与界面文案：**逐键**覆盖出厂默认 —— 只写了三项也照跑
 	_rules = _merge_flat(DEFAULT_RULES, d.get("rules", null))

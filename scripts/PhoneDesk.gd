@@ -33,7 +33,6 @@ extends Control
 # ============================================================
 
 signal changed
-signal slot_revealed(slot: String)
 
 const SHADER_PATH := "res://shaders/photo_blur.gdshader"
 
@@ -597,13 +596,6 @@ func _make_photo_card(i: int, grid: Node) -> void:
 	bar.add_theme_stylebox_override("fill", fl)
 	vb.add_child(bar)
 
-	var note := Label.new()
-	note.text = str(p.get("note", ""))
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.add_theme_font_size_override("font_size", 9)
-	note.add_theme_color_override("font_color", Color(0.46, 0.50, 0.57))
-	vb.add_child(note)
-
 	if clear_enough:
 		# ★ 第四十三轮：一张照片里可能同时有好几件 —— 擦亮后**逐件列出来**。
 		#   报的是**照片里显示的那件**（用户口径），不是原貌那件：
@@ -663,18 +655,9 @@ func _wipe(i: int) -> void:
 	var c := clarity_of(i)
 	if c >= ScenarioData.PHOTO_CLEAR_AT and not GameData.photos_revealed.has(i):
 		GameData.photos_revealed.append(i)
-		# ★ 第四十三轮：一张照片里可能同时有好几件 —— 逐件看**有没有真的拍到原貌**。
-		#   · 拍到原貌（`is_true`）→ 等于白捡一处还原（emit slot_revealed）
-		#   · 没拍到（只是同一个暴露档位的别的件）→ **不算还原**
-		# ★ 第四十四轮起照片**一律排除原貌本身**，所以 `is_true` 通常全是 false、
-		#   这条 emit 基本不会触发 —— 这是刻意的：照片只给线索，不给答案。
-		#   （保留它是为了兜底「那一栏除了原貌没别的可穿」的极端情况。）
-		for e in p.get("items", []):
-			var d: Dictionary = e
-			var s := str(d.get("slot", ""))
-			if s != "" and bool(d.get("is_true", false)):
-				slot_revealed.emit(s)
-
+		# ★ 第九十二轮：「外貌情报 / 已还原的槽位」整块删掉 ——
+		#   擦清一张照片现在只是「看清了照片」（写了哪几件），
+		#   不再往任何「已还原部位」的登记表里写东西。
 	rebuild()
 	changed.emit()
 

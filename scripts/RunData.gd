@@ -32,7 +32,6 @@ var true_app: Dictionary = {}          # slot -> item id（本局的 A）
 # ★ 第四十轮：本局的**基础原貌** —— 不含「按关覆写」（`true_presets.by_level`）那一层。
 #   整局只算一次，按关覆写只在这一轮临时顶替它。见 _roll_true_appearance()。
 var base_true_app: Dictionary = {}
-var clues: Array = []                  # 本局的 18 条外貌情报（由原貌拼出来）
 
 var level_index: int = 0               # 当前轮次（0 起）
 var cleared_levels: int = 0            # 本局已通过的轮次数
@@ -133,7 +132,6 @@ func start_new_run(seed_in: int = -1, start_level: int = 0, bg_id: String = "") 
 	cleared_levels = level_index
 
 	_roll_true_appearance()
-	_build_clues()
 	_roll_photos()
 	# 性情最后抽 —— 放在这里才不会打乱上面「原貌 / 情报 / 相册」的随机序列，
 	# 固定种子下的截图与测试因此保持完全可复现。
@@ -458,23 +456,6 @@ func _true_blank_group(slots: Array) -> void:
 		if bid != "":
 			true_app[slot] = bid
 
-# 按本局原貌现场拼出外貌情报（文案与来源都随局变化）
-# ★ 第三十九轮：同样走 `auto_slots()` —— 妙妙工具不进情报（它是你自己的道具）。
-func _build_clues() -> void:
-	clues = []
-	for slot in OutfitData.auto_slots():
-		var item_id := true_item(slot)
-		if item_id == "":
-			continue
-		var srcs: Array = ScenarioData.sources_of(slot)
-		var src := str(srcs[_rng.randi() % srcs.size()])
-		clues.append({
-			"id": "clue_" + slot,
-			"slot": slot,
-			"source": src,
-			"text": ScenarioData.clue_text(slot, item_id),
-		})
-
 # 本局手机相册：随机挑几个槽位，配上「拍糊了的照片」
 # 每张照片有自己的起始清晰度与可擦次数 —— 有的擦两下就看清，有的一辈子看不清
 # ============================================================
@@ -609,8 +590,6 @@ func _make_photo() -> Dictionary:
 		else:
 			wipes = _photo_wipes_to_clear(start)
 			final_c = minf(1.0, start + float(wipes) * ScenarioData.PHOTO_WIPE_STEP)
-	var notes: Array = ScenarioData.PHOTO_NOTES
-	var note := str(notes[_rng.randi() % notes.size()])
 	var slots := []
 	var names := []
 	for e in picked:
@@ -626,7 +605,6 @@ func _make_photo() -> Dictionary:
 		# 兼容字段：老代码按「一张照片一个槽位」读过这两个 —— 现在取第一件。
 		"slot": slots[0],
 		"shot_slot": "、".join(names),
-		"note": note,
 		"start_clarity": start,
 		"max_wipes": wipes,
 		# 擦满之后能到什么清晰度 —— 低于阈值就是一张废片
@@ -860,17 +838,14 @@ func advance_level() -> void:
 # ★ 第四十轮：切关时重算原貌 —— 这一轮配了「按关覆写」就用它，
 #   没配就**回到本局的基础原貌**（`base_true_app`），不是粘着上一轮的样子。
 #
-#   ★ 情报要不要重建，看原貌**真的变了没有**：
-#     两关之间都没配覆写时 true_app 不变 → 不重建（免得白算一遍、也不动玩家进度）。
-#     原貌真的换了，情报必须跟着换 —— 否则情报台还在说「他颈侧有一小片纹路」，
-#     而人已经换了一身。相册不用重建：照片只记槽位，显示时现查原貌，自动跟上。
-#   ★ 已还原的槽位（IntelDesk.revealed / GameData.revealed_slots）按**槽位**记，
-#     不按物品，所以换原貌后依然成立，玩家不用重新查一遍。
+#   ★ 第九十二轮：「外貌情报」整块删掉之后，这里不再需要重建情报 ——
+#     只剩「重算原貌」这一件事。相册不用重建：照片只记槽位，显示时现查原貌。
+#   ★★ 副作用（要有心理准备）：`_build_clues()` 原来会**消耗若干次 `_rng.randi()`**
+#     （每个槽位抽一条「来源」）。它一删，同一颗种子之后的随机流整体前移 ——
+#     同种子的原貌没变（在那之前算好），但**照片内容与顺序会变**。
+#     这是删功能的必然结果，不是 bug；截图变了同理。
 func _maybe_apply_level_preset() -> void:
-	var before := true_app.duplicate(true)
 	_roll_true_appearance()
-	if str(before) != str(true_app):
-		_build_clues()
 # 本局失败 → 回到**本轮开始**（第二十一轮）
 #
 #  ★ 旧规则是 fail_run()：任何一关失败 → 整局作废，重抽背景与原貌。

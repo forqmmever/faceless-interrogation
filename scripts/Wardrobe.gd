@@ -140,9 +140,6 @@ func apply_outfit(outfit: Dictionary) -> void:
 	model.changed.emit()
 	_refresh()
 
-func _slot_revealed(slot: String) -> bool:
-	return GameData.revealed_slots.has(slot)
-
 # ---------------- UI 构建 ----------------
 func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -627,14 +624,15 @@ func _update_run_label() -> void:
 		c["venue"]]
 
 func _refresh_preview() -> void:
-	# 铺哪一身：正常看「当前伪装」，按原貌切换时只显示已还原的那部分 A
+	# 铺哪一身：正常看「当前伪装」，按原貌切换时铺 **A 的整副原貌**。
+	# ★ 第九十二轮：「已还原的槽位」这套状态删掉之后，原貌一律可看 ——
+	#   以前这里只铺「相册擦清过的部位」，其余留空。
 	var eq: Dictionary = {}
 	if _peeking:
 		for slot in OutfitData.active_slots():
-			if _slot_revealed(slot):
-				var id := RunData.true_item(slot)
-				if id != "":
-					eq[slot] = id
+			var id := RunData.true_item(slot)
+			if id != "":
+				eq[slot] = id
 	else:
 		eq = model.equipped.duplicate(true)   # 深拷贝：多件槽位的值是 Array
 	# DolDoll 会按 z 序把基础层 + 这一身的每一层铺好，并把每个槽位的首个
@@ -705,8 +703,6 @@ func _tip_for(it: Dictionary, locked: bool, affordable: bool) -> String:
 			var ps := str(p)
 			names.append(str(OutfitData.SLOT_NAMES.get(ps, ps)))
 		tip += "\n与%s互斥：穿上这件会自动脱下同类" % " / ".join(names)
-	if not _slot_revealed(slot):
-		tip += "\n该部位原貌未知 —— 你无法判断这一件"
 	if not affordable:
 		tip += "\n装上后会超出暴露值上限"
 	return tip
@@ -737,12 +733,6 @@ func _refresh_buttons() -> void:
 				lab.tooltip_text = "妙妙工具 —— 只能手动装备，不参与原貌与反差值计算"
 				if bar != null:
 					bar.color = Color(0.60, 0.54, 0.82)
-			elif not _slot_revealed(slot):
-				lab.text = base + " ?"
-				lab.add_theme_color_override("font_color", Color(0.50, 0.53, 0.58))
-				lab.tooltip_text = "原貌未知 —— 你还没查到他在这个部位的样子"
-				if bar != null:
-					bar.color = Color(0.30, 0.33, 0.38)
 			elif matching.has(slot):
 				lab.text = base
 				lab.add_theme_color_override("font_color", Color(0.93, 0.60, 0.36))

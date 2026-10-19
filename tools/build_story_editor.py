@@ -72,12 +72,12 @@ def main():
     with io.open(EDITOR, "w", encoding="utf-8") as f:
         f.write(out)
 
+    # ★ 第九十二轮：`item_desc` 随「外貌情报」删掉了，这里不再统计它。
     print(
-        "已内嵌快照：%d 套背景 / %d 种性情 / %d 条衣物描述（JSON %d 字节 → 页面 %d 字节）"
+        "已内嵌快照：%d 套背景 / %d 种性情（JSON %d 字节 → 页面 %d 字节）"
         % (
             len(data.get("backgrounds") or []),
             len(data.get("traits") or []),
-            len(data.get("item_desc") or {}),
             len(compact),
             len(out),
         )

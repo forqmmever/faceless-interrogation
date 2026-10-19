@@ -88,7 +88,7 @@ func _ready() -> void:
 	_t_prev = Time.get_ticks_msec()
 	_test_boot()
 	await _test_splash_autohide()
-	_test_clue_reveal()
+	_test_true_always_visible()
 	_test_identity_assign()
 	_test_outfit()
 	_test_enter_interrogation()
@@ -352,8 +352,6 @@ func _test_boot() -> void:
 	#   · 原貌 18 处开局即全部可见
 	# 信息一条没少，少的是那几十次点击。
 	_check("身份情报 12/12 已归类（按 owner 自动）", intel.identity_done_count() == 12)
-	_check("外貌情报 %d/%d 已可见（开局即全可见）" % [intel.clues_done_count(), OutfitData.auto_slots().size()],
-		intel.clues_done_count() == OutfitData.auto_slots().size())
 	_check("未归类数 = 0", intel.unassigned_count() == 0)
 	_check("归类零失误", intel.identity_mistakes() == 0)
 	_check("B 卡全部归入伪装档案", gd.dossier_kept.size() == DossierData.b_cards().size())
@@ -368,8 +366,6 @@ func _test_boot() -> void:
 	print("\n-- 开局：原貌全可见，槽位不再有问号 --")
 	_check("发型标签不带问号", not wardrobe.slot_labels["hair"].text.ends_with("?"))
 	_check("上衣标签不带问号", not wardrobe.slot_labels["top"].text.ends_with("?"))
-	_check("GameData.revealed_slots 覆盖全部槽位",
-		gd.revealed_slots.size() == OutfitData.auto_slots().size())
 
 	print("\n-- 开局：原封不动的打扮 => 不合格（判定在阶段二结算）--")
 	var ev0: Dictionary = m.evaluate()
@@ -420,32 +416,27 @@ func _test_splash_autohide() -> void:
 	_check("收起后没有连带改动标题界面的可见性",
 		main.title_screen.visible == title_before)
 
-func _test_clue_reveal() -> void:
-	print("\n-- 外貌情报栏已删：原貌开局即全部可见 --")
-	_check("外貌情报共 %d 条" % OutfitData.auto_slots().size(),
-		DossierData.clue_count() == OutfitData.auto_slots().size())
+func _test_true_always_visible() -> void:
+	# ★★ 第九十二轮：「外貌情报」整套删掉 —— 这个函数从「情报栏已删」的守卫
+	#   变成「原貌一律可见」的守卫：不再有任何「已还原 / 未还原」的状态。
+	print("\n-- 原貌一律可见（外貌情报整套已删）--")
+	_check("★ 不再有「已还原槽位」这套状态（GameData 里没有 revealed_slots 属性）",
+		not ("revealed_slots" in gd))
+	_check("★ 不再有「外貌情报条数」（IntelDesk 里没有 clues_done_count 方法）",
+		not intel.has_method("clues_done_count"))
+	_check("★ 不再有 clue 访问器（DossierData 里没有 clue_for_slot）",
+		not DossierData.has_method("clue_for_slot"))
+	_check("★ ScenarioData 不再有 clue_text / desc_of / sources_of",
+		not ScenarioData.has_method("clue_text")
+		and not ScenarioData.has_method("desc_of")
+		and not ScenarioData.has_method("sources_of"))
 
-	var clue_hair := DossierData.clue_for_slot("hair")
-	_check("每个槽位都有对应情报", not clue_hair.is_empty())
-	_check("情报标明了来源", str(clue_hair.get("source", "")).length() > 1)
-	_check("情报文案指向本局原貌的发型",
-		str(clue_hair.get("text", "")) == ScenarioData.clue_text("hair", RunData.true_item("hair")))
-
-	_check("开局 %d 处原貌全部可见" % OutfitData.auto_slots().size(),
-		intel.clues_done_count() == OutfitData.auto_slots().size())
-	_check("GameData.revealed_slots 覆盖全部槽位",
-		gd.revealed_slots.size() == OutfitData.auto_slots().size())
-
-	# peek = 直接看「审讯官记忆里的你」，整张脸都在，没有空白处
+	# peek = 直接看「审讯官记忆里的你」，整副原貌都在，没有空白处
 	wardrobe._on_peek_toggled(true)
 	_check("peek 显示「A」的原貌发型", wardrobe.layer_rects["hair"].texture != null)
 	_check("peek 显示「A」的原貌上衣", wardrobe.layer_rects["top"].texture != null)
 	wardrobe._on_peek_toggled(false)
 	_check("没有任何槽位带问号", _no_slot_label_has_question())
-
-	# _reveal 现在只是兼容钩子：原貌本来就全可见，重复调用不该改变任何东西
-	intel._reveal(str(clue_hair["id"]))
-	_check("重复调用 _reveal 不改变计数", intel.clues_done_count() == OutfitData.auto_slots().size())
 
 # ------------------------------------------------------------
 # 身份情报栏已删：归类改成开局按 owner 自动填
@@ -563,7 +554,6 @@ func _test_enter_interrogation() -> void:
 	_check("反差达标已同步", gd.contrast_sufficient == true)
 	_check("缺陷遮挡已同步", gd.defects_covered == true)
 	_check("暴露值已同步", gd.outfit_exposure > 0)
-	_check("外貌情报收集度已同步", gd.revealed_slots.size() == OutfitData.auto_slots().size())
 
 	print("\n-- 盘问：按关抽题 --")
 	interro.set_process(false)   # 关掉自动计时，改为手工步进
@@ -1339,7 +1329,6 @@ func _run_a_clean_level() -> void:
 	interro.interference_active = false
 	interro.qte_container.hide()
 	interro.intf_container.hide()
-	_reveal_all()
 	_assign_all()
 	_prepare_and_enter()
 	interro.set_process(false)
@@ -1529,7 +1518,6 @@ func _count_kind(arr: Array, kind: String) -> int:
 func _test_recognition_on_sight() -> void:
 	print("\n-- 阶段二开场识破：怎么是你，<A 真身名> --")
 	main._start_new_run(20261011)
-	_reveal_all()
 	_assign_all()
 
 	# 故意穿回 A 的原貌：反差为 0，绝无可能骗过他
@@ -1674,24 +1662,17 @@ func _test_phone() -> void:
 		if bool(d.get("is_true", false)):
 			true_slots.append(str(d.get("slot", "")))
 	var seen_ok: bool = gd.photos_revealed.has(idx0)
-	var all_visible := true
 	var all_label_ok := true
 	for s in true_slots:
-		if not gd.revealed_slots.has(s):
-			all_visible = false
 		if wardrobe.slot_labels.has(s) and wardrobe.slot_labels[s].text.ends_with("?"):
 			all_label_ok = false
 	if clear_enough:
 		_check("看清的照片 → 记为已看清", seen_ok)
-		_check("看清的照片 → 真拍到原貌的那几处才算已还原（%d 处）" % true_slots.size(),
-			all_visible)
 		_check("看清的照片 → 那几处的槽位标签不带问号", all_label_ok)
 	else:
 		print("      （这张是废片：怎么擦都看不清 —— 这就是信息不全）")
 		_check("废片 → 不该记为已看清", not seen_ok)
-		_check("废片 → 原貌照样可见（原貌不靠照片解锁）",
-			gd.revealed_slots.size() > 0)
-		_check("废片 → 槽位标签不带问号（原貌开局即全可见）", all_label_ok)
+		_check("废片 → 槽位标签不带问号（原貌一律可见）", all_label_ok)
 	_check("★ 相册里的照片都是「一段半身」且至少一件",
 		not p0.get("items", []).is_empty() and str(p0.get("half", "")) != "")
 	_check("★ 擦亮后文字会列出这张照片里的每一件（%d 件）" % true_slots.size(),
@@ -3536,7 +3517,6 @@ func _test_new_mechanics() -> void:
 
 	main._start_level()
 	var m: WardrobeModel = wardrobe.model
-	_reveal_all()
 	_assign_all()
 	wardrobe._refresh()
 
@@ -4020,8 +4000,7 @@ func _test_multi_level_flow() -> void:
 
 	main._start_new_run(20261011, 0, ov_bg if ov_bg != "" else plain_bg)
 	_check("新局回到第 1 轮", RunData.level_number() == 1)
-	_check("新局：情报台按新背景重填（12 条归类 + %d 处原貌）" % OutfitData.auto_slots().size(),
-		intel.clues_done_count() == OutfitData.auto_slots().size() and intel.unassigned_count() == 0)
+	_check("新局：身份情报按新背景重填（12 条全归类）", intel.unassigned_count() == 0)
 	_check("新局原貌已重抽", wardrobe.model.matching_slots().size() == OutfitData.auto_slots().size())
 
 	var run_id := RunData.run_index
@@ -4041,8 +4020,7 @@ func _test_multi_level_flow() -> void:
 			wardrobe.model.contrast_requirement() == int(RunData.levels()[lvl]["contrast_req"]))
 		if lvl > 0:
 			_check("第 %d 轮开局装备退回原貌（反差归零）" % n, wardrobe.model.total_contrast() == 0)
-			_check("第 %d 轮情报进度跨轮保留" % n,
-				intel.clues_done_count() == OutfitData.auto_slots().size() and intel.unassigned_count() == 0)
+			_check("第 %d 轮身份归类跨轮保留" % n, intel.unassigned_count() == 0)
 
 		_prepare_and_enter()
 		# 伪装必须成立 —— 断言放在这儿（调用点）而不是 _prepare_and_enter() 里，
@@ -4127,7 +4105,6 @@ func _test_multi_level_flow() -> void:
 # ------------------------------------------------------------
 func _test_leak_and_fail_restart() -> void:
 	print("\n-- 核心机制：接住 A 才知道的话 = 说漏嘴 --")
-	_reveal_all()
 	_assign_all()
 	_prepare_and_enter()
 
@@ -4194,8 +4171,7 @@ func _test_leak_and_fail_restart() -> void:
 	_check("重来本轮 → 已通过关数不变", RunData.cleared_levels == 0)
 	_check("重来本轮 → 背景不变", RunData.background_id == bg_before)
 	_check("重来本轮 → 原貌不变", _dict_eq(RunData.true_appearance(), app_before))
-	_check("重来本轮 → 情报台照旧（还是本局那套）",
-		intel.clues_done_count() == OutfitData.auto_slots().size() and intel.unassigned_count() == 0)
+	_check("重来本轮 → 身份归类照旧（还是本局那套）", intel.unassigned_count() == 0)
 	_check("重来本轮 → 准备室可见", wardrobe.visible == true)
 	_check("重来本轮 → 装备退回 A 的原貌（好重新搭一遍）",
 		wardrobe.model.total_contrast() == 0)
@@ -4256,7 +4232,6 @@ func _test_retry_level_semantics() -> void:
 	var app_before := RunData.true_appearance().duplicate()
 	var acc_before := RunData.acceptance
 	var forced_before: Array = RunData.forced_item_ids().duplicate()
-	var clues_before := intel.clues_done_count()
 
 	# 故意失败：怀疑度爆表
 	interro._running = true
@@ -4280,7 +4255,6 @@ func _test_retry_level_semantics() -> void:
 	_check("重来本轮 → 问答记录回到进关那一刻", gd.answer_log.size() == log_at_open)
 	_check("重来本轮 → 怀疑度回到本轮开局值",
 		is_equal_approx(gd.suspicion_level, susp_at_open))
-	_check("重来本轮 → 情报进度保留", intel.clues_done_count() == clues_before)
 	_check("重来本轮 → 准备室可见", wardrobe.visible == true)
 	_check("重来本轮 → 装备退回 A 的原貌", wardrobe.model.total_contrast() == 0)
 
@@ -4307,7 +4281,6 @@ func _test_retry_level_semantics() -> void:
 func _test_underwear_gate_ui() -> void:
 	print("\n-- 内衣内裤的曝光门控（界面侧：点阵压暗 + 悬停说明）--")
 	main._start_new_run(20261011)
-	_reveal_all()
 	_assign_all()
 	var m: WardrobeModel = wardrobe.model
 
@@ -4615,7 +4588,6 @@ func _active_item_count() -> int:
 # 跑出 348 / 349 两个总数，diff 出来是「第 2 轮伪装成立」时有时无。
 # 需要断言的地方，在调用点自己 _check。
 func _prepare_and_enter() -> void:
-	_reveal_all()
 	_assign_all()
 	var m: WardrobeModel = wardrobe.model
 	_build_viable(m)
@@ -4657,10 +4629,6 @@ func _pass_current_level() -> void:
 func _build_viable(m: WardrobeModel) -> void:
 	m._equip_defaults()
 	m.auto_complete_outfit()
-
-func _reveal_all() -> void:
-	for clue in DossierData.appearance_clues():
-		intel._reveal(str(clue["id"]))
 
 func _assign_all() -> void:
 	for card in DossierData.cards():

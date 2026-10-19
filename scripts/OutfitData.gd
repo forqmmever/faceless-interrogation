@@ -384,8 +384,19 @@ func _ensure_defects() -> void:
 	if not DEFECTS.is_empty():
 		return
 	# ★ 第四十一轮：本局背景覆写优先（空则回退全局那份）
-	var ov: Array = _bg_defects if not _bg_defects.is_empty() else ScenarioData.defects_override()
-	var src: Array = ov if not ov.is_empty() else DEFAULT_DEFECTS
+	# ★★ 第八十三轮（用户口径）：「情景一根本没有设置身体缺陷」——
+	#   以前这里一律用 `DEFAULT_DEFECTS` 兜底：作者写了个空数组（= 这套没有缺陷），
+	#   代码却给他补上出厂那 2 项，于是**编辑器里是空的、游戏里却真的要求遮刺青**。
+	#   三级回落，只在「谁都没写」时才掏出厂值：
+	#     ① 这套背景写过 defects（哪怕是 `[]`）→ 用它，空就是没有；
+	#     ② 否则看全局 defects 写过没有（`[]` 同样算写过）；
+	#     ③ 都没写 → 出厂 DEFAULT_DEFECTS。
+	var declared := _bg_defects_declared
+	var ov: Array = _bg_defects
+	if not declared:
+		ov = ScenarioData.defects_override()
+		declared = ScenarioData.defects_declared()
+	var src: Array = ov if (not ov.is_empty() or declared) else DEFAULT_DEFECTS
 	DEFECTS = []
 	for d in src:
 		var dd: Dictionary = (d as Dictionary).duplicate()
@@ -399,8 +410,8 @@ func _ensure_defects() -> void:
 		if str(dd.get("slot_hint", "")) == "":
 			dd["slot_hint"] = ""
 		DEFECTS.append(dd)
-	if DEFECTS.is_empty():
-		# 编辑器把每一项都写坏了 → 退回出厂，不能让「缺陷遮挡」整个失效
+	if DEFECTS.is_empty() and not declared:
+		# 整段缺失 + 编辑器把每一项都写坏了 → 退回出厂，不能让「缺陷遮挡」整个失效
 		for d in DEFAULT_DEFECTS:
 			DEFECTS.append((d as Dictionary).duplicate())
 
@@ -1302,11 +1313,15 @@ func reload_levels() -> void:
 var _bg_levels: Array = []       # 本局背景覆写的轮次表（长度 = 本局打几轮）
 var _bg_forced: Array = []       # 本局背景覆写的强制穿着表
 var _bg_defects: Array = []      # 本局背景覆写的缺陷表
+var _bg_defects_declared: bool = false   # ★ 第八十三轮：这套背景写过 defects 吗（`[]` 也算）
 
 func apply_run_overrides(bg_id: String) -> void:
 	_bg_levels = ScenarioData.bg_levels(bg_id)
 	_bg_forced = ScenarioData.bg_forced_rules(bg_id)
 	_bg_defects = ScenarioData.bg_defects(bg_id)
+	# ★ 第八十三轮：这套背景**写过** defects 吗？写了（哪怕是 `[]`）= 这套就是没有缺陷，
+	#   不再回退到全局那份 —— 否则「作者明明没设，游戏却给他补了 2 处」。
+	_bg_defects_declared = ScenarioData.bg_has_defects(bg_id)
 	reload_run_tables()
 
 # 回到「没有背景覆写」的状态（测试 / 退出局时用）
@@ -1314,6 +1329,7 @@ func clear_run_overrides() -> void:
 	_bg_levels = []
 	_bg_forced = []
 	_bg_defects = []
+	_bg_defects_declared = false
 	reload_run_tables()
 
 # 丢掉本局那三张表并让它们按当前覆写重建

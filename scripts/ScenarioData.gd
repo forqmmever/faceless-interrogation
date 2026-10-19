@@ -2442,6 +2442,14 @@ func _load_story() -> void:
 	_forced_ov = (d.get("forced_rules", []) as Array) if typeof(d.get("forced_rules", null)) == TYPE_ARRAY else []
 	_qte_plan_ov = (d.get("qte_plan", []) as Array) if typeof(d.get("qte_plan", null)) == TYPE_ARRAY else []
 	_defects_ov = (d.get("defects", []) as Array) if typeof(d.get("defects", null)) == TYPE_ARRAY else []
+	# ★★ 第八十三轮（用户口径）：「情景一根本没有设置身体缺陷」——
+	#   以前「背景 defects 空」= 回落全局那份，而全局再空就回落到代码里的
+	#   DEFAULT_DEFECTS（出厂 2 项）。于是**作者明明没写，游戏却给他补了 2 处缺陷**，
+	#   编辑器里那一节是空的、游戏里却有 —— 这是最难查的一类错。
+	#   现在记一个「文件里到底写没写这一段」：
+	#     · 写了（哪怕是 `[]`）→ 就以它为准，**空就是没有**；
+	#     · 整段缺失（老数据 / 手写 json）→ 才回落到出厂兜底。
+	_defects_declared = typeof(d.get("defects", null)) == TYPE_ARRAY
 	# ★ 第四十轮新增的两段（都可为空 → 空 = 用代码内置值）：
 	#   item_overrides —— 服装数值覆写（暴露度 / 接受度）
 	#   true_presets   —— 原貌预设（随机池 + 按关覆写）
@@ -2465,6 +2473,8 @@ var _levels_ov: Array = []
 var _forced_ov: Array = []
 var _qte_plan_ov: Array = []
 var _defects_ov: Array = []
+# ★ 第八十三轮：story.json 里到底有没有 `defects` 这一段（有没有写，与「写了个空数组」不同）
+var _defects_declared: bool = false
 # ★ 第四十轮
 var _item_ov: Dictionary = {}
 var _true_presets: Dictionary = {}
@@ -2528,6 +2538,12 @@ func bg_qte_plan(bg_id: String) -> Array:
 
 func bg_defects(bg_id: String) -> Array:
 	return _as_array(_bg_of(bg_id).get("defects", null))
+
+# ★ 第八十三轮：这套背景**写过** defects 吗？（`[]` 也算写过 = 这套没有缺陷）
+#   有了它才能区分「作者写了空 = 就是没有」和「根本没写 = 用默认」。
+func bg_has_defects(bg_id: String) -> bool:
+	var bg := _bg_of(bg_id)
+	return bg.has("defects") and typeof(bg.get("defects", null)) == TYPE_ARRAY
 
 func bg_true_presets(bg_id: String) -> Dictionary:
 	var v: Variant = _bg_of(bg_id).get("true_presets", null)
@@ -2677,6 +2693,13 @@ func TRUE_PRESETS_EXPORT() -> Dictionary:
 func defects_override() -> Array:
 	_ensure_story()
 	return _defects_ov
+
+# ★ 第八十三轮：`defects` 这一段在文件里写过没有？
+#   false = 整段缺失（老数据）→ 允许回落到出厂 2 项；
+#   true  = 写过了（哪怕是 `[]`）→ 按它来，空就是「没有缺陷」。
+func defects_declared() -> bool:
+	_ensure_story()
+	return _defects_declared
 
 # 导出用：把「当前生效的那一份」原样交出去（DumpStory 走这四个门面）。
 #   ★ 用当前生效值而不是出厂常量 —— 编辑器改过一轮之后再导出，

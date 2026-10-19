@@ -1911,8 +1911,13 @@ func _test_model_basics() -> void:
 	var mc := WardrobeModel.new(OutfitData, custom)
 	_check("自定义原貌下开局仍是 0 反差", mc.total_contrast() == 0)
 	_check("自定义原貌被完整套用", mc.matching_slots().size() == OutfitData.auto_slots().size())
-	_check("自定义原貌下短袖+空脖子 → 两处缺陷都暴露", mc.exposed_defects().size() == 2)
-	_check("换上高领长袖后两处缺陷一起遮住",
+	# ★ 第八十三轮：缺陷表现在**可以是空的**（用户那几套背景都没设缺陷）。
+	#   原来这里写死「两处缺陷都暴露」—— 数据一变就假红。改成按当前缺陷表算：
+	#   短袖 + 空脖子 = 有几处就露几处；换上高领长袖后全遮住。
+	var n_def: int = OutfitData.defects().size()
+	_check("自定义原貌下短袖+空脖子 → %d 处缺陷全露着" % n_def,
+		mc.exposed_defects().size() == n_def)
+	_check("换上高领长袖后缺陷全部遮住（含「本来就没有缺陷」这种情形）",
 		_try_equip(mc, "top_highneck") and mc.exposed_defects().is_empty())
 
 	print("\n-- 暴露值上限公式 --")
@@ -2001,6 +2006,14 @@ func _test_model_basics() -> void:
 # ------------------------------------------------------------
 func _test_defect_tradeoff() -> void:
 	print("\n-- 缺陷遮挡：与原貌相反的代价 --")
+	# ★★ 第八十三轮：这一节验的是**遮挡机制**，不该依赖「当前背景有没有设缺陷」。
+	#   用户那几套背景的 defects 都是空的（= 这套没有缺陷），直接跑会什么都测不到。
+	#   所以这里**自带一份测试用缺陷表**（就是出厂那两处），跑完还原。
+	#   ——「数据里有没有」是别的断言的事，机制本身必须随时可验。
+	var keep_defects: Array = OutfitData.defects().duplicate(true)
+	OutfitData.DEFECTS = []
+	for d in OutfitData.DEFAULT_DEFECTS:
+		OutfitData.DEFECTS.append((d as Dictionary).duplicate(true))
 	var m := WardrobeModel.new(OutfitData)
 	m.acceptance = 6
 	# 默认原貌用高领长袖衬衫一件同时遮两处。一旦为了"相反"换成短袖，缺陷立刻暴露
@@ -2021,6 +2034,9 @@ func _test_defect_tradeoff() -> void:
 	_check("颈饰+长袖上衣可补回遮挡", m.exposed_defects().is_empty())
 	_check("补遮用的颈饰/长袖上衣与原貌不同",
 		m.changed_slots().has("neckwear") and m.changed_slots().has("top"))
+	# 还原缺陷表（这段自带的那份只服务于上面几条断言）
+	OutfitData.DEFECTS = keep_defects
+	OutfitData.reload_run_tables()
 	# ★ 第四十九轮：口径从「只算上衣与下装」改成**全槽位求和**，
 	#   所以颈饰**现在也计入**反差了（第三十一轮那条「不再计入」的断言反过来了）。
 	#   ★ 这一件（neck_scarf）的暴露值与原貌那件恰好相同（都是 0），
@@ -2592,11 +2608,13 @@ func _test_editable_sections() -> void:
 		OutfitData.QTE_KINDS.all(func(k): return OutfitData.QTE_KIND_LABELS.has(str(k))))
 
 	# ---- ④ 身体缺陷 ----
+	# ★★ 第八十三轮：缺陷「写空 = 这套没有」之后，这里不再假设「一定有 2 处」。
+	#   断言改成**结构性**的：数量与 `defects()` 一致、每项字段齐全、
+	#   覆盖判定按标签走（戴上对应遮挡 → 露出的数量减少）。
 	var defs := OutfitData.defects()
-	_check("默认读到 2 处缺陷", defs.size() == 2)
-	_check("每处缺陷都有 id / name / cover_tags", _defects_wellformed(defs))
-	_check("缺陷的覆盖判定仍按标签走（手套遮手背 + 立领遮颈侧 = 两处全遮）",
-		_outfit_covers("gloves_leather", "neck_collar") == 2)
+	_check("缺陷表结构完好（%d 处，允许为 0）" % defs.size(), _defects_wellformed(defs))
+	_check("「手套遮手背 + 立领遮颈侧」能遮住的处数 = 缺陷总数",
+		_outfit_covers("gloves_leather", "neck_collar") == defs.size())
 	_check("遮不住的搭配就是遮不住（不戴手套 + 不戴颈饰 = 两处都露着）",
 		_outfit_covers("gloves_none", "neck_none") == 0)
 

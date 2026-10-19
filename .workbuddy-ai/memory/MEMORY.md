@@ -115,13 +115,16 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 - ⚠ `scene_1` 第 1 轮强制短袖校服 → 上下装锁死、反差只到 **105 < 125**，
   120 种子里 6 个第 1 轮无解。**是用户配的内容、不是脏数据**，只报告不擅改。
 
-### ★★ 背景的 `levels` / `forced_rules` / `qte_plan` / `defects` 覆写语义
+### ★★ 缺陷（defects）只有背景一层（第 83 轮续 2 定稿）
 
-**`defects`：空 = 这套没有缺陷**（第 83 轮续定的）。三级回落：
-本套写过（哪怕 `[]`）→ 用本套；没写过 → 全局；都没有 → `DEFAULT_DEFECTS`。
-门面：`ScenarioData.defects_declared()` / `bg_has_defects(id)`。
-★ 以前「空就一路回落到出厂 2 项」，用户写 `[]` 也会被补上 —— 编辑器空、游戏里却有。
-★ `levels` / `forced_rules` / `qte_plan` 仍是「空 = 回落全局」，只 `defects` 特殊。
+- **全局 defects 层已彻底删掉**：编辑器那页删了、`story.json` 顶层段删了、
+  `defects_override()` / `defects_declared()` / `_defects_ov` 全移除。
+  ★ 判据：**没有编辑入口的数据不许留**（会变成「改不了却偷偷生效」的隐形脏数据）。
+- 只有两级：本套背景写过 `defects`（哪怕 `[]`）→ **用它，空就是没有**；
+  没写 / 没有当前背景 → 代码里的 `DEFAULT_DEFECTS`（仅「没有 story.json」时）。
+- 门面：`ScenarioData.bg_has_defects(id)` 判「这套写过没有」。
+- ★ `levels` / `forced_rules` / `qte_plan` 的全局段**还在**（新背景回落用），
+  **只有 `defects` 拆掉了** —— 因为只有它的编辑器入口被删干净了。
 
 ★★ **改 `story.json` 的逐行替换：先把区间结束行打印出来人眼看**，写盘后断言
 「**所有**同级段的条数没变」，不只断言被改的那一段 —— 第 83 轮我用括号深度算结束行，

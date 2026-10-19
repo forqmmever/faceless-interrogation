@@ -169,26 +169,6 @@
 		{"mode": "none", "rules": []}
 	],
 	"qte_plan": [],
-	"defects": [
-		{
-			"id": "hand_tattoo",
-			"name": "右手背黑帮血蛇刺青",
-			"slot_hint": "手套 / 长袖",
-			"cover_tags": [
-				"glove",
-				"long_sleeve"
-			]
-		},
-		{
-			"id": "neck_brand",
-			"name": "颈侧奴隶烙印",
-			"slot_hint": "颈饰 / 高领",
-			"cover_tags": [
-				"high_collar",
-				"scarf"
-			]
-		}
-	],
 	"item_overrides": {},
 	"true_presets": {
 		"pool": [],

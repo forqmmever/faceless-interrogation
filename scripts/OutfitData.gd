@@ -383,20 +383,17 @@ var DEFECTS: Array = []
 func _ensure_defects() -> void:
 	if not DEFECTS.is_empty():
 		return
-	# ★ 第四十一轮：本局背景覆写优先（空则回退全局那份）
 	# ★★ 第八十三轮（用户口径）：「情景一根本没有设置身体缺陷」——
 	#   以前这里一律用 `DEFAULT_DEFECTS` 兜底：作者写了个空数组（= 这套没有缺陷），
 	#   代码却给他补上出厂那 2 项，于是**编辑器里是空的、游戏里却真的要求遮刺青**。
-	#   三级回落，只在「谁都没写」时才掏出厂值：
-	#     ① 这套背景写过 defects（哪怕是 `[]`）→ 用它，空就是没有；
-	#     ② 否则看全局 defects 写过没有（`[]` 同样算写过）；
-	#     ③ 都没写 → 出厂 DEFAULT_DEFECTS。
-	var declared := _bg_defects_declared
-	var ov: Array = _bg_defects
-	if not declared:
-		ov = ScenarioData.defects_override()
-		declared = ScenarioData.defects_declared()
-	var src: Array = ov if (not ov.is_empty() or declared) else DEFAULT_DEFECTS
+	#
+	# ★★ 第八十三轮（续 2）：**全局 defects 那一层也拆掉了**。
+	#   全局那页（编辑器「流程」四页之一）已删，数据段也删了 —— 留一份「没有入口、
+	#   却会在背景没写时生效」的数据，就是隐形脏数据。现在只有两级：
+	#     ① 这套背景写过 defects（哪怕是 `[]`）→ 用它，**空就是没有**；
+	#     ② 没有当前背景 / 这套没写 → 出厂 DEFAULT_DEFECTS（纯代码兜底，
+	#        只在「压根没有 story.json」这种演示场景里才会出现）。
+	var src: Array = _bg_defects if _bg_defects_declared else DEFAULT_DEFECTS
 	DEFECTS = []
 	for d in src:
 		var dd: Dictionary = (d as Dictionary).duplicate()
@@ -410,8 +407,10 @@ func _ensure_defects() -> void:
 		if str(dd.get("slot_hint", "")) == "":
 			dd["slot_hint"] = ""
 		DEFECTS.append(dd)
-	if DEFECTS.is_empty() and not declared:
-		# 整段缺失 + 编辑器把每一项都写坏了 → 退回出厂，不能让「缺陷遮挡」整个失效
+	if DEFECTS.is_empty() and not _bg_defects_declared:
+		# 没写过 defects（整段缺失）+ 每一项都写坏了 → 退回出厂，
+		# 不能让「缺陷遮挡」整个失效。
+		# ★ 作者**写过空数组**时不走这里 —— 那代表「这套就是没有缺陷」。
 		for d in DEFAULT_DEFECTS:
 			DEFECTS.append((d as Dictionary).duplicate())
 

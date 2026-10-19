@@ -3638,8 +3638,14 @@ func _test_story_config() -> void:
 	# ★ 第二十九轮加了 contrast_req_base / contrast_req_step（反差值要求自增曲线）
 	# ★ 第三十一轮又加了 contrast_per_exposure（反差新算法的换算系数）
 	# ★ 第三十三轮：阈值拆成「起效点 / 必出点」，并删掉干扰的暴露值耦合两项 → 34 − 1 + 2 − 2 = 33
-	_check("ScenarioData.RULES 有 33 项", sd.RULES.size() == 33)
-	_check("ScenarioData.DEFAULT_RULES 有 33 项", sd.DEFAULT_RULES.size() == 33)
+	# ★ 第八十五轮：新增 3 项反差规则（同暴露值加分 / 发型 / 妆容）→ 33 + 3 = 36
+	_check("ScenarioData.RULES 有 36 项", sd.RULES.size() == 36)
+	_check("ScenarioData.DEFAULT_RULES 有 36 项", sd.DEFAULT_RULES.size() == 36)
+	# 反差新增的三项必须真的能读到（否则「换了不同件给几分」永远退回 0）
+	_check("同暴露值加分的三项都在 RULES 里且 > 0",
+		int(sd.rule_i("contrast_same_exposure_bonus", 0)) > 0
+		and int(sd.rule_i("contrast_bonus_hair", 0)) > 0
+		and int(sd.rule_i("contrast_bonus_makeup", 0)) > 0)
 	_check("表情 QTE 的斜坡两端都在 rules 里（起效点 / 必出点）",
 		sd.RULES.has("exposure_qte_min") and sd.RULES.has("exposure_qte_full"))
 	_check("干扰不再受暴露值影响（两个耦合项已删）",

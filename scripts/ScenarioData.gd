@@ -1991,6 +1991,7 @@ func rule_arr(key: String, dflt: Array = []) -> Array:
 		return v
 	return dflt
 
+
 # 从 DEFAULT_UI 里按同一条路径取兜底 —— 给「写死一段文案不能为空」的场合用。
 # 例：ui_t_d("interrogation.qte_prompt") —— 文件里没有就取出厂那句。
 func ui_t_d(path: String) -> String:
@@ -2054,6 +2055,13 @@ const DEFAULT_RULES := {
 	"contrast_req_base": 125,           # 第 1 关的反差要求基线
 	"contrast_req_step": 15,           # 之后每轮自增多少
 	"contrast_per_exposure": 5,        # 反差值：每一档暴露度差算多少分（第三十一轮新算法）
+	# ★★ 第八十五轮（用户口径）：「同暴露值的不同件衣服增加 2 分，发型、妆容多加点」。
+	#   以前反差只认 |暴露值差| —— 换一件完全不同、但暴露值相同的衣服记 0 分，
+	#   于是发型（7 件全是露 0）、眼镜、妆、鞋这几栏怎么换都不涨分。
+	#   现在：**换了不同的一件 + 暴露值没变** → 再加这档分（槽位专属值优先）。
+	"contrast_same_exposure_bonus": 2,   # 同暴露值、不同件的基础分（所有槽位）
+	"contrast_bonus_hair": 12,           # 发型多给（一眼就能看出换了个人）
+	"contrast_bonus_makeup": 10,         # 妆容同理
 	# ★★ 第七十五轮（用户口径「过关线修改为 100」）：过关线 60 → 100。
 	#    怀疑度本来就是 0~100 的条，100 是「当场暴露」那一下 —— 线抬到 100 之后，
 	#    真正判死的只剩「顶满」这一种。原来按 60 那条线配的增量就全都偏轻了

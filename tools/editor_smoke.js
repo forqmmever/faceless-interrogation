@@ -759,7 +759,8 @@ try {
     const R = P.story.rules || {};
     // ★ 第二十九轮加了 contrast_req_base / contrast_req_step（反差值要求曲线）
     // ★ 第三十三轮：暴露值阈值拆成「起效点 / 必出点」，干扰的暴露值耦合两项被删 → 33
-    ok(Object.keys(R).length === 33, "story.rules 有 33 项，实际 " + Object.keys(R).length);
+    // ★ 第八十五轮：新增 3 项反差规则（同暴露值加分 / 发型 / 妆容）→ 33 + 3 = 36
+    ok(Object.keys(R).length === 36, "story.rules 有 36 项，实际 " + Object.keys(R).length);
     ok(typeof R.exposure_qte_min === "number" && typeof R.exposure_qte_full === "number",
       "表情 QTE 的斜坡两端都在（" + R.exposure_qte_min + " → " + R.exposure_qte_full + "）");
     ok(R.interference_min === undefined && R.interference_per_exposure === undefined,
@@ -776,7 +777,8 @@ try {
     const rs = P.rulesSections(), us = P.uiSections(), es = P.endingsSections();
     // ★ 第三十三轮：删 3 项（exposure_qte_threshold / interference_min / interference_per_exposure）
     //   加 2 项（exposure_qte_min / exposure_qte_full）→ 31 − 3 + 2 = 30
-    ok(rs.reduce((a, s) => a + (s.fields || []).length, 0) === 30, "数值页覆盖 30 项");
+    // ★ 第八十五轮：多了「⑥ 反差」一节 6 项 → 30 + 6 = 36（其中 3 项是本来就有的键）
+    ok(rs.reduce((a, s) => a + (s.fields || []).length, 0) === 36, "数值页覆盖 36 项");
 
     // ---- ★ 第三十三轮：QTE 上方的提示文字可以编辑 ----
     //   两处都要有：① 题库页的「每题」字段；② 全局 QTE 计划页。

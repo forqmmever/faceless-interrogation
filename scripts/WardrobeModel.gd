@@ -782,7 +782,13 @@ func _contrib(slot: String, id: String, field: String) -> int:
 #     有一个明确的「口径」引用点，而不是散落的 if。
 const CONTRAST_EXCLUDED_SLOTS := []
 
-# 某槽位这件衣服贡献多少反差 = |你穿的暴露度 − 原貌那件| × 系数。
+# 某槽位这件衣服贡献多少反差 = |你穿的暴露度 − 原貌那件| × 系数，**再加上「换了不同一件」的分**。
+#
+# ★★ 第八十五轮（用户口径）：「同暴露值的不同件衣服增加 2 分，发型、妆容多加点」。
+#   以前只有前半截 —— 换一件完全不同、但暴露值相同的衣服记 0 分，于是
+#   发型（7 件全是露 0）/ 眼镜 / 妆 / 鞋这几栏怎么换都不涨分。现在补一档。
+#   · 只在**暴露值相同**时加：不同的话前半截已经在给分，再加就是同一件事算两遍；
+#   · 只在**确实换了件**时加：穿回原貌那件仍然是 0（「和他记得的一模一样」不给分）。
 func _contrast_of(slot: String, id: String) -> int:
 	if CONTRAST_EXCLUDED_SLOTS.has(slot):
 		return 0
@@ -791,7 +797,10 @@ func _contrast_of(slot: String, id: String) -> int:
 	if base_id != "":
 		base_exp = int(data.get_item(base_id).get("exposure", 0))
 	var now_exp := int(data.get_item(id).get("exposure", 0))
-	return absi(now_exp - base_exp) * data.contrast_per_exposure()
+	var v: int = absi(now_exp - base_exp) * int(data.contrast_per_exposure())
+	if base_id != "" and id != base_id and now_exp == base_exp:
+		v += data.contrast_same_exposure_bonus(slot)
+	return v
 
 # ============================================================
 #  单槽位增量 —— 换一件衣服会让总和变多少

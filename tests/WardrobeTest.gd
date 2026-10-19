@@ -1991,12 +1991,54 @@ func _test_model_basics() -> void:
 	# 改上衣 → 按暴露度差给分
 	var top_id := "top_lace"
 	mm.equip(OutfitData.get_item(top_id))
-	var base_e := int(OutfitData.get_item(str(mm.true_appearance.get("top", "")))["exposure"])
+	var base_id_top := str(mm.true_appearance.get("top", ""))
+	var base_e := int(OutfitData.get_item(base_id_top)["exposure"])
 	var want: int = absi(int(OutfitData.get_item(top_id)["exposure"]) - base_e) \
 		* OutfitData.contrast_per_exposure()
-	_check("新算法：换上衣后反差 = |暴露度差| × %d = %d（实测 %d）"
+	# ★ 第八十五轮：暴露值**没变**但换了不同一件 → 再加一档「确实换了人」的分
+	if base_id_top != "" and top_id != base_id_top \
+			and int(OutfitData.get_item(top_id)["exposure"]) == base_e:
+		want += OutfitData.contrast_same_exposure_bonus("top")
+	_check("新算法：换上衣后反差 = |暴露度差| × %d（+ 同暴露值那档）= %d（实测 %d）"
 		% [OutfitData.contrast_per_exposure(), want, mm.total_contrast()],
 		mm.total_contrast() == want)
+	# ★ 第八十五轮：同暴露值的另一件要真的给分（以前记 0）
+	var zero_slot := ""
+	var zero_a := ""
+	var zero_b := ""
+	for slot in ["hair", "glasses", "makeup", "shoes"]:
+		var by_e := {}
+		for it in OutfitData.get_items_for_slot(str(slot)):
+			if OutfitData.is_bare(it):
+				continue
+			var e := int(it["exposure"])
+			if not by_e.has(e):
+				by_e[e] = []
+			(by_e[e] as Array).append(str(it["id"]))
+		for e in by_e:
+			if (by_e[e] as Array).size() >= 2:
+				zero_slot = str(slot)
+				zero_a = str((by_e[e] as Array)[0])
+				zero_b = str((by_e[e] as Array)[1])
+				break
+		if zero_slot != "":
+			break
+	_check("找得到「同槽位、同暴露值、不同件」的一对（否则下面那条是空转）",
+		zero_slot != "" and zero_a != zero_b)
+	if zero_slot != "":
+		# ★ true_appearance 可能直接指向只读常量 → 不能原地改，整份换掉
+		var saved_true: Dictionary = mm.true_appearance.duplicate(true)
+		var probe_true: Dictionary = mm.true_appearance.duplicate(true)
+		probe_true[zero_slot] = zero_a
+		mm.true_appearance = probe_true
+		var got: int = mm._contrast_of(zero_slot, zero_b)
+		_check("★ 同暴露值的不同件也记 %d 分（实测 %d）"
+			% [OutfitData.contrast_same_exposure_bonus(zero_slot), got],
+			got == OutfitData.contrast_same_exposure_bonus(zero_slot)
+			and got > 0)
+		_check("穿回原貌那一件仍然是 0 分（和他记得的一模一样 = 没伪装）",
+			mm._contrast_of(zero_slot, zero_a) == 0)
+		mm.true_appearance = saved_true
 	# 系数必须 > 0，否则整条曲线无从谈起
 	_check("反差系数 > 0（在 rules.contrast_per_exposure 里）",
 		OutfitData.contrast_per_exposure() > 0)
@@ -3417,6 +3459,9 @@ func _walk_combos(group: Array, i: int, true_app: Dictionary, acceptance: int,
 			if base_id != "":
 				base_e = int(OutfitData.get_item(base_id).get("exposure", 0))
 			con += absi(int(it[0]) - base_e) * k
+			# ★ 第八十五轮：暴露值相同但换了不同一件 → 再加一档
+			if base_id != "" and str(it[4]) != base_id and int(it[0]) == base_e:
+				con += OutfitData.contrast_same_exposure_bonus(s)
 		out.append([exp, con, cov])
 		return
 	var slot := str(group[i])
@@ -3505,9 +3550,16 @@ func _expect_contrast(m: WardrobeModel) -> int:
 		var raw: Variant = m.equipped[ss]
 		if typeof(raw) == TYPE_ARRAY:
 			for id in (raw as Array):
-				t += absi(int(OutfitData.get_item(str(id)).get("exposure", 0)) - base_e) * w
+				var e2 := int(OutfitData.get_item(str(id)).get("exposure", 0))
+				t += absi(e2 - base_e) * w
+				# ★ 第八十五轮：同暴露值、不同件 → 再加一档「确实换了人」的分
+				if base_id != "" and str(id) != base_id and e2 == base_e:
+					t += OutfitData.contrast_same_exposure_bonus(ss)
 			continue
-		t += absi(int(m.item_at(ss).get("exposure", 0)) - base_e) * w
+		var e_now := int(m.item_at(ss).get("exposure", 0))
+		t += absi(e_now - base_e) * w
+		if base_id != "" and str(m.item_at(ss).get("id", "")) != base_id and e_now == base_e:
+			t += OutfitData.contrast_same_exposure_bonus(ss)
 	return t
 
 func _sum_exposure(m: WardrobeModel) -> int:

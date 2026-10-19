@@ -1168,6 +1168,30 @@ const CONTRAST_PER_EXPOSURE := 5
 func contrast_per_exposure() -> int:
 	return int(ScenarioData.rule_i("contrast_per_exposure", CONTRAST_PER_EXPOSURE))
 
+# ---------- 同暴露值、但换了不同一件时的加分（第八十五轮）----------
+#  用户口径：「同暴露值的不同件衣服增加 2 分，发型、妆容多加点」。
+#  以前反差只有 |暴露值差| × 5：换一件完全不同、暴露值却一样的衣服记 0 分，
+#  而发型 7 件全是露 0、眼镜 3 件 / 妆 5 件 / 鞋 3 件也大多是 0 ——
+#  这几栏「怎么换都不涨分」。现在补一档「确实换了人」的分。
+#
+#  ★ 只在**暴露值没变**时加（变了的话 |差|×系数 已经在给分了，
+#    再加一档等于同一件事算两遍）。
+const CONTRAST_SAME_EXPOSURE_BONUS := 2
+# 槽位专属值：这两栏是「一眼看过去最像不像同一个人」的地方，多给一点。
+const CONTRAST_BONUS_HAIR := 12
+const CONTRAST_BONUS_MAKEUP := 10
+
+# 某槽位「同暴露值、不同件」加多少分。
+#   发型 / 妆容各有一项自己的（可在编辑器「⚙️ 数值规则 → ⑥ 反差」里改），
+#   其余槽位统一用基础分。
+func contrast_same_exposure_bonus(slot: String) -> int:
+	match slot:
+		"hair":
+			return ScenarioData.rule_i("contrast_bonus_hair", CONTRAST_BONUS_HAIR)
+		"makeup":
+			return ScenarioData.rule_i("contrast_bonus_makeup", CONTRAST_BONUS_MAKEUP)
+	return ScenarioData.rule_i("contrast_same_exposure_bonus", CONTRAST_SAME_EXPOSURE_BONUS)
+
 # ---------- 轮次开放状态（第二十一轮）----------
 # 「开始游戏」不再直接开局，而是先让玩家在**选关面板**上挑进哪一关。
 #

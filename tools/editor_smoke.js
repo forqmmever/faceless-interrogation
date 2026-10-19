@@ -98,6 +98,8 @@ mainJs += `
   PH_EXPECT, PH_MEANING, phone, phoneSec, bgQuestionsSource, countPh, questionTitle,
   // ★ 第九十轮：每轮备忘录正文（两份字段表共用 memoFields）
   memoFields, memoParaTitle, MEMO_PH_KEYS,
+  // ★ 第九十一轮：结局文案模板来源（未填写的键用它）
+  ENDING_TEMPLATE_BG_ID, endingTemplateLabel,
   optionFields, optionTitle, MANUAL_HIDDEN_META, MANUAL_HIDDEN_COMPANION,
   // ★ 第七十六轮：编辑器改成「直接编辑 data/story.json」—— 保存通道要能验
   get canSave(){ return canSave; }, set canSave(v){ canSave = v; },
@@ -745,7 +747,32 @@ try {
   P.validateNow();
   ok(!P.issues.some(i => i.m.includes("recognized_line")),
     "结局文案留空 → 不报任何问题（留空 = 这一句不显示）");
-  negCase("结局文案丢了占位符", s => { s.backgrounds[0].endings.recognized_line = "怎么是你。"; }, "丢了占位符");
+  // ★★ 第九十一轮（用户口径）：「结局文案中不加 %s 也不会报错，将玩玩的关系的结局文案，
+  //    作为未填写时，自动显示的模板」。
+  //   → ① 原来那条「丢了占位符 → 必须报错」的反向用例**整条删掉**（现在不报错了）；
+  //     ② 换成两条正面用例：写了不带 %s **一条问题都不该有**；清空一条也一条都不该有。
+  P.loadStory(JSON.parse(JSON.stringify(pristine)), "t.json", false);
+  P.story.backgrounds[0].endings.recognized_line = "怎么是你。";
+  P.story.backgrounds[0].endings.exposure_line = "你被拦下来了。";
+  P.story.backgrounds[0].endings.success_line = "";
+  P.validateNow();
+  ok(!P.issues.some(i => i.m.includes("占位符") && i.m.indexOf("结局") >= 0),
+    "结局文案不写 %s / %d → 不报任何「占位符」问题");
+  ok(!P.issues.some(i => i.m.includes("recognized_line") || i.m.includes("exposure_line")),
+    "这三条改完（含清空一条）也一条问题都不报");
+
+  // 结局文案的模板来源：编辑器里的常量必须与代码侧一致
+  ok(P.ENDING_TEMPLATE_BG_ID === "scene_1",
+    "结局模板来源是 scene_1（「玩玩的关系」），实际 " + P.ENDING_TEMPLATE_BG_ID);
+  ok(P.endingTemplateLabel() === "玩玩的关系",
+    "模板那套背景的显示名读的是数据（实际「" + P.endingTemplateLabel() + "」）");
+  // 数据里确实有这一套、且它自己写了 endings —— 否则模板是空的
+  {
+    const tplBg = P.story.backgrounds.find(b => String(b.id) === P.ENDING_TEMPLATE_BG_ID);
+    ok(!!tplBg, "数据里有模板那套背景");
+    ok(!!tplBg && tplBg.endings && Object.keys(tplBg.endings).length >= 20,
+      "模板那套自己写了结局文案（" + (tplBg && tplBg.endings ? Object.keys(tplBg.endings).length : 0) + " 条）");
+  }
   negCase("整块 endings 缺失（只提醒，不算错）", s => { delete s.backgrounds[0].endings; }, "endings 不是对象");
   // ---- 第五十五轮：手机并入 / 三组同构短信 ----
   // ★ 第九十轮：`memo.cast_body` 已下线，这条「少写一个占位符」的用例

@@ -23,20 +23,20 @@ node tools/editor_smoke.js                                 # 编辑器（含手�
 godot --path . res://tests/Screenshot.tscn                 # 截图 ★ 非 headless（~50 秒；实测 42 张）
 ```
 
-★ **只有一个编辑器** `tools/story_editor.html`。两套 Godot 测试**跑完都打印耗时前 8 段** —— 提速看那个。
+★ **只有一个编辑器** `tools/story_editor.html`。两套 Godot 测试**跑完都打印耗时前 8 段**。
 ★ 编辑器直接读写 `data/story.json`：`open_story_editor.bat` 起 `story_server.py`（8765）；`file://` = **只读**。
 ★ **改完 story.json 要跑 `python tools/build_story_editor.py` 重建快照**（冒烟读的就是那份）。
 ★ **`open_story_editor.bat` 必须纯 ASCII + CRLF**。★ `--check-only --script` **不加载 autoload**。
 ★ 用户 2026-10-15：「没动代码不用跑四套验证」—— 纯文档 / 清点 / 加工具**跳过**。
 ★ 长测试用 `run_in_background` + 重定向到 `.workbuddy-ai/tmp/*.log`；跑时别改它读的资源。
-★★ 用户 2026-10-19：**开游戏窗口截图 / 调试时，别让它停在最前排**（不抢焦点、不置顶、不盖住用户窗口）。
-  → 截图脚本启动后立刻把窗口置底 + 非激活；调试完关掉窗口，别留着。
+★★ 用户 2026-10-19：**开游戏窗口截图 / 调试时别让它待在最前排**（不抢焦点、不置顶）。
+  → 用 `tools/run_unfocused.ps1`（启动后 `SetWindowPos(HWND_BOTTOM)` + `SW_SHOWNOACTIVATE`）。
 
 ### 术语（2026-10-15 定义）
 
 **一局** = 一套背景 + 若干轮；**一轮** = 一次换装 + 问答（`level_index`）。统一用「轮」。
 ★ 批量替换用「本关→本轮 / 每关→每轮 / 关卡→轮次」，**不动**「通关 / 过关 / 关键 / 相关 / 关闭」。
-★ 别用 `line.split('#')[0]` 切注释（BBCode 的 `[color=#8a919c]` 会被当注释起点）。
+★ 别用 `line.split('#')[0]` 切注释（`[color=#8a919c]` 会被当注释起点）。
 
 ## 二、改数据的几条链路
 
@@ -94,16 +94,16 @@ godot --path . res://tests/Screenshot.tscn                 # 截图 ★ 非 head
 
 编辑器把用不到的字段**整节收起来**（数据一条不动）：`MANUAL_HIDDEN_META` / `MANUAL_HIDDEN_COMPANION`、
 ③④ 两节、`recall`、选项 `tone` / `value`。★ **`interrogator`（称呼）不在此列**。
-运行时三处：① `_is_unified_question()` 判据放宽成「有 `tone` 或 `text`」（否则掉进旧「档案题」路，
-**完全不读你写的选项**）；② `is_blind` 加 `and not questions_are_manual()`；③ 未知 / 空 `tone` 取 `correct_delta`。
+运行时三处：① `_is_unified_question()` 判据放宽成「有 `tone` 或 `text`」（否则掉进旧「档案题」路、
+**完全不读你写的选项**）；② `is_blind` 加 `and not questions_are_manual()`；③ 空 `tone` 取 `correct_delta`。
 ★★ **`scene_*` 是 manual、没有 `cards`** → 找「挂 A 卡的题」的截图会**整段跳过**（第 89 轮踩）。
 ★★ **代价只认选项上的 `suspicion`**（第 77 轮）——「说漏嘴」也不例外。**每个选项都必须写它**（有守卫）。
 
 ### ★★ 盘问左栏四块（第 78 / 81 轮定稿 · 第 82 轮改布局）
 
 `echo_label`（回应）→ `dialogue_label`（题面）→ `feedback_label`（判定解释）→ 掏出手机 + 选项。
-没写回应 / 第一题 → `echo_label.visible = false`。★ **换题别调 `_show_choice_echo()`**（它顺手清空反馈区）。
-★★ **这三块必须在「有界滚动区」里**，否则 720 的屏装不下 —— 展开见 `REFERENCE.md` 六章。
+没写回应 / 第一题 → `echo_label.visible = false`。★ **换题别调 `_show_choice_echo()`**（它清空反馈区）。
+★★ **三块必须在「有界滚动区」里**，否则 720 的屏装不下 —— 见 `REFERENCE.md` 六章。
 
 ### ★★ QTE 与强制穿着的默认语义（第 80 轮起 · 第 83 轮修正）
 
@@ -114,24 +114,23 @@ godot --path . res://tests/Screenshot.tscn                 # 截图 ★ 非 head
 
 ### ★★ 缺陷（defects）只有背景一层（第 83 轮续 2 定稿）
 
-- **全局 defects 层已彻底删掉**（编辑器页 / story.json 顶层段 / `defects_override()`，第 89 轮清完）。
-  ★ 判据：**没有编辑入口的数据不许留**（改不了却偷偷生效 = 隐形脏数据）。
-- 只有两级：本套写过 `defects`（哪怕 `[]`）→ 用它；没写 → `DEFAULT_DEFECTS`（门面 `bg_has_defects`）。
-  ★ `levels` / `forced_rules` / `qte_plan` 的全局段**还在**。
+全局 defects 层已彻底删掉（编辑器页 / story.json 顶层段 / `defects_override()`，第 89 轮清完）。
+★ 判据：**没有编辑入口的数据不许留**。只有两级：本套写过 `defects`（哪怕 `[]`）→ 用它；
+没写 → `DEFAULT_DEFECTS`（`bg_has_defects`）。★ `levels` / `forced_rules` / `qte_plan` 的全局段**还在**。
 
 ### ★★ 手机备忘录 = 每轮自写的手记（第 90 轮定稿）
 
 数据在 **`bg.levels[i]`**：`memo: [{body}]` + `memo_hint: bool`。**每轮一份完整清单、不累积**；
-渲染成**一张卡片里一个 Label**（几段 `\n\n` 拼成一段连续文字）；一段都没有 → **整块卡片不建**。
-★ 原来自动两条（性情 / 这一局的人）**整块下线**；`interrogator_hate()` 等访问器**留着**（说漏嘴反馈在用）。
+渲染成**一张卡片 + 一个 Label**（几段 `\n\n` 拼起来）；一段都没有 → **整块卡片不建**。
+★ 原来自动两条**整块下线**（`interrogator_hate()` 等访问器留着，说漏嘴反馈在用）。
 ★★ 盲区反馈抬头改 **「他的脾性」**，**直接读性情表**（作者不写也有依据）。
 ★ 字段表抽成 `memoFields()`，`levelsFields()` 与背景页 ⑦ **共用同一份**。详见 `REFERENCE.md` 九章。
 
 ### ★ 相册废片预算 / 选关面板 / 启动声明（第 86~88 轮）
 
-细节见 `REFERENCE.md` 八章。一句话版：废片预算**按批重置**（开局 2 / 每批 1），用完**只抬 `max_wipes`
-不重抽照片**；上半身**一律带 hair**（→ 随机流偏移，截图会变不是故障）；`_levels_for_panel()` **别拼
-`derived_profile`**；通关后 `_pending_action = "home"`，`"new_run"` 只给测试用；`splash_layer` 盖 3 秒。
+详 `REFERENCE.md` 八章。废片预算**按批重置**（开局 2 / 每批 1），用完**只抬 `max_wipes` 不重抽照片**；
+上半身**一律带 hair**（→ 随机流偏移，截图变了不是故障）；`_levels_for_panel()` **别拼 `derived_profile`**；
+通关后 `_pending_action = "home"`；`splash_layer` 盖 3 秒。
 
 ### ★★ 反差公式（第 85 轮定稿）
 
@@ -149,14 +148,19 @@ godot --path . res://tests/Screenshot.tscn                 # 截图 ★ 非 head
 
 ★★ **`story.json` 逐行替换：先打印区间结束行看一眼**，写盘后断言「**所有**同级段条数没变」
 （第 83 轮 `forced_rules` 的 `{...}` 提前闭合，把 `defects` 整段吞了）。
-★ 四项流程覆写**只在背景页 ⑦ 里配**。★ **机制类测试别依赖「当前数据配没配」**：自备数据跑完还原。
+★ 四项流程覆写**只在背景页 ⑦ 里配**。★ **机制测试别依赖「数据配没配」**：自备数据跑完还原。
 
-### ★★ 结局文案「不写就不显示」（第 81 轮定稿）
+### ★★ 结局文案：留空 = 用「玩玩的关系」当模板（第 91 轮定稿）
 
-- **三层兜底全拆**：`_fill_endings(false)` 不填模板、`endings_of()` 原样返回、`end_t` 没有 `dflt`；
-  只有「根本没有 story.json」那条演示路径填 `DEFAULT_ENDINGS`。★ 要给「读文件但没写 endings」的
-  背景补**空字典**，否则又退回模板。
-- 界面：标题 / 正文 / 提示空 → `visible = false`；**按钮空 → 只显示箭头（➔ / ↺）**。调用点一律 `_et()`。
+★★ **推翻了第 81 轮的「不写就不显示」**（用户口径「不加 %s 也不会报错，将玩玩的关系的结局文案，
+作为未填写时自动显示的模板」）。现在的规则：
+
+- `ENDING_TEMPLATE_BG_ID := "scene_1"`；`endings_of()` = **模板打底 + 自己写的逐键覆盖**。
+  「未填写」= 缺键 / 空串 / 全空白；模板里也没有的键才空串。
+- ★★ **模板实时读数据里那套的 endings**，不许抄进 `DEFAULT_ENDINGS`（两个真相源）。
+- ★★ **带占位符的文案一律 `ScenarioData.fmt_args()`，不许裸 `t % args`**：参数个数与占位符
+  个数不符时 GDScript **返回空串**（不是原串）—— 去掉 `%s` 会让整屏空白。`%%` 当转义跳过。
+- ★ 现在做不到「这一句不显示」。界面：标题 / 正文 / 提示空 → 收起；**按钮空 → 只留箭头**。
 
 ## 三、测试怎么写（细则见 `REFERENCE.md` 五章）
 
@@ -165,10 +169,10 @@ godot --path . res://tests/Screenshot.tscn                 # 截图 ★ 非 head
   —— 运行时报错不会让测试失败，只会让那一行静默消失。取数组用 `_arr_of(d, key)`。
 - **防「空转通过」**：循环一次都不进 = 什么都没测。**加「样本里确实查到 N 条」的断言**。
 - ★ **写断言的四个老坑**：① 只对部分对象生效的规则配**对照断言**；② 写完**故意改回错的**验证能抓到；
-  ③「非空」断言看不见「少做一步」→ 判**数值范围**；④ 「单调」断言前**先写下取样点数值**。
+  ③「非空」看不见「少做一步」→ 判**数值范围**；④「单调」前**先写下取样点数值**。
   ★ 验「文本不重复」去掉「A. 」前缀再比（前缀把重名盖住，第 77 轮踩过）。
 - ★★ **别让断言依赖「上一个测试留下的局」**（随机种子 → 假失败）。★ 断言「涨 N 点」前先**钉死基数**。
-- ★ **纯函数测不出「时间线上的 bug」** → 状态随轮次变的要**走完整流程的探针**（`Main.tscn`）。
+- ★ **纯函数测不出「时间线上的 bug」** → 随轮次变的状态要**走完整流程的探针**（`Main.tscn`）。
 - ★★ **背景不止一种形态时，测试要自己挑背景**：`scene_*` 是 `manual`。依赖某类数据的**钉在 `_canonical_bg()`**。
 - **用完清跨局状态**：`ProfileData.reset_all()` + 注入的 `_*_presets` 清回 `{}`。
 - - ★ **改全局数值 / 删文案键** → `tests/` 与 `editor_smoke.js` 里写死的计数会成片挂，改用常量或 `>=`。
@@ -197,13 +201,13 @@ godot --path . res://tests/Screenshot.tscn                 # 截图 ★ 非 head
 
 ## 四、数值曲线的规矩（展开见 `REFERENCE.md` 七章）
 
-★ **一局 2 轮**；**反差要求 125 / 150**；**暴露上限 = 10 + 接受度 × 2**（第 1 轮 10 → 30，第 2 轮 19 → 48）。
+★ **一局 2 轮**；**反差要求 125 / 150**；**暴露上限 = 10 + 接受度 × 2**（第 1 轮 → 30，第 2 轮 → 48）。
 ★ **怀疑度**：起点 20、过关线 100、`leak_delta = 100`。改过关线按「预算 = 线 − 起点」等比重标增量。
 ★ **接受度 vs 衣服**：156 件、`acceptance_req` 最大 **15**。第 1 轮 10 基本全开；第 2 轮 19 → 全开。
 ★ 标定用 `WardrobeModel.auto_complete_outfit()`（`_dp_optimum` 会高估）；探针要覆盖测试种子池。
 ★ **反差 = 全槽位求和**；改口径要同时**拉开原貌池** + **重标 `contrast_req`**。
 ★ **下装 / 成装是命门**：`FORCED_NEVER_SLOTS := ["bottom","dress"]`、不抽「与原貌完全相同」那件；
-「抽原貌」必须在「抽强制装备」**之前**（各用独立随机流）。★ 报余量用**最差值**。
+「抽原貌」必须在「抽强制装备」**之前**。★ 报余量用**最差值**。
 
 ## 五、架构约定（细节见 `REFERENCE.md` 六章）
 

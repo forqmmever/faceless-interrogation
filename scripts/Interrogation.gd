@@ -299,12 +299,12 @@ func _ut(path: String, dflt: String) -> String:
 func _et(key: String) -> String:
 	return DossierData.end_t(key)
 
-# 带占位符的结局文案：空串直接返回空串。
+# 带占位符的结局文案。
+# ★★ 第九十一轮（用户口径「结局文案中不加 %s 也不会报错」）：不再裸 `t % args` ，
+#   改走 `ScenarioData.fmt_args()` —— 作者少写 / 不写占位符时不会刷
+#   "not all arguments converted during string formatting"。
 func _etf(key: String, args: Array) -> String:
-	var t := _et(key)
-	if t == "":
-		return ""
-	return t % args
+	return ScenarioData.fmt_args(_et(key), args)
 
 # 组合干扰的键位：数据里写的是字母（"J" / "K" / "L"），这里翻成键码。
 # 翻不出来的（编辑器里填了个不存在的键名）→ 退回出厂那三个。

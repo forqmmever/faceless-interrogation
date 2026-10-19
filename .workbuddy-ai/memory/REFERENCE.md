@@ -743,3 +743,64 @@ Label.autowrap_mode = WORD_SMART / font_size = 11
   勾了 `memo_hint` 却一段正文都没有 → **提醒**（「备忘录里只会剩那一行」）。
 - 出厂 `scene_1` / `scene_2` × 2 轮 = 4 段，都带占位符、都勾了 `memo_hint`；
   草稿背景（`border_post` / `bg_new_1`）不配 → 那一轮备忘录就是空的，合法。
+
+## 十、结局文案与安全格式化（第 91 轮）
+
+### 取文案的三层
+
+```
+DossierData.end_t(key)                 ← 门面，读本局背景
+  → ScenarioData.end_t(bg, key)
+      → endings_of(bg)
+          = ending_template().duplicate()      # ① 模板打底（「玩玩的关系」那套的数据）
+            + bg.endings 里**非空白**的键       # ② 自己的逐键覆盖
+      → 取不到 → ""                           # ③ 界面不显示
+```
+
+- `ENDING_TEMPLATE_BG_ID := "scene_1"`；`ending_template()` 遍历 `_backgrounds` 找它，
+  找不到（数据被删/改名）→ 退回 `DEFAULT_ENDINGS`。
+- 「未填写」三种都算：**缺键 / 空串 / 只有空白字符**（`strip_edges() != ""`）。
+- 模板那套自己**不再合并自己**（`id` 命中就直接返回），省一次遍历、语义也更清楚。
+
+### 为什么模板读数据而不是抄常量
+
+抄一份进 `DEFAULT_ENDINGS` = 两个真相源：用户在编辑器里改「玩玩的关系」，另一份不动，
+下一轮又会被问「为什么改了没生效」。读数据则天然只有一个来源，且**改一次全生效**。
+
+`DEFAULT_ENDINGS` 只剩两个用途：`story.json` 完全缺失的演示路径、
+「玩玩的关系」自己也找不到时的最后退路。
+
+### 安全格式化（`ScenarioData.fmt_args`）
+
+GDScript 4.3 裸 `%` 的真实行为（探针实测）：
+
+| 表达式 | 控制台 | 返回 |
+|---|---|---|
+| `"无占位符" % ["甲","乙","丙"]` | `not all arguments converted` | `""` |
+| `"只有 %s" % ["甲","乙","丙"]` | 同上 | `""` |
+| `"%s 和 %s" % ["甲"]` | `not enough arguments` | `""` |
+| `"" % ["甲"]` | `not all arguments converted` | `""` |
+
+★ **返回的是空串，不是原串** —— 作者删掉 `%s` 就等于把那一屏清空，这是第 91 轮的根因。
+
+```gdscript
+func fmt_args(t: String, args: Array) -> String:
+	if t == "": return ""
+	var need := count_placeholders(t)      # 跳过 %% 转义
+	if need <= 0: return t.replace("%%", "%")
+	var use: Array = []
+	for i in need:
+		use.append(args[i] if i < args.size() else "")   # 少的补空串
+	return str(t % use)
+```
+
+★ 只在**结局文案**这条路用（`Interrogation._etf` / `Main._etf`）。
+`ui` 的 `_tf/_ut` 仍是裸 `%`，占位符个数由编辑器的 `f.ph` 校验守着。
+
+### 编辑器口径（第 91 轮起）
+
+- 结局文案**不校验占位符**：写不写 `%s` / `%d` 都不报错。
+- 只校验数据形状：`endings` 不是对象 → 提醒（这一套整块用模板）；
+  某条不是字符串 → 错误。
+- 结局页顶部说明：**留空 = 用「玩玩的关系」那一条**；占位符写不写都行；想恢复就清空。
+- ★ 副作用：**做不到「这一句不显示」**了 —— 模板里有字就一定有字。

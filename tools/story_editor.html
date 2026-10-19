@@ -1791,7 +1791,18 @@ function uiSections(){
 //  存在 backgrounds[i].endings 里，所以字段都带 sub:"endings"。
 //  出厂模板见 ScenarioData.gd 的 DEFAULT_ENDINGS。
 // ============================================================
+// ★★ 第九十一轮：结局文案的**模板来源**（未填写的格子自动用它的对应条目）。
+//   与代码侧 `ScenarioData.ENDING_TEMPLATE_BG_ID` 必须一致。
+//   显示名用 `endingTemplateLabel()` 实时取（用户改背景名时文案跟着变）。
+const ENDING_TEMPLATE_BG_ID = "scene_1";
+function endingTemplateLabel(){
+  const b = (story.backgrounds || []).find(x => String(x.id) === ENDING_TEMPLATE_BG_ID);
+  return b ? (b.name || b.id) : ENDING_TEMPLATE_BG_ID;
+}
+
 function endingsSections(){
+  // ★★ 第九十一轮：`ph` 现在只是「这一条通常带占位符」的**提示**，
+  //   **不再**拿它报错 —— 用户口径「结局文案中不加 %s 也不会报错」。
   const A = (k, label, rows, hint, ph) => ({k, label, hint, t:"area", rows:rows || 2, sub:"endings", ph:!!ph});
   return [
     { key:"end_recognized", title:"① 一眼认出（开局就被叫出名字）", kind:"object", fields:[
@@ -1995,7 +2006,9 @@ function renderMain(){
     if (view.index == null || view.index < 0 || view.index >= bgs.length) view.index = 0;
     const bg = bgOf();
     main.append(h("h1", {text:"🎬 结局文案"}));
-    main.append(h("div", {class:"sub", text:"结局文案每个背景一套 —— 同一句「怎么是你，X」，几套背景可以各写各的。下面先选一套背景，再改它的 27 条。★ 留空 = 这一句不显示（不会退回出厂模板）。"}));
+    // ★★ 第九十一轮（用户口径）：「结局文案中不加 %s 也不会报错，将玩玩的关系的结局文案，
+    //    作为未填写时，自动显示的模板」。
+    main.append(h("div", {class:"sub", text:"结局文案每个背景一套。★ 留空 = 自动用「" + endingTemplateLabel() + "」那一套的对应条目（模板是**实时读那套背景的数据**，改它就等于改所有没填的地方）。"}));
     const tabs = h("div", {class:"traits"});
     bgs.forEach((b, i) => {
       tabs.append(h("button", {class: view.index === i ? "primary" : "",
@@ -2006,13 +2019,16 @@ function renderMain(){
       h("div", {class:"sechead"}, h("span", {class:"t", text:"选一套背景"}), h("span", {class:"n", text:"正在编辑：" + (bg.name || bg.id || "?")})),
       h("div", {class:"secbody"}, tabs)));
     main.append(h("div", {class:"sec"},
-      h("div", {class:"sechead"}, h("span", {class:"t", text:"留空 = 不显示"})),
+      h("div", {class:"sechead"}, h("span", {class:"t", text:"留空 = 用「" + endingTemplateLabel() + "」那一条"})),
       h("div", {class:"secbody"}, h("div", {class:"help"},
-        h("div", {}, "· 任何一条留空，游戏里就**不显示**它 —— 不会再用代码里那句出厂模板顶上。"),
-        h("div", {}, "· 标题 / 正文 / 提示留空 → 那一块整块收起来，不留空白行。"),
-        h("div", {}, "· **按钮**（「完成本局」「重来本轮」这类）留空 → 只显示一个箭头（➔ / ↺）——"
-          + "按钮是唯一的前进手段，不能变成空白块。"),
-        h("div", {}, "· 带 %s / %d 的条目：**写了就必须留着占位符**，否则那句话拼不出来（校验会报错）。"),
+        h("div", {}, "· **留空 / 没写** → 游戏里自动显示「" + endingTemplateLabel() + "」那套背景的同一条。"
+          + "所以想「什么都不显示」是做不到的 —— 模板里有，就一定有字。"),
+        h("div", {}, "· 模板来源是那套背景**自己的数据**，不是代码里的一份拷贝 ——"
+          + "在它下面改了，别的背景下一次开局就跟着变。"),
+        h("div", {}, "· **按钮**（「完成本局」「重来本轮」这类）也有模板，所以不会变成空白块。"),
+        h("div", {}, "· 带占位符的条目：**%s / %d 写不写都行，不会报错**。"
+          + "写了就替换成对应内容，少写一个就是少显示一段；写多了也没关系。"),
+        h("div", {}, "· 想恢复成模板原样：把那个格子清空即可。"),
       ))));
     endingsSections().forEach(s => main.append(renderSection(s, navKey())));
     return;
@@ -3433,9 +3449,11 @@ function validateNow(){
   }
 
   // ---- 结局文案（endings）—— 每个背景一套 ----
-  //  ★★ 第八十一轮（用户口径「结局文案中所有的部分不写默认不使用」）：
-  //    留空 = 这一句**不显示**，是一种正当写法 —— 所以不再为空格子报提醒，
-  //    只查「写了却写坏」（占位符丢了对不上）。校验面板只放问题，不放说明。
+  //  ★★ 第九十一轮（用户口径）：「结局文案中不加 %s 也不会报错，将玩玩的关系的结局文案，
+  //    作为未填写时，自动显示的模板」。
+  //    → ① 占位符**不再校验**：写不写 %s 都不报错（运行时有 `ScenarioData.fmt_args()` 兜着）。
+  //      ② 「留空」现在是一种**正常写法**（= 用模板），不是问题。
+  //    → 所以这一节**只查数据形状**（endings 不是对象 / 不是字符串的条目），不查文案内容。
   bgs.forEach((bg, bi) => {
     const tag = "【" + (bg.name || bg.id || ("背景" + (bi + 1))) + "】";
     const v = {kind:"endings", index:bi};
@@ -3443,18 +3461,16 @@ function validateNow(){
     if (!bgEnabled(bg)) return;
     const E = bg.endings;
     if (!E || typeof E !== "object"){
-      // 不是错误：一条都不写 = 结局画面不显示任何文案。只在数据形状坏了时提醒。
-      warn(tag + " 的 endings 不是对象 —— 这一套背景的结局文案会被忽略", v);
+      // 不是错误：整块不写 = 全用模板。只在数据形状坏了时提醒。
+      warn(tag + " 的 endings 不是对象 —— 这一套会整块使用「" + endingTemplateLabel() + "」的结局文案", v);
       return;
     }
     endingsSections().forEach(sec => (sec.fields || []).forEach(f => {
       const val = E[f.k];
-      const where = tag + " 结局 · " + (f.label || f.k) + "（" + f.k + "）";
-      if (val === undefined || val === null || String(val) === ""){
-        return;                       // 没写 / 留空 = 不显示，不算问题
-      } else if (f.ph && !String(val).includes("%")){
-        err(where + " 丢了占位符（%s / %d）—— 结局画面会拼不出那句话", v);
-      }
+      if (val === undefined || val === null) return;      // 没写 → 用模板
+      if (typeof val !== "string")
+        err(tag + " 结局 · " + (f.label || f.k) + "（" + f.k + "）必须是字符串", v);
+      // ★ 占位符个数 / 有无，一概不管（第九十一轮）。
     }));
   });
 

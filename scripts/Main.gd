@@ -82,18 +82,16 @@ func _ut(path: String, dflt: String = "") -> String:
 	return ScenarioData.ui_t(path, dflt if dflt != "" else ScenarioData.ui_t_d(path))
 
 # 结局文案 —— 每套背景一份（在 backgrounds[].endings 里）
-# ★ 第八十一轮：没写就是空串（界面上不显示），不再有调用点兜底句。
+# ★ 第九十一轮：未填写的键回落到「玩玩的关系」那套模板（见 ScenarioData.endings_of）。
 func _et(key: String) -> String:
 	return DossierData.end_t(key)
 
-# 带占位符的结局文案：**空串直接返回空串** —— 不拿一堆参数去格式化 ""。
-# （直接 `"" % [..]` 在 GDScript 里虽然不报错，但「没写就不显示」这条规则
-#   不该依赖格式化函数的宽容度。）
+# 带占位符的结局文案。
+# ★★ 第九十一轮（用户口径「结局文案中不加 %s 也不会报错」）：不再裸 `t % args` ，
+#   改走 `ScenarioData.fmt_args()` —— 按文案里**实际有几个**占位符取参数，
+#   少写 / 不写都不会刷 "not all arguments converted"。
 func _etf(key: String, args: Array) -> String:
-	var t := _et(key)
-	if t == "":
-		return ""
-	return t % args
+	return ScenarioData.fmt_args(_et(key), args)
 
 # ---- 开场介绍浮窗 + 玩法说明浮层 ----
 var intro_layer: Control

@@ -2020,27 +2020,98 @@ func _default_at(path: String) -> Variant:
 	return cur
 
 # ---------------- 结局文案 ----------------
-# ★ 第八十一轮（用户口径「结局文案中所有的部分不写默认不使用」）：
-#   只认数据里**写了**的那几条 —— 没写 / 空串 = 这一句不显示，
-#   **不再**逐键回填出厂模板（以前缺一个键就冒出模板那句）。
+# ★★ 第九十一轮（用户口径）：「结局文案中不加 %s 也不会报错，将玩玩的关系的结局文案，
+#    作为未填写时，自动显示的模板」。
 #
-#   唯一的例外是「这套背景连 endings 这个键都没有」（内置常量 / 很老的数据）——
-#   那时退回 DEFAULT_ENDINGS，否则把 story.json 删掉之后演示都跑不起来。
-#   从文件读到的背景由 _fill_endings(false) 保证一定有 endings 这个键（可能是 {}），
-#   所以正常游戏里走不到那条例外。
-func endings_of(bg: Dictionary) -> Dictionary:
-	var e: Variant = bg.get("endings", null)
-	if typeof(e) == TYPE_DICTIONARY:
-		return e
+#   → 规则从第八十一轮的「不写就不显示」改成 **「不写就用模板」**：
+#     · 模板 = 背景 `scene_1`（「玩玩的关系」）这一套的 endings —— **从数据里实时读**，
+#       所以作者在编辑器里改「玩玩的关系」，其余几套的默认文案跟着变，不会有两份。
+#     · 缺键 / 空串 / 整块没写 → 都算「未填写」，用模板那一条。
+#     · 写了 → 用自己的（逐键覆盖）。
+#     · 连模板都没有这条键（比如 `__no_such_ending__`）→ 空串，界面不显示。
+#     · 「根本没有 story.json」→ 退回内置常量 DEFAULT_ENDINGS（演示路径）。
+#
+#   ★ 为什么模板要读数据而不是抄一份进常量：抄一份就是两个真相源，
+#     用户改「玩玩的关系」时另一份不会跟着动 —— 这正是本轮要避免的事。
+
+const ENDING_TEMPLATE_BG_ID := "scene_1"     # 「玩玩的关系」—— 未填写时用它当模板
+
+# 模板那份 endings（「玩玩的关系」那套背景的）。找不到 → 内置常量。
+func ending_template() -> Dictionary:
+	_ensure_story()
+	for b in _backgrounds:
+		if typeof(b) != TYPE_DICTIONARY:
+			continue
+		var d: Dictionary = b
+		if str(d.get("id", "")) != ENDING_TEMPLATE_BG_ID:
+			continue
+		var e: Variant = d.get("endings", null)
+		if typeof(e) == TYPE_DICTIONARY:
+			return e
 	return DEFAULT_ENDINGS
 
-# 取一条结局文案。**没写就是空串**（不显示），不再接受调用点的兜底句 ——
-# 兜底句会让人以为「改了数据」，其实看的是代码里那句。
+# 这一套背景实际会显示的结局文案 = 模板打底 + 自己写的逐键覆盖。
+# ★ 「未填写」包括：缺键、空串、只有空白字符 —— 三种都回落到模板。
+#   ★ 想让某一句**真的不显示**：模板里也有它就做不到（模板就是兜底），
+#     这是这一轮口径的必然结果 —— 用户的诉求是「空着也有字」。
+func endings_of(bg: Dictionary) -> Dictionary:
+	var tpl: Dictionary = ending_template()
+	var out: Dictionary = tpl.duplicate()
+	# ★ 模板那套自己就别再合并一遍自己（结果一样，但省一次遍历）
+	if str(bg.get("id", "")) == ENDING_TEMPLATE_BG_ID:
+		return out
+	var e: Variant = bg.get("endings", null)
+	if typeof(e) != TYPE_DICTIONARY:
+		return out
+	for k in (e as Dictionary).keys():
+		var v: Variant = (e as Dictionary)[k]
+		if typeof(v) == TYPE_STRING and str(v).strip_edges() != "":
+			out[k] = v
+	return out
+
+# 取一条结局文案。模板里也没有这个键 → 空串（界面不显示）。
 func end_t(bg: Dictionary, key: String) -> String:
 	var v: Variant = endings_of(bg).get(key, null)
 	if typeof(v) == TYPE_STRING:
 		return str(v)
 	return ""
+
+# ---------------- 带占位符的文案：安全格式化 ----------------
+# ★★ 第九十一轮（用户口径）：「结局文案中不加 %s 也不会报错」。
+#
+#   原来调用点写的是 `t % args` —— 文案里没有占位符而 args 非空时，
+#   Godot 会抛 "not all arguments converted during string formatting"，
+#   整屏刷 ERROR（第 90 轮跑测试时就见过 21 条）。
+#
+#   现在按**文案里实际有几个占位符**来取参数：
+#     · 0 个 → 原样返回（只把 `%%` 还原成 `%`）
+#     · n 个 → 取前 n 个参数；参数不够就用空串补齐（不报错，只是空着）
+#     · 参数多了 → 多余的直接丢掉（作者少写了几个 %s，不该因此崩）
+# ★ `%%` 是转义，不能算占位符 —— 数的时候要跳过。
+func count_placeholders(t: String) -> int:
+	var n := 0
+	var i := 0
+	var L := t.length()
+	while i < L:
+		if t[i] == "%":
+			if i + 1 < L and t[i + 1] == "%":
+				i += 2
+				continue
+			n += 1
+		i += 1
+	return n
+
+func fmt_args(t: String, args: Array) -> String:
+	if t == "":
+		return ""
+	var need := count_placeholders(t)
+	if need <= 0:
+		return t.replace("%%", "%")
+	var use: Array = []
+	for i in need:
+		use.append(args[i] if i < args.size() else "")
+	return str(t % use)
+
 
 # ============================================================
 #  数值规则（rules）—— 出厂默认
@@ -2813,10 +2884,10 @@ func set_qte_plan(arr: Array) -> void:
 
 # 结局文案：每套背景一份。
 #
-# ★★ 第八十一轮：**不再逐键回填出厂模板**（用户口径「不写默认不使用」）。
-#   · 从文件读进来的一份 → 原样保留，没写的键读出来是空串 → 界面上什么都不显示；
-#   · 只有「根本没有 story.json」那条兜底路径才填 DEFAULT_ENDINGS，
-#     否则演示用的出厂背景会整片空白（那是「数据缺失」，不是「作者没写」）。
+# ★★ 第九十一轮：**未填写的键回落到「玩玩的关系」那套模板**（见 endings_of）。
+#   · 这里只负责形状：从文件读进来的一份原样保留（缺的键仍缺着，由 endings_of 兜）；
+#   · 只有「根本没有 story.json」那条兜底路径才把 DEFAULT_ENDINGS 填满，
+#     否则演示用的出厂背景会整片空白。
 # ★ 两处都必须先 duplicate：`_backgrounds` 可能直接指向只读常量数组。
 func _fill_endings(use_defaults: bool = true) -> void:
 	_backgrounds = _backgrounds.duplicate(true)
@@ -2827,7 +2898,7 @@ func _fill_endings(use_defaults: bool = true) -> void:
 			bg["endings"] = _merge_flat(DEFAULT_ENDINGS, cur)
 		elif typeof(cur) != TYPE_DICTIONARY:
 			# 从文件来、但这套背景没写 endings —— 补一个空字典，
-			# 这样 endings_of() 不会把它当成「内置常量」而退回出厂模板。
+			# 这样 endings_of() 会走「模板打底」那条路（第九十一轮）。
 			bg["endings"] = {}
 		_backgrounds[i] = bg
 

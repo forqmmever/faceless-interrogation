@@ -3899,7 +3899,7 @@ func _test_story_config() -> void:
 	_check("玩法说明的盘问标注有 5 段",
 		sd.ui_arr_d("help.interrogation_marks").size() == 5)
 
-	# ---- 4. 结局文案：每套背景一份，互不串味 ----
+	# ---- 4. 结局文案：每套背景一份（★ 第九十一轮起：未填写的键用「玩玩的关系」那套模板）----
 	var e0: Dictionary = sd.BACKGROUNDS[0]["endings"]
 	var e1: Dictionary = sd.BACKGROUNDS[1]["endings"]
 	var keep0: Variant = e0["recognized_line"]
@@ -3920,19 +3920,60 @@ func _test_story_config() -> void:
 	RunData._bg = {}
 	_check("换一套背景 → 读到的是另一份",
 		DossierData.end_t("recognized_line") == "【背景 1 的认出句】")
+
+	# ★★ 第九十一轮：**清空自己那条 → 自动用模板那一条**（不是空、也不是调用点兜底句）。
+	#   这条是「未填写时自动显示的模板」在**真实链路**上的证明（不只是 endings_of 的单元断言）。
+	RunData.background_id = str(sd.BACKGROUNDS[0]["id"])
+	RunData._bg = {}
+	var keep_caught: Variant = e0["caught_line"]
+	e0["caught_line"] = ""
+	_check("清空自己那条 → 自动显示模板那一条",
+		DossierData.end_t("caught_line") == str(sd.ending_template().get("caught_line", "")))
+	e0["caught_line"] = keep_caught
+
 	RunData.background_id = keep_bg_id
 	RunData._bg = {}
 	e0["recognized_line"] = keep0
 	e1["recognized_line"] = keep1
 
-	# ★ 第八十一轮：没写的键**不再**拿调用点的兜底句 —— 就是空串（界面上不显示）。
-	_check("end_t 遇到没写的键 → 空串（不退回任何兜底文案）",
-		sd.end_t(sd.BACKGROUNDS[0], "__no_such_ending__") == ""
-		and interro._et("__no_such_ending__") == "")
-	_check("空串也照样是空串（作者主动留空 = 不显示）",
-		sd.end_t({"id": "__blank__", "endings": {"caught_line": ""}}, "caught_line") == "")
-	_check("背景整块没有 endings → 退回出厂模板（内置常量那条路）",
-		sd.endings_of({"id": "__no_endings__"}).size() == 27)
+	# ★★ 第九十一轮（用户口径）：「结局文案中不加 %s 也不会报错，将玩玩的关系的结局文案，
+	#    作为未填写时，自动显示的模板」。
+	#   —— 第八十一轮那条「不写就不显示」已经作废，现在「不写 = 用模板」。
+	var tpl: Dictionary = sd.ending_template()
+	_check("模板来源是「玩玩的关系」（scene_1）", sd.ENDING_TEMPLATE_BG_ID == "scene_1")
+	_check("模板那一套自己确实写了结局文案（模板不是空的）", tpl.size() >= 20)
+	_check("模板 = 那套背景自己的 endings（不是另一份拷贝）",
+		tpl.get("recognized_line") == (sd.BACKGROUNDS[1] as Dictionary).get("endings", {}).get("recognized_line"))
+
+	# 未填写的三种形态：缺键 / 空串 / 只有空白
+	var blank_e: Dictionary = sd.endings_of({
+		"id":"__blank__", "endings":{"caught_line":"", "success_line":"   "}})
+	_check("缺键 / 空串 / 全空白 → 都用模板那一条",
+		str(blank_e.get("caught_line", "")) == str(tpl.get("caught_line", ""))
+		and str(blank_e.get("success_line", "")) == str(tpl.get("success_line", "")))
+	_check("模板里也没有的键 → 仍是空串（界面不显示）",
+		sd.end_t({"id": "__blank__", "endings": {}}, "__no_such_ending__") == "")
+	_check("整块没有 endings → 拿到的就是模板那一套（条数一致）",
+		sd.endings_of({"id": "__no_endings__"}).size() == tpl.size())
+	_check("写了自己的 → 用自己那条（逐键覆盖，不整段替换）",
+		sd.endings_of({"id": "__own__", "endings": {"caught_line": "我自己的那句"}}).get("caught_line")
+			== "我自己的那句")
+
+	# ---- 安全格式化：文案里写不写 %s 都不能报错 ----
+	#   ★ 第九十一轮之前这里是裸 `t % args`，没写占位符时会刷
+	#     "not all arguments converted during string formatting"（跑测试能看到 21 条）。
+	_check("没有占位符 + 两个参数 → 原样返回，不报错",
+		sd.fmt_args("没有任何占位符的一句话", ["甲", "乙"]) == "没有任何占位符的一句话")
+	_check("一个 %s + 两个参数 → 只用第一个（多余的丢掉）",
+		sd.fmt_args("一个 %s", ["甲", "乙"]) == "一个 甲")
+	_check("两个 %s + 一个参数 → 缺的那个补空串（不报错）",
+		sd.fmt_args("%s 和 %s", ["甲"]) == "甲 和 ")
+	_check("`%%` 是转义、不算占位符",
+		sd.fmt_args("折扣 50%% 起", ["甲"]) == "折扣 50% 起")
+	_check("空文案 → 空串（不拿参数去格式化）", sd.fmt_args("", ["甲"]) == "")
+	_check("真的走了这条路：Interrogation._etf 不再崩",
+		interro._etf("recognized_line", ["甲", "乙", "丙"]).length() > 0)
+
 	_check("还原后结局文案回到原值",
 		str(sd.endings_of(sd.BACKGROUNDS[0])["recognized_line"]) == str(keep0))
 

@@ -223,12 +223,13 @@ func endings() -> Dictionary:
 	return ScenarioData.endings_of(RunData.background())
 
 # 取一条结局文案。key 见 ScenarioData.DEFAULT_ENDINGS。
-# 传了 dflt 时：连出厂模板都没有这个键 → 用 dflt。
-func end_t(key: String, dflt: String = "") -> String:
+# ★ 第八十一轮：**没写就是空串**（界面上不显示），不再有「调用点兜底」这回事 ——
+#   用户口径「结局文案中所有的部分不写默认不使用」。
+func end_t(key: String) -> String:
 	var v: Variant = endings().get(key, null)
 	if typeof(v) == TYPE_STRING:
 		return str(v)
-	return dflt
+	return ""
 
 # ---------------- 界面文案 / 数值（转发到 ScenarioData）----------------
 func ui(path: String, fallback: String = "") -> String:

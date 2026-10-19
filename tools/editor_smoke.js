@@ -492,10 +492,14 @@ try {
   const lvField = qFields.find(f => f.k === "level");
   const lvOpts = lvField && lvField.opts ? lvField.opts() : [];
   ok(lvOpts.some(o => o.v === "-1"), "题目能指定「属于哪一关」（含通用池）");
-  const qteField = qFields.find(f => f.k === "qte");
+  // ★ 第八十一轮：字段键从 `qte` 改成 `kind` —— 游戏读的是 `qte.kind`，
+  //   以前编辑器写 `qte.qte`，等于选了不生效。
+  const qteField = qFields.find(f => f.k === "kind");
   const qteOpts = qteField && qteField.opts ? qteField.opts() : [];
   ok(qteField && qteField.sub === "qte" && qteOpts.length === 5,
     "每道题都能指定 QTE 类型（五种）");
+  ok(qteOpts.length > 0 && qteOpts[0].v === "none",
+    "QTE 类型的第一项是「无」（没写 = 不出，界面与实际一致）");
   ok(!!qFields.find(f => f.k === "delay" && f.sub === "qte"), "每道题都能指定 QTE 出现时间");
   ok(typeof P.totalQuestions === "function" && P.totalQuestions() > 0, "能算出全部背景的总题数");
 
@@ -692,9 +696,17 @@ try {
   //   （空着有出厂兜底，编辑器不该再提醒）。换成两条正面用例 + 一条「真会拼崩」的反向用例：
   negCase("带占位符的那句被清空（仍要报错）", s => { s.ui.interrogation.phone_notice = ""; }, "带占位符");
   negCase("反馈句丢了占位符", s => { s.ui.feedback.summary = "没有占位符的一句话"; }, "丢了占位符");
-  negCase("结局文案缺一条（应是提醒）", s => { delete s.backgrounds[0].endings.recognized_line; }, "recognized_line");
+  // ★★ 第八十一轮（用户口径「结局文案中所有的部分不写默认不使用」）：
+  //   「缺一条」不再是一种问题（留空 = 不显示），所以那条反向用例换成：
+  //   ① 清空一条 → 校验器**不该**再为它报任何东西；
+  //   ② 整块 endings 缺失 → 只是提醒「这一套的结局文案会被忽略」，不再是错误。
+  P.loadStory(JSON.parse(JSON.stringify(pristine)), "t.json", false);
+  delete P.story.backgrounds[0].endings.recognized_line;
+  P.validateNow();
+  ok(!P.issues.some(i => i.m.includes("recognized_line")),
+    "结局文案留空 → 不报任何问题（留空 = 这一句不显示）");
   negCase("结局文案丢了占位符", s => { s.backgrounds[0].endings.recognized_line = "怎么是你。"; }, "丢了占位符");
-  negCase("整块 endings 缺失", s => { delete s.backgrounds[0].endings; }, "没有 endings");
+  negCase("整块 endings 缺失（只提醒，不算错）", s => { delete s.backgrounds[0].endings; }, "endings 不是对象");
   // ---- 第五十五轮：手机并入 / 三组同构短信 ----
   negCase("手机文案少写一个占位符",
     s => { s.phone.memo.cast_body = s.phone.memo.cast_body.replace("%s", "我"); }, "个占位符");
@@ -763,7 +775,7 @@ try {
     ok(qFieldKeys.includes("prompt"), "题库页每题有「QTE 上方的提示文字」字段（实际：" + qFieldKeys.join(",") + "）");
     const qteFieldKeys = P.qteFields().map(f => f.k);
     ok(qteFieldKeys.includes("prompt"), "全局 QTE 页也有该字段（实际：" + qteFieldKeys.join(",") + "）");
-    ok(qFieldKeys.includes("qte") && qFieldKeys.includes("delay"),
+    ok(qFieldKeys.includes("kind") && qFieldKeys.includes("delay"),
       "每题仍能改 QTE 类型与出现时间");
     ok(us.reduce((a, s) => a + (s.fields || []).length, 0) === 72, "文案页覆盖 72 条");
     ok(es.reduce((a, s) => a + (s.fields || []).length, 0) === 27, "结局页覆盖 27 条");
@@ -774,14 +786,13 @@ try {
     const allFields = [].concat(rs, us, es).reduce((a, s) => a.concat(s.fields || []), []);
     ok(allFields.every(f => f.k && f.label), "所有字段都有 k 和 label");
     ok(allFields.every(f => ["num", "text", "area", "strlist"].includes(f.t)), "字段类型都在支持范围内（num / text / area / strlist）");
-    // ★ 第七十九轮：原来断言「每套背景都有 27 条结局文案」—— 那是出厂四套的规格；
-    //   用户自己的背景可能一条都没写（游戏会回落到出厂那句，编辑器里照样能编辑，
-    //   因为字段表是固定的 27 项）。所以这里只**报告**，不判失败。
+    // ★ 第八十一轮：结局文案「不写就不显示」—— 条数只报告，不判失败；
+    //   提示语也改成「不显示」，不再是「回落到出厂那句」。
     P.enabledBgs().forEach((b, i) => {
       const n = Object.keys(b.endings || {}).length;
       ok(true, "背景" + (i + 1) + "（" + (b.id || "?") + "）结局文案 " + n + "/27 条");
       if (n < 27) console.log("      （提示）" + (b.id || "?") + " 只写了 " + n + "/27 条，"
-        + "其余回落到出厂那句 —— 想逐条改就在「结局」页补上（那一页 27 项都在）。");
+        + "其余留空的在游戏里不显示 —— 想补就在「结局」页填（那一页 27 项都在）。");
     });
 
     // 字段真的能写进去（renderField 的 host 链：section.host() → 字段）

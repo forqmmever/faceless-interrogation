@@ -1911,7 +1911,7 @@ function renderMain(){
     if (view.index == null || view.index < 0 || view.index >= bgs.length) view.index = 0;
     const bg = bgOf();
     main.append(h("h1", {text:"🎬 结局文案"}));
-    main.append(h("div", {class:"sub", text:"结局文案每个背景一套 —— 同一句「怎么是你，X」，四套背景可以各写各的。下面先选一套背景，再改它的 27 条。"}));
+    main.append(h("div", {class:"sub", text:"结局文案每个背景一套 —— 同一句「怎么是你，X」，几套背景可以各写各的。下面先选一套背景，再改它的 27 条。★ 留空 = 这一句不显示（不会退回出厂模板）。"}));
     const tabs = h("div", {class:"traits"});
     bgs.forEach((b, i) => {
       tabs.append(h("button", {class: view.index === i ? "primary" : "",
@@ -1921,6 +1921,15 @@ function renderMain(){
     main.append(h("div", {class:"sec"},
       h("div", {class:"sechead"}, h("span", {class:"t", text:"选一套背景"}), h("span", {class:"n", text:"正在编辑：" + (bg.name || bg.id || "?")})),
       h("div", {class:"secbody"}, tabs)));
+    main.append(h("div", {class:"sec"},
+      h("div", {class:"sechead"}, h("span", {class:"t", text:"留空 = 不显示"})),
+      h("div", {class:"secbody"}, h("div", {class:"help"},
+        h("div", {}, "· 任何一条留空，游戏里就**不显示**它 —— 不会再用代码里那句出厂模板顶上。"),
+        h("div", {}, "· 标题 / 正文 / 提示留空 → 那一块整块收起来，不留空白行。"),
+        h("div", {}, "· **按钮**（「完成本局」「重来本轮」这类）留空 → 只显示一个箭头（➔ / ↺）——"
+          + "按钮是唯一的前进手段，不能变成空白块。"),
+        h("div", {}, "· 带 %s / %d 的条目：**写了就必须留着占位符**，否则那句话拼不出来（校验会报错）。"),
+      ))));
     endingsSections().forEach(s => main.append(renderSection(s, navKey())));
     return;
   }
@@ -3467,19 +3476,25 @@ function validateNow(){
   }
 
   // ---- 结局文案（endings）—— 每个背景一套 ----
+  //  ★★ 第八十一轮（用户口径「结局文案中所有的部分不写默认不使用」）：
+  //    留空 = 这一句**不显示**，是一种正当写法 —— 所以不再为空格子报提醒，
+  //    只查「写了却写坏」（占位符丢了对不上）。校验面板只放问题，不放说明。
   bgs.forEach((bg, bi) => {
     const tag = "【" + (bg.name || bg.id || ("背景" + (bi + 1))) + "】";
     const v = {kind:"endings", index:bi};
-    // ★ 第五十三轮：草稿背景跳过 —— 空草稿的 endings 是 `{}`，
-    //   逐条校验会为 27 条结局各刷一条「是空的」提醒（上面背景内容那段同理）。
+    // 草稿背景跳过 —— 空草稿的 endings 是 `{}`。
     if (!bgEnabled(bg)) return;
     const E = bg.endings;
-    if (!E || typeof E !== "object"){ err(tag + " 没有 endings —— 整局结束时的话会全部用出厂模板", v); return; }
+    if (!E || typeof E !== "object"){
+      // 不是错误：一条都不写 = 结局画面不显示任何文案。只在数据形状坏了时提醒。
+      warn(tag + " 的 endings 不是对象 —— 这一套背景的结局文案会被忽略", v);
+      return;
+    }
     endingsSections().forEach(sec => (sec.fields || []).forEach(f => {
       const val = E[f.k];
       const where = tag + " 结局 · " + (f.label || f.k) + "（" + f.k + "）";
       if (val === undefined || val === null || String(val) === ""){
-        warn(where + " 是空的 —— 会退回出厂模板那一句", v);
+        return;                       // 没写 / 留空 = 不显示，不算问题
       } else if (f.ph && !String(val).includes("%")){
         err(where + " 丢了占位符（%s / %d）—— 结局画面会拼不出那句话", v);
       }
@@ -3594,7 +3609,9 @@ function validateNow(){
           return;
         }
         if (e.mode !== "fixed"){
-          if ((e.rules || []).length) warn(tag + " 选了「" + e.mode + "」，下面写死的规则不会生效", FO);
+          // ★ 第八十轮：**有规则时引擎自动按 fixed 办**（规则只有 fixed 用得上），
+          //   所以「选了 none 却写了规则」不再是问题 —— 这条提醒删掉
+          //   （校验面板只放问题，不放说明）。
           return;
         }
         const rules = e.rules || [];

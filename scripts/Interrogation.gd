@@ -103,7 +103,11 @@ const OPTION_BTN_H := 46.0
 #  ★ 第七十八轮：这块地方的主内容是**上一题选项的回应**（作者写的旁白 / 后果），
 #    判定解释（前后矛盾、口径不符、盲区选错…）接在它后面。默认用这层灰，
 #    判定类文案自己再覆盖成红 / 绿 / 橙。
+#  ★ 第八十一轮：回应**搬到了题面上方**（`echo_label`），用淡蓝色 + 与题面同字号；
+#    这块反馈区从此只放判定解释。
 const FEEDBACK_COLOR := Color(0.66, 0.70, 0.76)
+# 回应的颜色（淡蓝）—— 和题面的正文色区分开，但别抢戏。
+const ECHO_COLOR := Color(0.62, 0.80, 0.98)
 const OPTION_BTN_WIDTH_FALLBACK := 320.0
 
 # --- 视角晃动 ---
@@ -223,6 +227,7 @@ var phone_pulls: int = 0                 # 本轮掏了几次
 var _phone_open: bool = false
 
 # --- UI 引用（全部代码构建）---
+var echo_label: Label                   # ★ 第八十一轮：上一题那句回应（在题面**上方**）
 var dialogue_label: Label
 var feedback_label: Label
 var suspicion_bar: ProgressBar
@@ -291,8 +296,16 @@ func _ri(key: String, dflt: int) -> int:
 func _ut(path: String, dflt: String) -> String:
 	return ScenarioData.ui_t(path, dflt)
 
-func _et(key: String, dflt: String) -> String:
-	return DossierData.end_t(key, dflt)
+# 结局文案：没写就是空串（不显示），不再有调用点兜底 —— 见第八十一轮。
+func _et(key: String) -> String:
+	return DossierData.end_t(key)
+
+# 带占位符的结局文案：空串直接返回空串。
+func _etf(key: String, args: Array) -> String:
+	var t := _et(key)
+	if t == "":
+		return ""
+	return t % args
 
 # 组合干扰的键位：数据里写的是字母（"J" / "K" / "L"），这里翻成键码。
 # 翻不出来的（编辑器里填了个不存在的键名）→ 退回出厂那三个。
@@ -831,6 +844,18 @@ func _build_left(parent: HBoxContainer) -> void:
 	vb.add_theme_constant_override("separation", 10)
 	m.add_child(vb)
 
+	# ★ 第八十一轮（用户口径）：「接在下一题题面前的回应……大小字体与题面一致、
+	#   颜色用淡蓝色；下一题的题面应该出现在回应后面」。
+	#   → 回应从「反馈区」搬到题面**上方**，字号与题面一致（15），淡蓝色。
+	#   没写回应（或本局第一题）时整块收起来，不留空行。
+	echo_label = Label.new()
+	echo_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	echo_label.add_theme_font_size_override("font_size", 15)
+	echo_label.add_theme_color_override("font_color", ECHO_COLOR)
+	echo_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	echo_label.visible = false
+	vb.add_child(echo_label)
+
 	dialogue_label = Label.new()
 	dialogue_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	dialogue_label.add_theme_font_size_override("font_size", 15)
@@ -912,6 +937,10 @@ func start_interrogation() -> void:
 	# ★ 第七十八轮：反馈区是常驻的，开新轮必须显式清空（不再是「换题就清」）。
 	feedback_label.text = ""
 	feedback_label.add_theme_color_override("font_color", FEEDBACK_COLOR)
+	# ★ 第八十一轮：回应搬到题面上方，开新轮同样要清掉。
+	if echo_label != null:
+		echo_label.text = ""
+		echo_label.visible = false
 	current_question_index = 0
 	interference_count = 0
 	interference_blocked = 0
@@ -1025,17 +1054,11 @@ func _recognized_on_sight() -> void:
 	for r in GameData.outfit_fail_reasons:
 		reasons.append("· " + str(r))
 
-	dialogue_label.text = _et("recognized_line",
-		"%s抬起头，视线在你脸上停住了。\n\n"
-		+ "他看了很久，久到旁边的人都安静下来。然后他放下手里的册子，"
-		+ "念出了那个你早就不打算再听见的名字 ——\n\n"
-		+ "「怎么是你，%s。」\n\n%s\n\n【潜伏失败 · 一眼认出】"
-	) % [RunData.interrogator(), true_name, "\n".join(reasons)]
+	dialogue_label.text = _etf("recognized_line",
+		[RunData.interrogator(), true_name, "\n".join(reasons)])
 
 	feedback_label.add_theme_color_override("font_color", Color(0.94, 0.48, 0.42))
-	feedback_label.text = _et("recognized_note",
-		"这一身打扮没能把他记忆里的那个 A 盖住 —— "
-		+ "门还没关上，他就叫出了你的名字。本轮到此为止。")
+	feedback_label.text = _et("recognized_note")
 
 	for b in option_btns:
 		b.disabled = true
@@ -1047,6 +1070,12 @@ func _recognized_on_sight() -> void:
 	_show_result(false)
 
 # ---------------- 直接识破 ----------------
+# 往「原因列表」里放一条 —— 空串（= 这一条没写）直接跳过。
+func _add_reason(reasons: Array, txt: String) -> void:
+	var clean := txt.strip_edges()
+	if clean != "":
+		reasons.append(clean)
+
 func _instant_exposure(why: String) -> void:
 	_ended = true
 	_running = false
@@ -1054,28 +1083,26 @@ func _instant_exposure(why: String) -> void:
 		_end_reason = "exposure" if why != "前后矛盾" else "caught"
 	shake(SHAKE_HIT, 0.8)
 	var reasons: Array = []
+	# ★ 第八十一轮：结局文案没写 → 那一条原因就不显示（空串不进列表，
+	#   否则会在正文里留下一个空行）。
 	if why == "反差值不足":
-		reasons.append(_et("exposure_reason_contrast",
-			"你这一身几乎还是 A 本人的样子 —— 反差值 %d，低于要求的 %d 点（仍有 %d 处与原貌一致）。"
-		) % [GameData.contrast_total, GameData.contrast_required,
-		   GameData.matching_slots_count])
+		_add_reason(reasons, _etf("exposure_reason_contrast",
+			[GameData.contrast_total, GameData.contrast_required,
+			 GameData.matching_slots_count]))
 	if not GameData.defects_covered:
 		var names := []
 		for d in GameData.uncovered_defects:
 			names.append(d["name"])
-		reasons.append(_et("exposure_reason_defects", "而且以下缺陷暴露在外：") + "、".join(names))
+		# 「而且以下缺陷暴露在外：」这句没写 → 缺陷名单也不单独冒出来
+		var head := _et("exposure_reason_defects")
+		if not head.strip_edges().is_empty():
+			reasons.append(head + "、".join(names))
 	if why == "说漏嘴":
-		reasons.append(_et("exposure_reason_leak",
-			"你说出了只有 A 才会知道的细节。审讯官的手停在半空 —— 他认出来了。"))
+		_add_reason(reasons, _et("exposure_reason_leak"))
 	if why == "前后矛盾":
-		reasons.append(_et("exposure_reason_contradiction",
-			"【前后矛盾】同一件事，你前后说出了两套说法。审讯官把两页记录并排放在桌上 —— "
-			+ "一个真在赶路的人，不会连自己上一句说了什么都记不住。"))
+		_add_reason(reasons, _et("exposure_reason_contradiction"))
 
-	dialogue_label.text = _et("exposure_line",
-		"%s只扫了你一眼，脸色就变了。\n\n%s\n\n"
-		+ "「把他拿下 —— 这个人根本不像他自己说的那样。」\n\n【潜伏失败 · 身份暴露】"
-	) % [RunData.interrogator(), "\n\n".join(reasons)]
+	dialogue_label.text = _etf("exposure_line", [RunData.interrogator(), "\n\n".join(reasons)])
 
 	for b in option_btns:
 		b.disabled = true
@@ -1593,11 +1620,15 @@ func _choice_echo(opt: Dictionary) -> String:
 	return _ut("interrogation.speaker_you", "你") + "：" + echo
 
 func _show_choice_echo() -> void:
-	feedback_label.text = last_choice_text
+	# ★ 第八十一轮：回应有自己的位置（题面**上方**），不再占用反馈区 ——
+	#   反馈区从此只放判定解释。没写回应就把那一块收起来。
+	echo_label.text = last_choice_text
+	echo_label.visible = not last_choice_text.strip_edges().is_empty()
+	feedback_label.text = ""
 	feedback_label.add_theme_color_override("font_color", FEEDBACK_COLOR)
 
-# 往反馈区**追加**一段（回应已经在上面了，判定解释接在它后面）。
-# gap 默认空一行 —— 判定文案和旁白是两种东西，挤在一起看不清。
+# 往反馈区**追加**一段（判定解释）。回应在题面上方，这里只管解释本身。
+# gap 默认空一行 —— 多条解释之间留一行，挤在一起看不清。
 func _append_feedback(txt: String, gap: String = "\n\n") -> void:
 	var clean := txt.strip_edges()
 	if clean == "":
@@ -2352,16 +2383,10 @@ func _finish_interrogation() -> void:
 	# 这一轮结束时的怀疑度留给下一轮 —— 轮次之间按比例衰减（见 GameData.reset_level_state）
 	GameData.suspicion_carry = GameData.suspicion_level
 	if passed:
-		dialogue_label.text = _et("success_line",
-			"【潜伏成功】\n%s：「没有问题了，%s。你可以过去了。」\n\n"
-			+ "你以 B 的身份通过了盘问。同行者站在一旁，什么也没说，只是看了你一眼。"
-		) % [who, RunData.cover_role()]
+		dialogue_label.text = _etf("success_line", [who, RunData.cover_role()])
 	else:
 		_end_reason = "suspicion"
-		dialogue_label.text = _et("arrested_line",
-			"【潜伏失败 · 被捕】\n%s：「逮捕他。他的身份漏洞百出。」\n\n"
-			+ "同行者始终没有揭穿你 —— 但也没打算让你过关。"
-		) % who
+		dialogue_label.text = _etf("arrested_line", [who])
 
 	feedback_label.add_theme_color_override("font_color", Color(0.66, 0.70, 0.76))
 	feedback_label.text = _ut("feedback.summary",
@@ -2381,30 +2406,31 @@ func _show_result(success: bool) -> void:
 	_success = success
 
 	var last_level: bool = RunData.level_index >= RunData.level_count() - 1
+	# ★ 第八十一轮：提示 / 按钮标签都可以没写 ——
+	#   提示没写 → 那一行收起来（不留空行）；按钮没写 → 只留一个箭头
+	#   （「继续」类 ➔、「重来本轮」类 ↺）。按钮绝不能是空白块。
 	if success:
 		if last_level:
-			result_hint.text = _et("result_last_hint", "这是本局最后一关。你已经把这一整段路走完了。")
-			result_btn.text = _et("result_last_btn", "完成本局  ➔")
+			result_hint.text = _et("result_last_hint")
+			_set_result_btn(_et("result_last_btn"), "➔")
 		else:
-			result_hint.text = _et("result_next_hint",
-				"本轮通过。接受度提升 %d，暴露值上限随之放宽 —— "
-				+ "但下一轮要求的反差值也更高。") \
-				% int(RunData.current_level().get("acceptance_gain", 0))
-			result_btn.text = _et("result_next_btn", "进入下一轮  ➔")
+			result_hint.text = _etf("result_next_hint",
+				[int(RunData.current_level().get("acceptance_gain", 0))])
+			_set_result_btn(_et("result_next_btn"), "➔")
 	else:
 		if _end_reason == "recognized":
-			result_hint.text = _et("result_recognized_hint",
-				"他一眼就叫出了你的名字 —— 这一身没能把 A 盖住。\n"
-				+ "回到这一轮的准备室，重新改一遍打扮。")
-			result_btn.text = _et("result_recognized_btn", "重来本轮  ↺")
+			result_hint.text = _et("result_recognized_hint")
+			_set_result_btn(_et("result_recognized_btn"), "↺")
 		else:
-			result_hint.text = _et("result_fail_hint",
-				"这一轮到此为止 —— 回到这一轮的准备室重来。\n"
-				+ "背景与他的记忆都不变，你已经查到的情报也还在。")
-			result_btn.text = _et("result_fail_btn", "重来本轮  ↺")
+			result_hint.text = _et("result_fail_hint")
+			_set_result_btn(_et("result_fail_btn"), "↺")
 
-	result_hint.show()
+	result_hint.visible = not result_hint.text.strip_edges().is_empty()
 	result_btn.show()
+
+# 结果按钮的标签：写了就用，没写留一个箭头。
+func _set_result_btn(txt: String, arrow: String) -> void:
+	result_btn.text = txt if not txt.strip_edges().is_empty() else arrow
 
 func _game_over() -> void:
 	_ended = true
@@ -2420,8 +2446,7 @@ func _game_over() -> void:
 	_auto_retract_phone()
 	phone_btn.disabled = true
 	shake(_rf("shake_hit", SHAKE_HIT), 0.8)
-	dialogue_label.text = _et("caught_line",
-		"【警告：怀疑度到达 100%】\n卫兵蜂拥而上将你当场扣押 —— 伪装彻底崩了。")
+	dialogue_label.text = _et("caught_line")
 	for b in option_btns:
 		b.disabled = true
 		b.text = "——"

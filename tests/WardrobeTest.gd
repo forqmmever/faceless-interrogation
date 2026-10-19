@@ -2744,14 +2744,33 @@ func _test_forced_items() -> void:
 	_check("最多两件", OutfitData.FORCED_MAX == 2)
 
 	# ---- 抽取：数量与槽位 ----
+	# ★★ 第八十轮：`fixed`（作者写死的规则）**第 1 轮也生效**，只有 `random` 跳过第 1 轮。
+	#   所以这一段不再依赖故事数据（用户那几套背景第 1 轮就是 fixed），而是临时把
+	#   **全局规则**换成两轮 random，并挑一套「没有本局覆写」的背景（它会回退到全局那份）。
+	var plain_bg := ""
+	for bid in ScenarioData.background_ids():
+		if ScenarioData.bg_forced_rules(str(bid)).is_empty():
+			plain_bg = str(bid)
+			break
+	if plain_bg == "":
+		_check("★ 找不到「没有本局强制覆写」的背景，本节跳过（请检查 story.json）", false)
+		return
+
+	var keep_ov: Array = ScenarioData._forced_ov.duplicate(true)
+	var keep_rules: Array = OutfitData.FORCED_RULES.duplicate(true)
+	ScenarioData._forced_ov = [
+		{"mode": OutfitData.FORCED_MODE_RANDOM, "rules": []},
+		{"mode": OutfitData.FORCED_MODE_RANDOM, "rules": []},
+	]
+
 	var seen_counts := {}
 	var all_distinct := true
 	var first_level_clean := true
 	for s in range(60):
 		ProfileData.reset_all()
 		ProfileData.add_gain(30)          # 让池子够大，能抽满 2 件
-		RunData.start_new_run(900000 + s)
-		# ★ 每局第一轮刻意不抽强制装备 —— 先断言这一点，再看第 2 轮
+		RunData.start_new_run(900000 + s, 0, plain_bg)
+		# ★ random 模式下每局第一轮刻意不抽强制装备 —— 先断言这一点，再看第 2 轮
 		if not RunData.forced_item_ids().is_empty():
 			first_level_clean = false
 		RunData._roll_forced_items(1)
@@ -2768,29 +2787,59 @@ func _test_forced_items() -> void:
 			if slots.has(slot):
 				all_distinct = false          # 同一槽位不能强制两件
 			slots.append(slot)
-	_check("★ 每局第一轮没有强制服装要求", first_level_clean)
+	# ★ 防空转：60 个种子里第 2 轮确实抽到过东西，才谈得上「第 1 轮更干净」
+	_check("样本里第 2 轮确实抽到过强制装备（否则本节空转）",
+		int(seen_counts.get(1, 0)) + int(seen_counts.get(2, 0)) > 0)
+	_check("★ random 模式下每局第一轮没有强制服装要求", first_level_clean)
 	_check("强制件数从不超过 2", _max_key(seen_counts) <= OutfitData.FORCED_MAX)
 	_check("强制件数至少出现过 0（最少可以没有）", seen_counts.has(0))
 	_check("60 个种子能抽到 1 件和 2 件",
 		seen_counts.has(1) and seen_counts.has(2))
 	_check("强制装备都是高暴露且槽位互不重复", all_distinct)
 
-	# ---- 确定性 ----
+	# ---- 对照：fixed 模式第 1 轮**照办**（第八十轮修的就是这个）----
+	var any_item := ""
+	for it2 in OutfitData.ITEMS:
+		if not OutfitData.is_bare(it2) and OutfitData.slot_enabled(str(it2.get("slot", ""))):
+			any_item = str(it2.get("id", ""))
+			break
+	ScenarioData._forced_ov = [
+		{"mode": OutfitData.FORCED_MODE_FIXED, "rules": [{"pick": "all", "items": [any_item]}]},
+		{"mode": OutfitData.FORCED_MODE_NONE, "rules": []},
+	]
 	ProfileData.reset_all()
 	ProfileData.add_gain(30)
-	RunData.start_new_run(424242)
-	_check("新开的这一局（第 1 轮）没有强制装备", RunData.forced_item_ids().is_empty())
+	RunData.start_new_run(424242, 0, plain_bg)
+	_check("★ fixed 模式：第 1 轮也真的变成强制装备（不再被跳过）",
+		RunData.forced_item_ids().has(any_item)
+		and not RunData.forced_groups_info().is_empty())
+
+	# ---- 确定性（回到 random 两轮）----
+	ScenarioData._forced_ov = [
+		{"mode": OutfitData.FORCED_MODE_RANDOM, "rules": []},
+		{"mode": OutfitData.FORCED_MODE_RANDOM, "rules": []},
+	]
+	ProfileData.reset_all()
+	ProfileData.add_gain(30)
+	RunData.start_new_run(424242, 0, plain_bg)
+	_check("random 模式下新开的这一局（第 1 轮）没有强制装备",
+		RunData.forced_item_ids().is_empty())
 	RunData._roll_forced_items(1)
 	var f1: Array = RunData.forced_item_ids().duplicate()
-	RunData.start_new_run(424242)
+	RunData.start_new_run(424242, 0, plain_bg)
 	RunData._roll_forced_items(1)
 	_check("同一种子 → 同一批强制装备", _arr_eq(f1, RunData.forced_item_ids()))
-	# 第 1 轮即使把接受度堆很高，也还是不抽
+	# 第 1 轮即使把接受度堆很高，random 模式也还是不抽
 	ProfileData.reset_all()
 	ProfileData.add_gain(60)
-	RunData.start_new_run(777001)
-	_check("接受度再高，第一轮也一样没有强制装备",
+	RunData.start_new_run(777001, 0, plain_bg)
+	_check("接受度再高，random 模式第一轮也一样没有强制装备",
 		RunData.forced_item_ids().is_empty())
+
+	# 还原
+	ScenarioData._forced_ov = keep_ov
+	OutfitData.FORCED_RULES = keep_rules
+	OutfitData.reload_forced_rules()
 
 	# ---- 判定：没穿 = 当场识破 ----
 	var m := WardrobeModel.new(OutfitData, OutfitData.TRUE_APPEARANCE, OutfitData.LEVELS)
@@ -2844,6 +2893,8 @@ func _test_forced_solvability() -> void:
 	var bad := 0
 	var levels_with_forced := 0
 	var first_level_forced := 0
+	var random_first_levels := 0
+	var random_first_forced := 0
 	var total_levels := 0
 	var worst := ""
 	var solved := 0
@@ -2857,6 +2908,12 @@ func _test_forced_solvability() -> void:
 				levels_with_forced += 1
 			if li == 0 and not forced.is_empty():
 				first_level_forced += 1
+			# ★★ 第八十轮：`fixed` 第 1 轮也生效 —— 只有 `random` 才「第 1 轮留空」。
+			#   所以这条断言只在 random 模式下成立，按模式分开统计。
+			if li == 0 and str(OutfitData.forced_rules_at(0).get("mode", "")) == OutfitData.FORCED_MODE_RANDOM:
+				random_first_levels += 1
+				if not forced.is_empty():
+					random_first_forced += 1
 			# ★★ 第五十二轮减时：**没抽到强制装备的轮次直接跳过 DP**。
 			#   这一段要验的是「强制装备不会造成死局」—— 没有强制装备的轮次
 			#   不构成这个检验，跑它等于重复验「普通可解性」（`PROBE_SEEDS`
@@ -2884,7 +2941,12 @@ func _test_forced_solvability() -> void:
 			if li < OutfitData.MAX_LEVELS - 1:
 				RunData.advance_level()
 	_check("每轮都至少存在一种满足全部约束的搭配（含强制装备）", bad == 0)
-	_check("★ %d 个种子的第 1 轮全都没有强制装备" % FORCED_SEEDS, first_level_forced == 0)
+	# ★★ 第八十轮：`fixed`（作者写死的规则）第 1 轮**也生效** —— 所以
+	#   「第 1 轮一定没有强制装备」只对 random 模式成立。
+	_check("★ random 模式下第 1 轮全都没有强制装备（%d 轮样本）" % random_first_levels,
+		random_first_forced == 0)
+	_check("fixed 模式的第 1 轮确实会带强制装备（第八十轮起生效）",
+		first_level_forced > 0)
 	_check("样本里确实出现过带强制装备的关（否则这条断言是空转）",
 		levels_with_forced > 0)
 	if worst != "":

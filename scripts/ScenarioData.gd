@@ -2013,18 +2013,27 @@ func _default_at(path: String) -> Variant:
 	return cur
 
 # ---------------- 结局文案 ----------------
-# 每套背景一份；背景没写就退回出厂模板（逐键补齐）。
+# ★ 第八十一轮（用户口径「结局文案中所有的部分不写默认不使用」）：
+#   只认数据里**写了**的那几条 —— 没写 / 空串 = 这一句不显示，
+#   **不再**逐键回填出厂模板（以前缺一个键就冒出模板那句）。
+#
+#   唯一的例外是「这套背景连 endings 这个键都没有」（内置常量 / 很老的数据）——
+#   那时退回 DEFAULT_ENDINGS，否则把 story.json 删掉之后演示都跑不起来。
+#   从文件读到的背景由 _fill_endings(false) 保证一定有 endings 这个键（可能是 {}），
+#   所以正常游戏里走不到那条例外。
 func endings_of(bg: Dictionary) -> Dictionary:
 	var e: Variant = bg.get("endings", null)
 	if typeof(e) == TYPE_DICTIONARY:
-		return _merge_flat(DEFAULT_ENDINGS, e)
+		return e
 	return DEFAULT_ENDINGS
 
-func end_t(bg: Dictionary, key: String, dflt: String = "") -> String:
+# 取一条结局文案。**没写就是空串**（不显示），不再接受调用点的兜底句 ——
+# 兜底句会让人以为「改了数据」，其实看的是代码里那句。
+func end_t(bg: Dictionary, key: String) -> String:
 	var v: Variant = endings_of(bg).get(key, null)
 	if typeof(v) == TYPE_STRING:
 		return str(v)
-	return dflt
+	return ""
 
 # ============================================================
 #  数值规则（rules）—— 出厂默认
@@ -2436,7 +2445,8 @@ func _load_story() -> void:
 		if typeof(d.get("true_presets", null)) == TYPE_DICTIONARY else {}
 
 	story_from_file = true
-	_fill_endings()
+	# ★ 第八十一轮：从文件读的 → **不填出厂模板**（没写就是不显示）
+	_fill_endings(false)
 	# ★ 第四十轮：数据读完就把服装数值覆写应用掉 —— 必须在这里做，
 	#   因为 OutfitData 的 autoload 顺序在本文件**之前**（它 _ready 时 story 还没读），
 	#   而全项目有 33 处直接读 `OutfitData.ITEMS`，必须在那之前把值改好。
@@ -2769,19 +2779,24 @@ func qte_plan() -> Array:
 func set_qte_plan(arr: Array) -> void:
 	_qte_plan_ov = arr
 
-# 结局文案：每套背景一份。JSON 里没写 / 只写了一半 → 用出厂模板补齐。
-# 这一步必须在 backgrounds 定下来之后做 —— 它逐背景查 "endings"。
-func _fill_endings() -> void:
-	# ★★ 第二十八轮补的一层：**整个数组也要 duplicate**。
-	#   story.json 缺失时 `_backgrounds` 直接指向内置常量 `DEFAULT_BACKGROUNDS` ——
-	#   那是只读的，光把元素 duplicate 出来还不够，最后那句 `_backgrounds[i] = bg`
-	#   照样会报 "Invalid assignment on read-only value"（第二十六轮修了元素那层，
-	#   第二十八轮重建 story.json 时又撞上数组这一层）。
+# 结局文案：每套背景一份。
+#
+# ★★ 第八十一轮：**不再逐键回填出厂模板**（用户口径「不写默认不使用」）。
+#   · 从文件读进来的一份 → 原样保留，没写的键读出来是空串 → 界面上什么都不显示；
+#   · 只有「根本没有 story.json」那条兜底路径才填 DEFAULT_ENDINGS，
+#     否则演示用的出厂背景会整片空白（那是「数据缺失」，不是「作者没写」）。
+# ★ 两处都必须先 duplicate：`_backgrounds` 可能直接指向只读常量数组。
+func _fill_endings(use_defaults: bool = true) -> void:
 	_backgrounds = _backgrounds.duplicate(true)
 	for i in _backgrounds.size():
-		# 元素再 duplicate 一次：这是一份防御，`duplicate(true)` 之后其实已经可变
 		var bg: Dictionary = (_backgrounds[i] as Dictionary).duplicate(true)
-		bg["endings"] = _merge_flat(DEFAULT_ENDINGS, bg.get("endings", null))
+		var cur: Variant = bg.get("endings", null)
+		if use_defaults:
+			bg["endings"] = _merge_flat(DEFAULT_ENDINGS, cur)
+		elif typeof(cur) != TYPE_DICTIONARY:
+			# 从文件来、但这套背景没写 endings —— 补一个空字典，
+			# 这样 endings_of() 不会把它当成「内置常量」而退回出厂模板。
+			bg["endings"] = {}
 		_backgrounds[i] = bg
 
 # 扁平字典的合并：base 的每个键都保留，over 里有的就换掉。

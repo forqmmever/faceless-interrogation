@@ -703,7 +703,7 @@ func _test_manual_question_options() -> void:
 #  留空就用选项文本本身 —— 所以出厂数据一条都不用补。
 # ------------------------------------------------------------
 func _test_option_echo() -> void:
-	print("\n-- 选项回应：显示在题面下方的反馈区（第七十八轮改）--")
+	print("\n-- 选项回应：显示在题面之上，淡蓝 + 同字号（第八十一轮改）--")
 	_run_a_clean_level()
 	_check("开新的一轮 → 上一轮的回应不会带进来", interro.last_choice_text == "")
 	interro._ended = false
@@ -736,14 +736,28 @@ func _test_option_echo() -> void:
 	_check("回应文本默认 = 选项原文（不带 A. 前缀）",
 		echo != "" and not echo.begins_with("A. "))
 	var manual := RunData.questions_are_manual()
+	# ★ 用户数据里这一项可能**自带** echo（`echo_custom`）—— 期望值必须按它分开算，
+	#   否则会拿「回落」的那套去比「自带」的结果（第 81 轮这里假红过）。
+	var custom := bool((interro.current_options[pick] as Dictionary).get("echo_custom", false))
 	interro._select_option(pick)
 	_check("选完之后记下了这句回应", interro.last_choice_text != "")
-	_check("默认回应不是「自带」", interro.last_choice_is_custom == false)
-	# ★★ 第七十八轮：回应**立刻**显示在反馈区（不再等下一题拼进题面）。
-	#   manual 背景不把选项原文再念一遍 → 回落的那份不显示；auto 背景显示「你：…」
-	var want := "" if manual else "你：" + echo
-	_check("★ 反馈区立刻换上这句回应（%s）" % ("manual 留空" if manual else "auto 带「你：」"),
-		interro.feedback_label.text == want)
+	_check("「自带 / 回落」标记与选项数据一致",
+		interro.last_choice_is_custom == custom)
+	# ★★ 第八十一轮：回应从「反馈区」搬到**题面上方**（echo_label），淡蓝色 + 同字号。
+	#   自带 → 原样；回落 → manual 留空、auto 加「你：」。
+	var want := echo if custom else ("" if manual else "你：" + echo)
+	_check("★ 回应立刻出现在题面上方（%s）" % ("自带原样" if custom
+		else ("manual 留空" if manual else "auto 带「你：」")),
+		interro.echo_label.text == want
+		and interro.echo_label.visible == (want != ""))
+	_check("★ 回应用的字号与题面一致",
+		interro.echo_label.get_theme_font_size("font_size")
+		== interro.dialogue_label.get_theme_font_size("font_size"))
+	_check("★ 回应用的是淡蓝色，不是题面的正文色",
+		interro.echo_label.get_theme_color("font_color")
+		!= interro.dialogue_label.get_theme_color("font_color"))
+	_check("反馈区不再重复显示回应（它只放判定解释）",
+		not interro.feedback_label.text.contains(echo))
 
 	interro._ended = false
 	interro._running = true
@@ -752,8 +766,10 @@ func _test_option_echo() -> void:
 		not interro.dialogue_label.text.contains(echo))
 	_check("下一题的题面照旧显示",
 		interro.dialogue_label.text.contains(_q_text_of(interro.level_questions()[1])))
-	_check("★ 换题之后反馈区仍然留着那句回应（一直留到下次选择）",
-		interro.feedback_label.text == want)
+	_check("★ 换题之后回应仍然留在题面上方（一直留到下次选择）",
+		interro.echo_label.text == want)
+	_check("★ 回应排在题面**前面**（版面顺序）",
+		interro.echo_label.get_index() < interro.dialogue_label.get_index())
 
 	# ---- 选项自带 echo 时优先用它；没写就回落 ----
 	var opts: Array = interro._build_unified_options({
@@ -3607,12 +3623,15 @@ func _test_story_config() -> void:
 	_check("UI 含 common / title / wardrobe / interrogation / feedback / help", ui_same)
 
 	_check("DEFAULT_ENDINGS 有 27 条", sd.DEFAULT_ENDINGS.size() == 27)
+	# ★ 第八十一轮：结局文案「不写就不使用」—— 每套背景只带自己写的那几条，
+	#   所以「是不是 27 条」不再是断言对象；要断言的是「都有一份 endings」。
 	var end_all := true
 	for b in sd.BACKGROUNDS:
-		if sd.endings_of(b).size() != 27:
+		if typeof((b as Dictionary).get("endings", null)) != TYPE_DICTIONARY:
 			end_all = false
-	_check("4 套背景各有 27 条结局文案", end_all)
-	_check("DossierData.endings() 拿到本局背景那一份", DossierData.endings().size() == 27)
+	_check("每套背景都带一份 endings（条数各写各的）", end_all)
+	_check("DossierData.endings() 拿到本局背景那一份",
+		typeof(DossierData.endings()) == TYPE_DICTIONARY)
 
 	# ---- 2. 数值：改了 _rules，取的时候立刻变 ----
 	var old_rule: Variant = sd._rules.get("pass_suspicion", null)
@@ -3700,21 +3719,25 @@ func _test_story_config() -> void:
 	RunData.background_id = str(sd.BACKGROUNDS[0]["id"])
 	RunData._bg = {}
 	_check("DossierData.end_t 读的是本局背景那一份",
-		DossierData.end_t("recognized_line", "") == "【背景 0 的认出句】")
+		DossierData.end_t("recognized_line") == "【背景 0 的认出句】")
 	_check("Interrogation._et 也读本局背景那一份",
-		interro._et("recognized_line", "") == "【背景 0 的认出句】")
+		interro._et("recognized_line") == "【背景 0 的认出句】")
 	RunData.background_id = str(sd.BACKGROUNDS[1]["id"])
 	RunData._bg = {}
 	_check("换一套背景 → 读到的是另一份",
-		DossierData.end_t("recognized_line", "") == "【背景 1 的认出句】")
+		DossierData.end_t("recognized_line") == "【背景 1 的认出句】")
 	RunData.background_id = keep_bg_id
 	RunData._bg = {}
 	e0["recognized_line"] = keep0
 	e1["recognized_line"] = keep1
 
-	_check("end_t 遇到没写的键 → 用调用点给的兜底",
-		sd.end_t(sd.BACKGROUNDS[0], "__no_such_ending__", "兜底") == "兜底")
-	_check("背景整块没有 endings → 退回出厂模板",
+	# ★ 第八十一轮：没写的键**不再**拿调用点的兜底句 —— 就是空串（界面上不显示）。
+	_check("end_t 遇到没写的键 → 空串（不退回任何兜底文案）",
+		sd.end_t(sd.BACKGROUNDS[0], "__no_such_ending__") == ""
+		and interro._et("__no_such_ending__") == "")
+	_check("空串也照样是空串（作者主动留空 = 不显示）",
+		sd.end_t({"id": "__blank__", "endings": {"caught_line": ""}}, "caught_line") == "")
+	_check("背景整块没有 endings → 退回出厂模板（内置常量那条路）",
 		sd.endings_of({"id": "__no_endings__"}).size() == 27)
 	_check("还原后结局文案回到原值",
 		str(sd.endings_of(sd.BACKGROUNDS[0])["recognized_line"]) == str(keep0))

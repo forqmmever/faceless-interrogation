@@ -80,8 +80,18 @@ func _ut(path: String, dflt: String = "") -> String:
 	return ScenarioData.ui_t(path, dflt if dflt != "" else ScenarioData.ui_t_d(path))
 
 # 结局文案 —— 每套背景一份（在 backgrounds[].endings 里）
-func _et(key: String, dflt: String = "") -> String:
-	return DossierData.end_t(key, dflt)
+# ★ 第八十一轮：没写就是空串（界面上不显示），不再有调用点兜底句。
+func _et(key: String) -> String:
+	return DossierData.end_t(key)
+
+# 带占位符的结局文案：**空串直接返回空串** —— 不拿一堆参数去格式化 ""。
+# （直接 `"" % [..]` 在 GDScript 里虽然不报错，但「没写就不显示」这条规则
+#   不该依赖格式化函数的宽容度。）
+func _etf(key: String, args: Array) -> String:
+	var t := _et(key)
+	if t == "":
+		return ""
+	return t % args
 
 # ---- 开场介绍浮窗 + 玩法说明浮层 ----
 var intro_layer: Control
@@ -480,8 +490,8 @@ func _on_interrogation_finished(success: bool) -> void:
 		#   RunSave 也**不清** —— 这一局还在进行中，随时可以接着走。
 		ProfileData.note_level_failed()
 		_pending_action = "retry_level"
-		_show_overlay(_et("overlay_fail_title", "💀 潜伏失败 · 本轮重来"),
-			_fail_body(), _et("overlay_fail_btn", "重来本轮  ↺"), Color(0.92, 0.40, 0.40))
+		_show_overlay(_et("overlay_fail_title"),
+			_fail_body(), _et("overlay_fail_btn"), Color(0.92, 0.40, 0.40), "↺")
 		return
 
 	var passed_level := RunData.level_number()
@@ -493,17 +503,17 @@ func _on_interrogation_finished(success: bool) -> void:
 		ProfileData.note_run_finished(RunData.cleared_levels, true)
 		RunSave.clear()
 		_pending_action = "new_run"
-		_show_overlay(_et("overlay_win_title", "🏁 本局通关"),
-			_win_body(), _et("overlay_win_btn", "再来一局（新背景 · 新原貌）  ↺"), Color(0.42, 0.90, 0.62))
+		_show_overlay(_et("overlay_win_title"),
+			_win_body(), _et("overlay_win_btn"), Color(0.42, 0.90, 0.62), "➔")
 		return
 
 	# 本轮通过 → 推进到下一轮（同一局：背景不变、原貌不变）
 	var gain := int(RunData.current_level().get("acceptance_gain", 0))
 	RunData.advance_level()
 	_pending_action = "next_level"
-	_show_overlay(_et("overlay_level_title", "✅ 第 %d 轮通过") % passed_level,
-		_next_level_body(gain), _et("overlay_level_btn", "进入第 %d 轮  ➔") % RunData.level_number(),
-		Color(0.42, 0.90, 0.62))
+	_show_overlay(_etf("overlay_level_title", [passed_level]),
+		_next_level_body(gain), _etf("overlay_level_btn", [RunData.level_number()]),
+		Color(0.42, 0.90, 0.62), "➔")
 
 func _on_overlay_pressed() -> void:
 	if _pending_action == "next_level":
@@ -523,40 +533,25 @@ func _level_line() -> String:
 
 func _next_level_body(gain: int) -> String:
 	var lv := RunData.current_level()
-	return _et("overlay_next_body",
-		"[color=#8a919c]背景[/color]  %s\n[color=#8a919c]你装成[/color]  %s\n\n"
-		+ "[color=#f0a83c]下一轮[/color]  %s\n"
-		+ "接受度 [b]+%d[/b] → [b]%d[/b]（暴露值上限放宽到 [b]%d[/b]）\n"
-		+ "反差值要求提高到 [b]%d[/b]\n\n"
-		+ "[color=#8a919c]审讯官还是那个人 —— 他记忆里的「A」没有变，"
-		+ "你已经查到的外貌情报也还在。要改的是打扮，不是身份。[/color]") % [
+	# ★ 第八十一轮：文案只从数据来（没写 → 空串），所以兜底句删掉了。
+	return _etf("overlay_next_body", [
 		RunData.background_name(), RunData.cover_role(), str(lv.get("name", "")),
 		gain, RunData.acceptance, RunData.exposure_cap_at(RunData.level_index),
-		int(lv.get("contrast_req", 0))]
+		int(lv.get("contrast_req", 0))])
 
 func _fail_body() -> String:
-	return _et("overlay_fail_body",
-		"[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n"
-		+ "[color=#8a919c]进度[/color]  已通过 [b]%d[/b] / %d 轮\n\n"
-		+ "这一轮到此为止 —— 回到[color=#f0a83c]这一轮的准备室[/color]重来。\n"
-		+ "背景不变、他记忆里的那张脸不变、你已经查到的情报也都还在。\n"
-		+ "要改的是[color=#f0a83c]这一轮的打扮[/color]，不是身份。") % [
+	return _etf("overlay_fail_body", [
 		RunData.run_index, RunData.background_name(),
-		RunData.cleared_levels, RunData.level_count()]
+		RunData.cleared_levels, RunData.level_count()])
 
 func _win_body() -> String:
 	# ★ 第四十二轮：「4 / 4 关」是写死的，而第四十一轮起轮数可以按背景配置 ——
-	#   所以改成动态的 %d / %d，参数用「已通过轮数 / 本局总轮数」。
+	#   所以文案改成动态的 %d / %d，参数用「已通过轮数 / 本局总轮数」。
 	#   （文案本身在 story.json 的 endings.overlay_win_body 里，编辑器可改。）
-	return _et("overlay_win_body",
-		"[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n"
-		+ "[color=#8a919c]身份[/color]  %s → 以「%s」的身份走完全程\n"
-		+ "[color=#8a919c]成绩[/color]  %d / %d 轮全部通过 ｜ 前后矛盾 [b]%d[/b] 次\n\n"
-		+ "你把 A 藏进了 B 的皮里，一路没有露馅。\n"
-		+ "同行者从头到尾没有揭穿你 —— 他只是把你留在了原地。") % [
+	return _etf("overlay_win_body", [
 		RunData.run_index, RunData.background_name(),
 		RunData.true_role(), RunData.cover_role(),
-		RunData.cleared_levels, RunData.level_count(), GameData.contradictions]
+		RunData.cleared_levels, RunData.level_count(), GameData.contradictions])
 
 # ---------------- 开始界面 UI ----------------
 func _build_title() -> void:
@@ -798,11 +793,18 @@ func _build_overlay() -> void:
 
 	overlay.hide()
 
-func _show_overlay(title: String, body: String, button: String, color: Color) -> void:
+# ★ 第八十一轮：结局文案「不写就不使用」——
+#   · 标题 / 正文没写 → 那一块**整块收起来**（不留空白行、不留空面板）；
+#   · 按钮标签没写 → 只留一个箭头（`→` 类动作用 ➔，重来类动作传 ↺）——
+#     按钮是唯一的前进手段，绝不能变成一块点不动的空白。
+func _show_overlay(title: String, body: String, button: String, color: Color,
+		btn_arrow: String = "➔") -> void:
 	overlay_title.text = title
 	overlay_title.add_theme_color_override("font_color", color)
+	overlay_title.visible = not title.strip_edges().is_empty()
 	overlay_body.text = body
-	overlay_btn.text = button
+	overlay_body.visible = not body.strip_edges().is_empty()
+	overlay_btn.text = button if not button.strip_edges().is_empty() else btn_arrow
 	overlay.show()
 
 func _hide_overlay() -> void:

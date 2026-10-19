@@ -112,6 +112,9 @@ func _ready() -> void:
 
 	wardrobe.wardrobe_confirmed.connect(_on_wardrobe_confirmed)
 	interrogation.interrogation_finished.connect(_on_interrogation_finished)
+	# ★ 第八十三轮：两个阶段都能「返回主界面」
+	wardrobe.title_requested.connect(_return_to_title)
+	interrogation.title_requested.connect(_return_to_title)
 	# 玩家每改一次打扮就写一次档 —— 不用去拦退出事件
 	wardrobe.model.changed.connect(_on_outfit_changed)
 	# 两个阶段的「帮助」按钮
@@ -139,6 +142,17 @@ func _show_title() -> void:
 	interrogation.hide()
 	title_screen.show()
 	_refresh_title()
+
+# ★★★ 第八十三轮（用户口径）：「加一个返回主界面的功能」。
+#   准备室 / 盘问都发 `title_requested`，统一走这里：
+#     ① 先把这一局的进度存下来（不然「继续游戏」会退回到上一次存档点）；
+#     ② 收掉可能挂着的浮层（结果面板 / 开场说明 / 帮助）；
+#     ③ 回标题界面并刷新「继续游戏」按钮。
+#   ★ 中途退出**不算失败**：不写 ProfileData 的失败计数，也不清 RunSave。
+func _return_to_title() -> void:
+	if wardrobe.visible:
+		RunSave.save_progress(wardrobe.model.equipped)
+	_show_title()
 
 func _hide_title() -> void:
 	if title_screen != null:

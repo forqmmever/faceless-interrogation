@@ -25,6 +25,9 @@ extends Control
 # ============================================================
 
 signal wardrobe_confirmed
+# ★ 第八十三轮（用户口径）：「加一个返回主界面的功能」。
+#   准备室 / 盘问两边都发这个信号，由 Main 统一收（保存进度 → 回标题）。
+signal title_requested
 
 # 小人素材来自 assets/dol_au/（由 tools/dol_prepare.py 从 AUfemale 图包烘焙而来，
 # 见 DolDoll.ROOT），取图与分层都交给 DolDoll.gd。
@@ -65,6 +68,7 @@ var peek_btn: Button
 var peek_hint: Label
 var run_label: Label
 var help_btn: Button
+var home_btn: Button                   # ★ 第八十三轮：返回主界面
 var intro_btn: Button
 var item_cols: VBoxContainer          # 槽位分区的容器（玩法说明要圈它）
 var preview_stage: Control            # 纸娃娃预览的舞台（玩法说明要圈它）
@@ -195,6 +199,17 @@ func _build_ui() -> void:
 	help_btn.add_theme_font_size_override("font_size", 13)
 	help_btn.tooltip_text = ScenarioData.ui_t_d("common.help_tip")
 	title_row.add_child(help_btn)
+
+	# ★ 第八十三轮（用户口径）：「加一个返回主界面的功能」。
+	#   放在标题行最右边 —— 准备室里随时能退出去，进度由 Main 先存盘再回标题。
+	home_btn = Button.new()
+	home_btn.text = ScenarioData.ui_t_d("wardrobe.home_btn")
+	home_btn.focus_mode = Control.FOCUS_NONE
+	home_btn.custom_minimum_size = Vector2(104, 32)
+	home_btn.add_theme_font_size_override("font_size", 13)
+	home_btn.tooltip_text = ScenarioData.ui_t_d("wardrobe.home_tip")
+	home_btn.pressed.connect(_on_home_pressed)
+	title_row.add_child(home_btn)
 
 	# ---- 主体：左预览 + 右卡片墙 ----
 	var main_row := HBoxContainer.new()
@@ -570,6 +585,11 @@ func _auto_report_text(rep: Dictionary) -> String:
 
 func _on_continue() -> void:
 	wardrobe_confirmed.emit()
+
+# ★ 第八十三轮：返回主界面。不在这里存盘 —— Main 收信号时统一存（它才知道
+# 「这一局还在进行中」这件事，也管着 RunSave 与标题界面）。
+func _on_home_pressed() -> void:
+	title_requested.emit()
 
 # ---------------- 刷新 ----------------
 func _refresh() -> void:

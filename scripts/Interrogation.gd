@@ -33,6 +33,9 @@ extends Control
 # ============================================================
 
 signal interrogation_finished(success: bool)
+# ★ 第八十三轮（用户口径）：「加一个返回主界面的功能」。
+#   盘问中也能随时回标题（进度在 Main 那边先存盘）。
+signal title_requested
 
 # ★ 第五十轮：8 → 6（用户口径「目前计划每轮六个问题」）。
 #   抽题结构是「该轮的固定题（说法 / 同行者 / 盲区各一）+ 1 道跨轮复问
@@ -235,6 +238,7 @@ var suspicion_bar: ProgressBar
 var suspicion_val: Label
 var level_label: Label
 var help_btn: Button
+var home_btn: Button                     # ★ 第八十三轮：返回主界面
 var option_btns: Array = []              # 复用池：2 ~ 4 个，多出来的隐藏
 var opts_box: VBoxContainer              # 选项竖排容器（在掏手机按钮右边）
 var qte_container: Control
@@ -387,6 +391,18 @@ func _build_ui() -> void:
 	help_btn.add_theme_font_size_override("font_size", 12)
 	help_btn.tooltip_text = _ut("common.help_tip", "用方框和编号把这一屏的每一处圈出来讲一遍。")
 	header.add_child(help_btn)
+
+	# ★ 第八十三轮（用户口径）：「加一个返回主界面的功能」。
+	#   盘问到一半也能退出去（进度由 Main 先存盘再回标题）。
+	home_btn = Button.new()
+	home_btn.text = _ut("interrogation.home_btn", "🏠 返回主界面")
+	home_btn.focus_mode = Control.FOCUS_NONE
+	home_btn.custom_minimum_size = Vector2(120, 30)
+	home_btn.add_theme_font_size_override("font_size", 12)
+	home_btn.tooltip_text = _ut("interrogation.home_tip",
+		"回到主界面。这一局的进度会存下来，下次用「继续游戏」接着走。")
+	home_btn.pressed.connect(_on_home_pressed)
+	header.add_child(home_btn)
 
 	# ---- 主区 ----
 	#  右栏（「同行者」那一块）已经删掉：他的台词现在只出现在
@@ -1036,6 +1052,17 @@ func _on_result_pressed() -> void:
 	if not _result_shown:
 		return
 	interrogation_finished.emit(_success)
+
+# ★ 第八十三轮：返回主界面。
+#   ★ 走之前先把这个阶段的残留收干净（QTE / 递话条 / 手机会留在屏幕上），
+#     否则下次进来会看见上一局的提示条挂在半空。
+func _on_home_pressed() -> void:
+	_cancel_qte()
+	interference_active = false
+	if intf_container != null:
+		intf_container.hide()
+	_auto_retract_phone()
+	title_requested.emit()
 
 # 递话干扰的间隔。
 #

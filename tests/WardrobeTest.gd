@@ -2517,8 +2517,9 @@ func _test_editable_sections() -> void:
 	# ---- ② 强制穿着：三种模式 ----
 	# ★ 第八十轮：这几条原来写死「第 1 轮 none / 第 2 轮 random」——
 	#   那是**出厂数据**的规格，而作者现在自己会改（比如给某套背景写死第 1 轮）。
-	#   改成查规则本身：模式必须是三种之一；只有 fixed 才有规则表；
-	#   写了规则就一定按 fixed 办（引擎侧会自动升级，见 _ensure_forced_rules）。
+	#   改成查规则本身：模式必须是三种之一；只有 fixed 才有规则表。
+	# ★★ 第八十三轮：撤掉了「有规则就自动升级成 fixed」—— `mode` 说 none 就是没有要求，
+	#   自相矛盾的配置由编辑器报错（用户口径：「我明明选的是 none，怎么被强制了」）。
 	var r0 := OutfitData.forced_rules_at(0)
 	_check("第 1 轮的强制方式合法",
 		[OutfitData.FORCED_MODE_NONE, OutfitData.FORCED_MODE_RANDOM,

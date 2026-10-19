@@ -1666,12 +1666,13 @@ func _ensure_forced_rules() -> void:
 				items.append(str(id))
 			if not items.is_empty():
 				rules.append({"pick": pick, "items": items})
-		# ★ 第八十轮：写了规则、上面却选着「没有强制要求 / 随机」——
-		#   编辑器里很容易这样（先加一条规则，忘了把「方式」改成「用写死的规则」），
-		#   结果规则一字不差地躺着、游戏完全不读，看起来就是「强制穿着不起作用」。
-		#   规则只有 fixed 模式用得上，所以有规则就按 fixed 办（等价于读者本来想做的事）。
-		if mode != FORCED_MODE_FIXED and not rules.is_empty():
-			mode = FORCED_MODE_FIXED
+		# ★★ 第八十三轮（用户口径）：「第一套同样为什么有强制穿着的要求」——
+		#   第 80 轮这里干过一件事：`mode` 不是 fixed 但有规则时，**自动升级成 fixed**
+		#   （当时怕「配了规则忘了改 mode，规则被静默丢掉」）。结果适得其反：
+		#   数据里 `{"mode":"none","rules":[{"items":["hair_short"]}]}` 这种自相矛盾的
+		#   残留，本来按 none 什么都不该强制，却因为升级变成了「必须穿利落短发」——
+		#   「我明明选的是没有强制要求」和「实际被强制」直接打架。
+		#   现在**不做任何升级**：mode 说 none 就是没有要求；写矛盾了由编辑器报错提醒。
 		FORCED_RULES.append({"mode": mode, "rules": rules})
 	for li in range(FORCED_RULES.size(), level_count()):
 		FORCED_RULES.append({"mode": FORCED_MODE_NONE, "rules": []})

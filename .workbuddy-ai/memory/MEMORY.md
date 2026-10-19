@@ -232,3 +232,16 @@ godot --path . res://tests/Screenshot.tscn                 # 截图 ★ 非 head
 
 ① 「N / M」的分子分母同一集合。② 改「初始化顺序」前先 grep 谁依赖它。③ 结构约束优于概率约束。
 ④ 稳定随机用确定性哈希，不用 `RandomNumberGenerator`。⑤ DP 去重的键用归一化字段。
+
+## 六、发布包（2026-10-19）
+
+`D:/workbuddy/解压码：hey_unmu.zip`（密码 `hey_unmu`，ZipCrypto，661 文件 / 0.92MB）。
+**只装运行 + 编辑器**：project.godot / run_game.bat / open_story_editor.bat / scripts / scenes /
+shaders / data 两个 json / assets/dol_au / tools 两个 / icon / 使用说明.txt。
+
+★★ **`tools/DumpStory.*` 故意不装** —— 它把内置常量导出成 story.json，跑一次会覆盖真实剧情。
+★★ 打包前必做三件事：① `run_game.bat` 里写死的盘符路径换成便携查找；
+  ② 编辑器日志目录从 `.workbuddy-ai\tmp` 换到 `%TEMP%`；③ 扫 `WorkBuddy` / 用户名 / 邮箱 / 盘符路径。
+★ Bandizip CLI：`bz c -p:密码 -fmt:zip -l:9 -r -y 输出.zip <显式顶层项>` ——
+  **别用 `.`**（条目会带 `./` 前缀）；包名里的冒号必须是**全角**（半角在 Windows 非法）。
+★ 交付前在**解压出来的那一份**里实跑：`--import`、`--quit-after 300`、编辑器服务 `GET /` 200。

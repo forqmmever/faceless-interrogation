@@ -1438,8 +1438,11 @@ const DEFAULT_LEVELS := [
 ]
 
 # 出厂兜底的强制规则表（下标 = 第几轮）。
-#   第 1 关刻意留空 —— 开局就被人按着头穿某件衣服不公平（见 RunData._roll_forced_items）；
-#   后三关沿用旧的随机抽，所以升级到「规则表」之后玩法一点没变。
+#   第 1 轮刻意留空 —— 开局就被人按着头穿某件衣服不公平（见 RunData._roll_forced_items）；
+#   后几轮沿用旧的随机抽，所以升级到「规则表」之后玩法一点没变。
+#   ★ 第八十轮：这只管**出厂兜底**。作者在编辑器里写死（fixed）的规则，
+#     第 1 轮也照办 —— 以前那句 `li <= 0` 把 fixed 也一起跳过了，
+#     于是「背景里给第 1 轮配了强制穿着」永远不生效。
 const DEFAULT_FORCED_RULES := [
 	# ★ 第五十二轮：4 → 2 轮，跟着砍到两条。
 	#   原口径是「第 1 轮不强制、第 2 轮起开始抽一件强制装备」——
@@ -1452,9 +1455,10 @@ const DEFAULT_FORCED_RULES := [
 #  用户口径：「编辑器还应该具备编辑……每个问题的 qte 类型 出现时间」
 #
 #  一局里每一道题都可以指定用哪种 QTE、几秒后出现。取值：
-#    ""  / "auto"   —— 按老规则自动判（表情 QTE 看 needs_expression_for，
-#                      递话走计时器随机来）—— **出厂默认就是这个**；
-#    "none"         —— 这道题不出 QTE；
+#    "none"         —— 这道题不出 QTE —— **没写就是这个**（第八十轮用户口径：
+#                      「未设置 qte 的题目不该冒 QTE」）；
+#    "auto"         —— 按老规则自动判（表情 QTE 看 needs_expression_for，
+#                      递话走计时器随机来）—— 必须**显式写**才生效；
 #    "expression"   —— 强制出表情控制（长按顶条）；
 #    "interference" —— 指定时间后出单键递话（按一下空格打断）；
 #    "combo"        —— 指定时间后出组合干扰（依次敲 J → K → L）。
@@ -1470,22 +1474,58 @@ const QTE_COMBO := "combo"
 const QTE_KINDS := [QTE_AUTO, QTE_NONE, QTE_EXPRESSION, QTE_INTERFERENCE, QTE_COMBO]
 
 const QTE_KIND_LABELS := {
-	"auto": "自动（按老规则判）",
+	"auto": "自动（按暴露值判）",
 	"none": "无",
 	"expression": "表情控制 QTE（长按顶条）",
 	"interference": "递话打断（按一下空格）",
 	"combo": "组合干扰（依次敲 J→K→L）",
 }
 
-# 第 li 道题的 QTE 计划（读 story.json；越界返回「自动」）
+# 第 li 道题的 QTE 计划（读 story.json；越界 / 没写 = 「不出」）
 func qte_plan_entry(li: int) -> Dictionary:
 	var d := ScenarioData.qte_plan_at(li)
 	if d.is_empty():
-		return {"qte": QTE_AUTO, "delay": -1.0}
-	var kind := str(d.get("qte", QTE_AUTO))
+		return {"qte": QTE_NONE, "delay": -1.0}
+	var kind := str(d.get("qte", QTE_NONE))
 	if not QTE_KINDS.has(kind):
-		kind = QTE_AUTO
+		kind = QTE_NONE
 	return {"qte": kind, "delay": float(d.get("delay", -1.0))}
+
+# 一道题**最终生效**的 QTE 安排（第八十轮）
+#
+#  优先级：题目自带的 `qte` ＞「按题号」的全局计划表 ＞ 不出。
+#
+#  ★ 用户口径：「未设置 qte 的题目为什么还会出现 qte 改掉」。
+#    以前「没写」= auto（按暴露值随机出），于是每道题都可能突然冒一条 QTE 条。
+#    现在「没写」= none；想按暴露值自动出，必须在编辑器里**显式**选「自动」。
+#
+#  ★ 编辑器第七十九轮之前把类型写在 `qte.qte` 里（现行是 `qte.kind`），
+#    游戏只认 `kind` → 用户在编辑器里写「无」等于没写。
+#    这里两个键都认，老数据不用重存。
+func question_qte_plan(q: Dictionary, index: int) -> Dictionary:
+	var base := qte_plan_entry(index)
+	var out := {
+		"qte": str(base.get("qte", QTE_NONE)),
+		"delay": float(base.get("delay", -1.0)),
+		"prompt": "",
+	}
+	if not q.has("qte"):
+		return out
+	var own: Variant = q.get("qte")
+	if typeof(own) == TYPE_DICTIONARY:
+		var od: Dictionary = own
+		# 两个键都认：`kind` 是现行写法，`qte` 是旧版编辑器写的
+		var k := str(od.get("kind", od.get("qte", ""))).strip_edges()
+		if k == "":
+			k = QTE_NONE          # 对象里什么都没写 = 没设置
+		out["qte"] = k if QTE_KINDS.has(k) else QTE_NONE
+		if od.has("delay"):
+			out["delay"] = float(od.get("delay", -1.0))
+		out["prompt"] = str(od.get("prompt", ""))
+	elif typeof(own) == TYPE_STRING:
+		var s := str(own).strip_edges()
+		out["qte"] = s if QTE_KINDS.has(s) else QTE_NONE
+	return out
 
 # ---------- A 的原貌（True Appearance）----------
 # 审讯官认识的是「A」—— 你真实的样子。他脑子里存着这张脸、这身打扮。
@@ -1626,6 +1666,12 @@ func _ensure_forced_rules() -> void:
 				items.append(str(id))
 			if not items.is_empty():
 				rules.append({"pick": pick, "items": items})
+		# ★ 第八十轮：写了规则、上面却选着「没有强制要求 / 随机」——
+		#   编辑器里很容易这样（先加一条规则，忘了把「方式」改成「用写死的规则」），
+		#   结果规则一字不差地躺着、游戏完全不读，看起来就是「强制穿着不起作用」。
+		#   规则只有 fixed 模式用得上，所以有规则就按 fixed 办（等价于读者本来想做的事）。
+		if mode != FORCED_MODE_FIXED and not rules.is_empty():
+			mode = FORCED_MODE_FIXED
 		FORCED_RULES.append({"mode": mode, "rules": rules})
 	for li in range(FORCED_RULES.size(), level_count()):
 		FORCED_RULES.append({"mode": FORCED_MODE_NONE, "rules": []})

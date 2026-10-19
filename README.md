@@ -1762,6 +1762,15 @@ const EXCLUSIVE_GROUPS := [
 >
 > ★ 题目**显式**写了 `qte: expression` 的仍然照出 —— 那是作者的手动安排，
 > 不属于「自动触发」，见 `_apply_qte_plan`。
+>
+> ★★ **第八十轮（用户口径「未设置 qte 的题目为什么还会出现 qte 改掉」）**：
+> 上面那一整段「按暴露值自动出」现在**只对显式写了 `qte: auto` 的题生效**。
+> 没写 `qte` 的题 = `none`：表情 QTE 不出，**随机递话也一起压掉**
+> （以前 `none` 只关表情 QTE，计时器照样会在几秒后弹一条「他凑到耳边」）。
+> 判断式在 `OutfitData.question_qte_plan()`：
+> 题目自己写 > 按题号的 `qte_plan` 表 > `none`。
+> 附带修掉一个真 bug：编辑器一直把类型写在 `qte.qte` 里，游戏只认 `qte.kind` ——
+> 于是用户在编辑器里选「无」等于没选，老数据已就地迁移成 `kind`（代码两个键都认）。
 
 **四条规则（按用户口径重写）：**
 
@@ -2241,6 +2250,11 @@ ScenarioData.gd 里的 DEFAULT_* 常量   ← 出厂兜底文本
 | `levels[]` | 关卡表 —— **一局打几关** + 每关 `name` / `contrast_req` / `acceptance_gain` / `derived_profile` | 🪜 关卡与轮数 | **全局一套** |
 | `forced_rules[]` | 每关的强制穿着：`{mode: none/random/fixed, rules: [{pick: all/any, items: [...]}]}` | 👗 强制穿着 | **每关一条** |
 | `qte_plan[]` | 每道题的 QTE：`{qte: auto/none/expression/interference/combo, delay: 秒}` | ⏱ QTE 计划 | **全局一套**（按题号对齐） |
+
+> ★ **第八十轮改了这两段的默认语义**（详见后面的「第八十轮」一节）：
+> · `qte_plan` **空着 / 没写 = 这道题不出 QTE**（以前是 `auto`，会被暴露值随机触发）；
+> · `forced_rules` 的 `fixed` 模式**第 1 轮也生效**（以前 `li <= 0` 一刀切跳过）；
+> · `mode` 写着 `none` / `random` 但 `rules` 非空 → 按 `fixed` 办（写了规则就是要它生效）。
 | `defects[]` | 身体缺陷：`{id, name, slot_hint, cover_tags[]}` | 🩹 身体缺陷 | **全局一套** |
 | `item_overrides` | ★ 服装数值覆写：`{物品 id: {exposure, acceptance_req}}` —— **只写改过的那几件**，没写的用代码内置值 | 👕 服装数值 | **全局一套** |
 | `backgrounds[].levels` / `forced_rules` / `qte_plan` / `defects` / `true_presets` | ★ 第四十一轮：**本局（这一套背景）** 的流程覆写 —— 轮数 / 强制穿着 / QTE 计划 / 缺陷 / 原貌。**五项都空 = 用下面那几行全局的**（默认就是这样） | 背景页的「⑥ 本局覆写」几节 | **每套背景一份** |
@@ -2680,6 +2694,79 @@ _show_choice_echo()          # = feedback_label.text = last_choice_text + 默认
 「反馈区是选项回应，不是 bluff_note」——**故意改回旧逻辑会当场挂**。
 
 `editor_smoke` 的两条计数断言跟着改：`ui` 文案 86 → **73**、文案页覆盖 85 → **72**。
+
+## 第八十轮：强制穿着第 1 轮不生效 · 没写 qte 的题不该冒 QTE
+
+用户报了两件事，两件都是**数据写对了、运行时没读它**。
+
+### ① 「强制穿着不起作用」
+
+`RunData._roll_forced_items()` 里有一刀：
+
+```gdscript
+if li <= 0:      # 每局第一轮不抽强制装备 —— 开局就被人按着头穿衣服不公平
+    return
+```
+
+那一刀是给 **random 模式**（程序自己抽 0~2 件高暴露）留的公平性护栏，
+但它排在 `fixed` 分支**前面**，于是作者在编辑器里给第 1 轮**写死**的规则也被吞掉。
+一局现在只有 2 轮，用户那套 `scene_1` 恰好把校服上下装配在第 1 轮、第 2 轮写「无」——
+**整局一次都不生效**。
+
+修法：`fixed` 先返回，`li <= 0` 只管 `random`。
+
+```gdscript
+if mode == OutfitData.FORCED_MODE_FIXED:
+    _apply_fixed_forced(entry.get("rules", []))   # 作者写了就照办，第 1 轮也算
+    return
+if li <= 0:
+    return                                        # 只有 random 跳过第一轮
+```
+
+### ② 写了规则却选着「没有强制要求」→ 规则被静默丢弃
+
+编辑器里「方式」下拉默认是第一项「没有强制要求」，很容易先加一条规则、忘了改方式。
+数据长这样（用户 `story.json` 里就是这样）：
+
+```json
+{"mode": "none", "rules": [{"items": ["hair_short"]}]}
+```
+
+`rules` 只有 `fixed` 用得上，`none` 模式下它一个字都不会被读。
+第 80 轮起：**有规则就按 `fixed` 办**（`OutfitData._ensure_forced_rules()` 里升级 mode），
+编辑器那一页的说明也写清了这条。
+
+### ③ 「未设置 qte 的题目为什么还会出现 qte」
+
+两条独立的原因叠在一起：
+
+| 原因 | 现象 |
+|---|---|
+| `qte_plan` 空 → `qte_plan_entry()` 返回 `auto` | 每道题都按暴露值摇号，随时可能冒一条 QTE 条 |
+| `none` 只关表情 QTE | `_process_interference_timer()` 不看计划，几秒后照样弹「他凑到耳边」 |
+| ★ 编辑器把类型写在 `qte.qte`，游戏只读 `qte.kind` | 在编辑器里选「无」= 没选（第 79 轮之前的老数据全是这个形状） |
+
+修法：
+
+1. `OutfitData.qte_plan_entry()` 的兜底从 `QTE_AUTO` 改成 `QTE_NONE`；
+2. 新增 `OutfitData.question_qte_plan(q, index)` —— **题目 > 按题号表 > none**，
+   并且 `kind` / `qte` 两个键都认（老数据不用重存）；
+3. `QTE_NONE` 额外置 `_intf_suppressed`，`_process_interference_timer()` 直接返回；
+4. `story.json` 里 9 处 `{"qte": {"qte": ...}}` 就地迁成 `kind`（值一个没动）。
+
+> 想恢复「露得越多越常被盯」的老手感，把那道题的 QTE 类型**显式**选成「自动」——
+> 现在它是 5 个选项里的第二个，不再是「没写」的默认含义。
+
+### 验证（一次性探针，跑完即删）
+
+```
+scene_1  第 1 轮  mode=fixed  forced=[top_school_navy, bottom_school_navy]   ← 以前是空
+scene_1  第 2 轮  mode=none   forced=[]
+border_post / scene_2 各轮 → 按各自写死的规则
+
+scene_1 的 6 道题：none ×5 + expression ×1（s1_q5 自己写的 delay 4 / 专属提示语）
+真实 Interrogation：每道 none 题 qte_needed=false、递话压掉=true；走 30 秒 → 递话 0 次
+```
 
 ## 美术资产（小人 · AU 图包）
 

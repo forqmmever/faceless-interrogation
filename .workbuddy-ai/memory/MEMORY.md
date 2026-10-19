@@ -1,8 +1,7 @@
 # 项目长期笔记（千面人 · 伪装与高压审讯）
 
-> 只放**每轮都要用的规矩**。查阅型内容（图包知识 / GDScript 踩坑 / 脚本工具 / 图片比对 /
-> 测试细则 / 架构细节 / 数值曲线）→ 同目录 `REFERENCE.md`；
-> 诊断 / 改动清单 / 临时数据 → 按轮次分文件（`YYYY-MM-DD-第N轮-xxx.md`）。
+> 只放**每轮都要用的规矩**。查阅型内容（图包 / GDScript 踩坑 / 脚本工具 / 图片比对 /
+> 测试细则 / 架构细节 / 数值曲线）→ 同目录 `REFERENCE.md`；诊断与改动清单 → 按轮次分文件。
 
 ## 一、工作流
 
@@ -29,15 +28,14 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 ★ 两套 Godot 测试**跑完都打印「耗时合计」+「最耗时的前 8 段」** —— 提速**先看那个**。
 ★ **第 76 轮起编辑器直接读写 `data/story.json`**：`open_story_editor.bat` 起 `tools/story_server.py`
 （`GET/POST /api/story`，127.0.0.1:8765）；`file://` 打开 = **只读**。**别改回 File System Access / 下载**。
-★ **改完 `data/story.json` 要跑 `python tools/build_story_editor.py` 重建内置快照** ——
-冒烟读的是 HTML 里那份快照，不同步就报旧数据的提醒。
-★ **`open_story_editor.bat` 必须纯 ASCII + CRLF**：cmd 按 OEM 代码页读它，UTF-8 的中文是乱码，
-被「按 UTF-8 读」的编辑器（含本工具）存一次就变成一串 `?`。改完用 Python 转 ascii + 验证 `all(b<128)`。
-★ **Python 侧实测坑**：`sys.exit("一句话")` **写不进** `--log`（解释器退出时才打到 stderr，文件没 flush）
-→ 用 `print` + `flush` 再 `exit`。★ **Windows 的 `SO_REUSEADDR` 让两次 bind 都成功** —— 判占用只能**主动 connect 一次**。
+★ **改完 `data/story.json` 要跑 `python tools/build_story_editor.py` 重建内置快照**（冒烟读的就是那份）。
+★ **`open_story_editor.bat` 必须纯 ASCII + CRLF**：cmd 按 OEM 代码页读它，UTF-8 中文会变乱码，
+再被按 UTF-8 存一次就成了 `?`。改完用 Python 转 ascii 并验证 `all(b<128)`。
+★ **Python 侧**：`sys.exit("一句话")` 写不进 `--log`（退出时才打 stderr，文件没 flush）→ 用 `print` + `flush`。
+★ **Windows 的 `SO_REUSEADDR` 让两次 bind 都成功** —— 判端口占用只能**主动 connect 一次**。
 ★ 用户 2026-10-15：「没动代码不用跑四套验证」—— 纯文档 / 清点 / 加工具**跳过**。
-★ **后台跑长测试时不要同时改它读得到的资源**；长测试用 `run_in_background` + 重定向到 `.workbuddy-ai/tmp/*.log`。
-★ 本沙箱里 `start` 起的子进程会随命令结束被清掉 —— 验证「服务是否存活」必须和 `curl` 写**同一条命令**。
+★ 长测试用 `run_in_background` + 重定向到 `.workbuddy-ai/tmp/*.log`；**跑的时候别改它读得到的资源**。
+★ 本沙箱里 `start` 起的子进程会随命令结束被清掉 —— 验证「服务存活」必须和 `curl` 写**同一条命令**。
 
 ### 术语（用户 2026-10-15 定义）
 
@@ -71,9 +69,8 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 ★ **`DumpStory` 不能无条件重跑**：`backgrounds[].questions[]` 里第 29 轮迁移的题目**只存在于 story.json**。只改 `rules` / `levels` / `true_presets` 这类段**不用重导**。
 ★★ **改 `rules` 的数值光改常量没用** —— 第 75 轮漏了 `pass_suspicion`(60) / `correct_delta`(−6)，
 整轮还在用旧过关线而测试全绿（验的是常量）。第 76 轮补了守卫：`TestRunner` 用 `ScenarioData.rule_f(...)` 比常量（8 项）。
-★★ **不要用 `json.loads → 改 → json.dumps` 整体重写 `data/story.json`**（第 78 轮踩）：
-一次重写把整份文件退回「只有 3 套背景」的旧版（diff 2258 行，差点提交）。要删/改几个键就用**逐行文本操作**
-（`^\t\t\t"key":` 精确匹配），写完立刻断言「`backgrounds` 仍是 6 套 + 字节数没暴跌」再 `git diff --stat` 看规模。
+★★ **不要用 `json.loads → 改 → json.dumps` 整体重写 `data/story.json`**（第 78 轮踩）：一次重写退回「只有 3 套背景」的旧版。
+要删/改几个键就用**逐行文本操作**（`^\t\t\t"key":` 精确匹配），写完立刻断言「背景数没变 + 字节数没暴跌」再 `git diff --stat`。
 
 ### ★ 派生数据不会自己跟上来
 
@@ -100,16 +97,14 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 ### ★★ 「自行编辑」模式（`questions_source = manual`）
 
 编辑器把用不到的字段**整节/整栏收起来**（数据一条不动）：`MANUAL_HIDDEN_META`、`MANUAL_HIDDEN_COMPANION`、
-③ 档案卡与 ④ 事实两整节、题目 `recall`、选项 `tone` / `value`。
-★ **`interrogator`（称呼）不在此列** —— 用户明确「审讯官的名字不删」。
+③ 档案卡与 ④ 事实两整节、题目 `recall`、选项 `tone` / `value`。★ **`interrogator`（称呼）不在此列**。
 
 运行时三处一起改：① `_is_unified_question()` 判据放宽成「有 `tone` 或 `text`」（否则掉进旧「档案题」那条路，
-**完全不读你写的选项**）；② `is_blind` 加 `and not RunData.questions_are_manual()`（否则整局变盲区题）；
-③ 未知 / 空 `tone` 分支的 `delta` 取 `correct_delta`（原来只改 `kind`，`delta` 还是 0）。
+**完全不读你写的选项**）；② `is_blind` 加 `and not RunData.questions_are_manual()`；③ 未知 / 空 `tone`
+的 `delta` 取 `correct_delta`（原来只改 `kind`，`delta` 还是 0）。
 ★★ **代价只认选项上的 `suspicion`**（第 77 轮用户口径）——「说漏嘴」也不例外：
-`_select_option` 的 `ending == "leak"` / `kind == "leak"` 两条分支原来无条件 `+leak_delta`，
-把选项写的数整个盖掉，已改成 `_add_suspicion(float(opt["delta"]))`。
-**这类背景的每个选项都必须写 `suspicion`**（TestRunner 有守卫），编辑器也会给提醒。
+`_select_option` 的两条 leak 分支原来无条件 `+leak_delta`，把选项写的数整个盖掉，已改成 `_add_suspicion(delta)`。
+**这类背景的每个选项都必须写 `suspicion`**（TestRunner 有守卫）。
 
 ### ★★ 盘问界面三块：题面 / 反馈区 / 选项（第 78 轮定稿）
 
@@ -121,10 +116,20 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 - 模板反馈句已删（`ui.feedback` 24 → 11 条）。**盲区题的「选对 / 选错 + 备忘录」必须留** —— 删了这题变纯运气。
   `traits[].bluff_note / evade_note` 已无调用点（数据与 `trait_note()` 保留，编辑器标「现已不显示」）。
 
+### ★★ QTE 与强制穿着的默认语义（第 80 轮定稿）
+
+- **没写 `qte` 的题 = `none`**（用户口径「未设置 qte 的题目不该冒 qte」）。优先级在
+  `OutfitData.question_qte_plan()`：**题目自带 > 按题号的 `qte_plan` 表 > none**；未知类型退成 none。
+  想「暴露越高越常出」必须**显式**写 `auto`。`QTE_NONE` 连**随机递话**一起关（`_intf_suppressed`）。
+- **强制穿着的 `fixed` 第 1 轮也生效**；`li <= 0` 只挡 `random`。`mode` 是 none / random 但 `rules`
+  非空 → 一律按 `fixed` 办（规则只有 fixed 用得上）。
+- ★★ **编辑器 `{k, sub}` 字段写出来的形状是 `obj[sub][k]`** —— 加字段前先看运行时读的**键名**。
+  第 80 轮的真 bug：题目 qte 写在 `qte.qte`，游戏读 `qte.kind`，选「无」等于没选。
+
 ## 三、测试怎么写（细则见 `REFERENCE.md` 五章）
 
 - ★★ **编辑器校验面板只放「问题」，不放「说明」** —— 出厂数据必须 **0 错误且 0 提醒**（冒烟已断言守住）。**看到一大片提醒时先怀疑规则本身**（第 54 轮 57 条里 27 条是校验器算错）。
-- ★★ **跑完测试看三样**：`Failures: 0`、**有没有 `SCRIPT ERROR`**、**断言总数有没有莫名减少**。**越界 / 运行时报错不会让测试失败，只会让那一行静默消失**。改「轮数 / 槽位数」这类常量后要 grep 所有带下标的断言。
+- ★★ **跑完测试看三样**：`Failures: 0`、**有没有 `SCRIPT ERROR`**、**断言总数有没有莫名减少**。**越界 / 运行时报错不会让测试失败，只会让那一行静默消失**。
   ★ `(d.get("options", []) or [])` —— **GDScript 的 `or` 永远返回 bool**，缺字段时 `for x in true` 当场报错、整节断言静默消失。取数组用 `_arr_of(d, key)`。
 - **防「空转通过」**：循环一次都不进 → 断言全绿但什么都没测。**加「样本里确实查到 N 条」的断言**。
 - ★ **写断言的四个老坑**：① 只对部分对象生效的规则要配**对照断言**；② 写完要**故意改回错的**验证它真能抓到 bug；③「存在性 / 非空」断言看不见「少做了一步」→ 要判**数值范围**，阈值用**实测**定；④ 写「单调 / 递增」断言前**先把取样点数值写下来**。
@@ -140,18 +145,18 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 1. **先 `git stash` 退回 HEAD 重跑**（三方对照：①提交版 ②HEAD 重拍 ③新代码重拍）。`③ vs ② = 0` 而 `① vs ② ≠ 0` → **仓库里那张是旧货**。
 2. **「时对时错」先查这一屏状态有没有钉死**，再查异步定时器。★ `set_process(false)` **停不住 `await create_timer()`**：先 `await _wait(120)` 让它过期，再 `_load_question()`。
 3. **判噪声**：① 同代码连跑三次一致 ② 差异稀疏点状 ③ `_plog` 逐字相同 → 三条同时成立 = 抗锯齿差异。
-   ★ 相册 SubViewport / 带 shake / QTE 判负**每次跑都不同** → 判据 = 「与旧版差异量级 ≈ 同代码两次跑量级」→ `git checkout --` **还原别提交**。
-4. ★ **报「真变」要给机制上的量** + 差异百分比 + bbox（bbox 落在题面区 / 反馈区 = 本轮本来就会变）。
+   ★ 相册 SubViewport / 带 shake / QTE 判负**每次跑都不同** → 判据 =「与旧版差异量级 ≈ 同代码两次跑量级」→ `git checkout --` **还原别提交**。
+4. ★ **报「真变」要给机制上的量** + 差异百分比 + bbox。
 
 ## 四、数值曲线的规矩（展开见 `REFERENCE.md` 七章）
 
 ★ **一局 2 轮**；**反差要求 125 / 150**；**暴露上限 = 10 + 接受度 × 2**（第 1 轮 10 → 30，第 2 轮 19 → 48）。
 ★ **怀疑度**：起点 20、过关线 100、`leak_delta = 100`。改过关线按「预算 = 线 − 起点」等比重标增量。
 ★ **接受度 vs 衣服**：全库 165 件、`acceptance_req` 最大 **15**（5 件：`top_none` / `bottom_none` / `dress_transparent` /
-`dress_seethrough` / `panties_tieside`）。第 1 轮 10 → 160/165（有效槽位 132/137）；**第 2 轮 19 → 165/165，再加没用**。
+`dress_seethrough` / `panties_tieside`）。第 1 轮 10 → 160/165；**第 2 轮 19 → 165/165，再加没用**。
 ★ 标定用 `WardrobeModel.auto_complete_outfit()`（`_dp_optimum` 会高估）；探针要覆盖测试用的种子池。
 ★ **反差 = 全槽位求和**，单件 `|你穿的 − 原貌那件| × 5`；改口径必须同时**拉开原貌池** + **重标 `contrast_req`**。
-★ **下装 / 成装是命门**（变露或被锁死 → 断崖下跌）：下装始终 `bottom_longskirt`、`FORCED_NEVER_SLOTS := ["bottom","dress"]`、
+★ **下装 / 成装是命门**：下装始终 `bottom_longskirt`、`FORCED_NEVER_SLOTS := ["bottom","dress"]`、
 不抽「与原貌完全相同」那件；「抽原貌」必须在「抽强制装备」**之前**（各用独立随机流）。
 ★ **150 是实测定的**；报余量用**最差值**。★ DP 的暴露账是**保守上界**，「局部最优」类断言按**同一本账**判。
 ★ 改轮数要动的全部位置见 `2026-10-16-第五十二轮-两轮制与减测试耗时.md` 第二节。

@@ -182,8 +182,8 @@ func resume_run(seed_in: int, run_index_in: int, li: int, cleared: int) -> void:
 #  强制装备：每轮的「必须穿什么」
 #
 #  ★ 第二十三轮改成读**每轮的规则表**（OutfitData.forced_rules_at）：
-#      "none"   —— 本轮没有强制要求（第 1 关就是它）；
-#      "random" —— 沿用旧的随机抽 0~2 件高暴露（出厂默认的后三关）；
+#      "none"   —— 本轮没有强制要求（出厂第 1 轮就是它）；
+#      "random" —— 沿用旧的随机抽 0~2 件高暴露（出厂默认的后几轮）；
 #      "fixed"  —— 用编辑器里写死的规则，每条二选一：
 #                    {"pick": "all", "items":[...]}  这几件都要穿（一件 = 固定一件）
 #                    {"pick": "any", "items":[...]}  这几件里任选一件
@@ -193,7 +193,7 @@ func resume_run(seed_in: int, run_index_in: int, li: int, cleared: int) -> void:
 #  固定种子下的截图与测试因此保持完全可复现。
 #
 #  抽不到的情况（很常见，而且是设计的一部分）：
-#    · 第一轮（li == 0）**刻意不抽** —— 见下；
+#    · 第一轮（li == 0）且是 random 模式 —— **刻意不抽**（fixed 照办，见下）；
 #    · 随机数是 0；
 #    · 当前接受度穿不起任何高暴露衣物 → 池子空。
 #  接受度越高，池子越大，被塞行头的概率越高 ——
@@ -209,15 +209,16 @@ func _roll_forced_items(li: int) -> void:
 
 	if mode == OutfitData.FORCED_MODE_NONE:
 		return
-	# ★ 每局的第一轮没有强制服装要求。
-	#   开局就被人按着头穿某件衣服，玩家还没搞明白「反差 / 暴露 / 缺陷」
-	#   这三件事是怎么回事，就先被罚了一次 —— 那不公平。
-	#   先让他在第一轮自由地改一遍，从第二轮起才开始塞行头。
-	if li <= 0:
-		return
-
+	# ★ 第八十轮（用户口径「为什么强制穿着不起作用」）：
+	#   **random 模式**才跳过第一轮 —— 那是程序自己抽的，开局就被人按着头
+	#   穿某件衣服不公平（玩家还没搞明白反差 / 暴露 / 缺陷怎么回事）。
+	#   但 `fixed` 是作者在编辑器里**明确写死**的要求，跳过它 = 写什么都没用。
+	#   （用户那套背景把强制穿着配在第 1 轮，一局又只有 2 轮，于是永远不生效。）
 	if mode == OutfitData.FORCED_MODE_FIXED:
 		_apply_fixed_forced(entry.get("rules", []))
+		return
+
+	if li <= 0:
 		return
 
 	var pool: Array = OutfitData.forced_pool(acceptance)

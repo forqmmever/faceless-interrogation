@@ -4124,6 +4124,12 @@ func _test_editable_flow_data() -> void:
 	interro.set_process(false)
 
 	# 2 号题指定成「无」；3 号题指定成「表情控制，1.5 秒后出现」
+	# ★ 第八十轮：题目**自带**的 qte 优先于这张按题号索引的表 ——
+	#   下面要验的是表本身，所以先把这几道题自带的 qte 抹掉，
+	#   否则遇到写了 qte 的背景（scene_1 的 s1_q6 就写了 expression）会假红。
+	_clear_question_qte(_new_fact_index())
+	_clear_question_qte(1)
+	_clear_question_qte(2)
 	ScenarioData.set_qte_plan([
 		{"qte": "auto", "delay": -1},
 		{"qte": "none", "delay": -1},
@@ -4147,13 +4153,17 @@ func _test_editable_flow_data() -> void:
 	ScenarioData.set_qte_plan([])
 	interro._cancel_qte()
 	interro._load_question(2)
-	_check("计划清空后回到自动判定", interro.qte_plan_kind == "auto")
+	# ★ 第八十轮：默认从「自动」改成「无」—— 用户口径「未设置 qte 的题目不该冒 qte」。
+	_check("计划清空后不再出 QTE（默认 = 无）",
+		interro.qte_plan_kind == "none" and interro.qte_needed == false
+		and interro.qte_done == true and interro._intf_suppressed == true)
 
 	print("\n-- 可编辑的 QTE 计划：指定的递话准点来一次、且不再随机补 --")
 	interro.set_process(false)
 	# ★ 第二十九轮：这张计划表是**按题号**索引的，而题序现在由题目清单决定 ——
 	#   所以针对「实际要加载的那道题」的下标来写，不要再写死第 2 项。
 	var qi_intf := _new_fact_index()
+	_clear_question_qte(qi_intf)
 	var plan_intf := []
 	for _k in maxi(qi_intf + 1, 1):
 		plan_intf.append({"qte": "auto", "delay": -1})
@@ -4359,6 +4369,14 @@ func _prepare_and_enter() -> void:
 	print("   [准备] 第 %d 轮伪装：%s" % [RunData.level_number(),
 		"✅ 成立" if m.evaluate()["verdict"] == "pass" else "🚨 不成立"])
 	wardrobe._on_continue()
+
+# 抹掉一道题**自带**的 qte 字段（第八十轮）。
+#   题目自己的设置优先于「按题号」的全局计划表，验表本身的用例先清掉它，
+#   否则碰上写了 qte 的背景会假红。
+func _clear_question_qte(index: int) -> void:
+	var qs: Array = interro.level_questions()
+	if index >= 0 and index < qs.size():
+		(qs[index] as Dictionary).erase("qte")
 
 # 让本轮以「低怀疑度」收尾，并点掉结果按钮
 func _pass_current_level() -> void:

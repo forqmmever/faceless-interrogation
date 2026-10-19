@@ -1406,6 +1406,39 @@
   以后改 `story.json` 一律：文本级操作 + 写后立刻断言「背景 6 套 / 字节数合理」。
 - 重跑：换装 **633 / 34**、端到端 **960 / 0**、编辑器冒烟 **367 / 12**（失败仍是用户数据那批老假设）。
 
+### 第 79 轮：story.json 不再被整份覆盖（If-Match 版本守卫 + 时间戳备份）· 编辑器改无窗口启动
+
+- 用户口径：「json 为什么老是被覆盖」「打开编辑器为什么弹一个必须手动关闭的窗口」。
+- **版本守卫**：`GET /api/story` 返回 `X-Story-Rev`（内容指纹），保存时带 `If-Match`；
+  对不上直接 **409 拒收**（页面开着、磁盘被改、再保存 → 不再把别人的改动整份盖回去）。
+- **时间戳备份**：每次写盘前把旧版另存 `data/backups/story-<时间>.json`，留最近 30 份（原来只有一份 `.bak`）。
+- **无窗口启动**：`open_story_editor.bat` 优先用 `pythonw.exe` 起服务（实测进程就是 pythonw、8765 正常监听）；
+  编辑器顶栏新增「↻ 重新载入」与「⏹ 停服务」（`POST /api/quit`），失败提示从 `pause` 改成倒数自动关闭。
+- 顺带：编辑器冒烟里一批写死「6 套背景 / 4 套启用 / 情景一二是草稿 / 每套 27 条结局」的断言
+  改成规则型（用户增删背景后不再成片假红）。
+- 测试：按用户口径「改工具脚本不跑四套验证」，只手跑了启动链路（bat 冷启动 / 复用 / 版本守卫 200/409 / quit）。
+- 坑：`start /min python` 的窗口是**服务自己**（python.exe 自带控制台），最小化不等于消失；
+  本沙箱里 `start` 起的子进程会随命令结束被清掉，「服务是否活着」必须和 `curl` 写进同一条命令。
+
+### 第 80 轮：强制穿着第 1 轮不生效 · 没写 qte 的题不再冒 QTE
+
+- 用户口径：「为什么强制穿着不起作用，未设置 qte 的题目为什么还会出现 qte 改掉」。
+- **强制穿着**：`_roll_forced_items()` 里 `if li <= 0: return` 排在 `fixed` 分支**前面**，
+  作者写死在第 1 轮的规则被一并跳过；一局只有 2 轮 → 整局不生效。改为 `fixed` 先返回，`li <= 0` 只管 `random`。
+- **写了规则却选着「没有强制要求」**：`mode=none` + 非空 `rules` 现在按 `fixed` 办
+  （`_ensure_forced_rules()` 里升级 mode），编辑器那一页的说明同步写清。
+- **QTE**：`qte_plan` 空时的兜底从 `auto` 改成 `none`；新 `OutfitData.question_qte_plan()`
+  定优先级「题目 > 按题号表 > none」，`kind` / `qte` 两个键都认；`QTE_NONE` 额外压掉随机递话
+  （`_intf_suppressed`）—— 以前「无」只关表情 QTE，计时器照样弹「他凑到耳边」。
+- **真 bug**：编辑器一直把类型写在 `qte.qte`，游戏只读 `qte.kind` → 在编辑器里选「无」等于没选。
+  编辑器字段改成写 `kind`，`story.json` 里 9 处旧写法就地迁移（值一个没动）。
+- 测试断言跟着改：`WardrobeTest`「没写计划的题按自动」→「按无」+ 三条 `question_qte_plan` 用例；
+  `TestRunner`「计划清空后回到自动」→「默认 = 无且递话被压掉」+ `_clear_question_qte()` 帮手；
+  `WardrobeTest` 三条「出厂第 1 轮 none / 第 2 轮 random」改成查规则本身（用户数据已不同）。
+- 验证：一次性探针（跑完即删）—— scene_1 第 1 轮 `forced=[top_school_navy, bottom_school_navy]`；
+  6 道题 5×none + 1×expression；真实 `Interrogation` 里每道 none 题 `qte_needed=false`、走 30 秒递话 0 次。
+  按用户口径「不要浪费时间」，未跑四套验证。
+
 ## 测试规模的变化（只有实测过的数据点）| 轮次 | WardrobeTest | TestRunner | 编辑器冒烟 | 手机冒烟 |
 
 |---|---|---|---|---|  

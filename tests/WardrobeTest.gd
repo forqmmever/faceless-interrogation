@@ -2515,11 +2515,17 @@ func _test_editable_sections() -> void:
 		OutfitData.level_count() == OutfitData.levels().size())
 
 	# ---- ② 强制穿着：三种模式 ----
+	# ★ 第八十轮：这几条原来写死「第 1 轮 none / 第 2 轮 random」——
+	#   那是**出厂数据**的规格，而作者现在自己会改（比如给某套背景写死第 1 轮）。
+	#   改成查规则本身：模式必须是三种之一；只有 fixed 才有规则表；
+	#   写了规则就一定按 fixed 办（引擎侧会自动升级，见 _ensure_forced_rules）。
 	var r0 := OutfitData.forced_rules_at(0)
-	_check("出厂第 1 轮是「没有强制要求」", str(r0.get("mode", "")) == OutfitData.FORCED_MODE_NONE)
-	_check("出厂第 2 轮是「随机抽」", str(OutfitData.forced_rules_at(1).get("mode", ""))
-		== OutfitData.FORCED_MODE_RANDOM)
-	_check("「随机抽」模式下没有写死的规则", OutfitData.forced_groups_at(1).is_empty())
+	_check("第 1 轮的强制方式合法",
+		[OutfitData.FORCED_MODE_NONE, OutfitData.FORCED_MODE_RANDOM,
+			OutfitData.FORCED_MODE_FIXED].has(str(r0.get("mode", ""))))
+	_check("非 fixed 模式下没有写死的规则",
+		str(r0.get("mode", "")) == OutfitData.FORCED_MODE_FIXED
+		or (r0.get("rules", []) as Array).is_empty())
 	_check("越界的轮次会被夹回最后一条规则",
 		OutfitData.forced_rules_at(99) == OutfitData.forced_rules_at(3))
 
@@ -2563,10 +2569,23 @@ func _test_editable_sections() -> void:
 		rep2.has("ok"))
 
 	# ---- ③ QTE 计划 ----
-	_check("没写计划的题按「自动」处理",
-		str(OutfitData.qte_plan_entry(0).get("qte", "")) == OutfitData.QTE_AUTO)
-	_check("越界的题号也返回「自动」",
-		str(OutfitData.qte_plan_entry(999).get("qte", "")) == OutfitData.QTE_AUTO)
+	# ★ 第八十轮：默认从「自动」改成「无」—— 用户口径「未设置 qte 的题目不该冒 qte」。
+	_check("没写计划的题按「无」处理",
+		str(OutfitData.qte_plan_entry(0).get("qte", "")) == OutfitData.QTE_NONE)
+	_check("越界的题号也返回「无」",
+		str(OutfitData.qte_plan_entry(999).get("qte", "")) == OutfitData.QTE_NONE)
+	# 题目自带的 qte 优先，而且两种写法（kind / qte）都认
+	_check("题目写 qte.kind = expression → 按 expression 排",
+		str(OutfitData.question_qte_plan({"qte": {"kind": "expression", "delay": 2.0}}, 0).get("qte", ""))
+		== OutfitData.QTE_EXPRESSION)
+	_check("旧写法 qte.qte = none 也认（编辑器第七十九轮写的）",
+		str(OutfitData.question_qte_plan({"qte": {"qte": "none"}}, 0).get("qte", ""))
+		== OutfitData.QTE_NONE)
+	_check("题目完全没写 qte → 无",
+		str(OutfitData.question_qte_plan({"id": "x"}, 0).get("qte", "")) == OutfitData.QTE_NONE)
+	_check("写了不认识的类型 → 退成「无」（不会静默变成自动）",
+		str(OutfitData.question_qte_plan({"qte": {"kind": "NOPE"}}, 0).get("qte", ""))
+		== OutfitData.QTE_NONE)
 	_check("五种 QTE 类型都在表里", OutfitData.QTE_KINDS.size() == 5)
 	_check("每种类型都有一句人话说明",
 		OutfitData.QTE_KINDS.all(func(k): return OutfitData.QTE_KIND_LABELS.has(str(k))))

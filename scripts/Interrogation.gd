@@ -190,6 +190,7 @@ var _intf_scheduled: bool = false        # 本题是否排了一次「准点递�
 var _intf_kind_forced: String = ""       # "" = 按老规则；"single" / "combo" = 指定
 var _intf_delay_left: float = 0.0
 var _intf_planned_used: bool = false     # 指定的那一次已经来过了 → 本题不再随机补
+var _intf_suppressed: bool = false       # ★ 第八十轮：这一题的 plan 是「无」→ 连随机递话都不排
 
 var interference_active: bool = false
 var interference_time_left: float = 0.0
@@ -1146,6 +1147,10 @@ func _process_interference_timer(delta: float) -> void:
 	# 两个同时来只会互相打架。等 QTE 收掉再算这笔账。
 	if is_qte_active:
 		return
+	# ★ 第八十轮：这一题的 QTE 计划写着「无」→ 递话也不许冒出来
+	#   （用户口径是「未设置 qte 的题目不该出现 qte」，递话条同样是最底下那条）。
+	if _intf_suppressed:
+		return
 	# ★ 被编辑器指定的递话：准点来一次就完事，不走那个「每若干秒随机来」的循环
 	#   （否则排期和编辑器里写的时间对不上）。
 	if _intf_scheduled:
@@ -1606,35 +1611,29 @@ func _append_feedback(txt: String, gap: String = "\n\n") -> void:
 #  用户在编辑器里给每一道题指定「QTE 类型 + 出现时间」（data/story.json 的
 #  "qte_plan"，门面见 OutfitData.qte_plan_entry）。五种取值：
 #
-#    "auto"（出厂默认）—— 完全按老规则：
-#        · 表情 QTE 看 needs_expression_for（A 类题 / 盲区题 / 暴露值高）
+#    "none"（★ 第八十轮起的默认）—— 这道题什么都不出，连随机递话也不来
+#    "auto"        —— 完全按老规则（必须显式写才会这样）：
+#        · 表情 QTE 看 needs_expression_for（第 1 题不出，其余只看暴露值）
 #        · 递话干扰交给计时器，每若干秒随机来一次
-#    "none"        —— 这道题什么都不出
 #    "expression"  —— 强制出表情控制，delay 秒后弹
 #    "interference"—— delay 秒后他递半句话（按一下空格打断）
 #    "combo"       —— delay 秒后他递一整句（依次敲 J → K → L）
 #
 #  ★ 被指定的递话不再走计时器 —— 否则「准点来一次」之后还会随机再来，
 #    和编辑器里写的时间对不上。所以换成 _intf_scheduled 这套排期。
+#  ★★ 第八十轮：没写 qte 的题 = none。以前"没写"落到 auto，于是每道题都可能
+#    被暴露值判定随机塞一条 QTE 条 —— 用户口径「未设置 qte 的题目为什么还会出现 qte」。
 # ------------------------------------------------------------
 func _apply_qte_plan(index: int, kind: String, opts: Array) -> void:
-	var plan := OutfitData.qte_plan_entry(index)
 	# ★ 第二十九轮：**题目自带的 qte 优先**于「按题号」的全局计划表 ——
-	#   每道题现在自己说了算（编辑器里逐题填类型与延迟）。
-	#   支持两种写法：`"qte": "none"` 或 `"qte": {"kind": "...", "delay": 3.0}`。
-	#   对象写法现在多认一个 `prompt` —— 这一道题专用的「QTE 上方提示文字」。
-	var own: Variant = _current_question().get("qte", null)
-	qte_prompt_used = ""
-	if typeof(own) == TYPE_DICTIONARY:
-		var od := own as Dictionary
-		plan = {"qte": str(od.get("kind", OutfitData.QTE_AUTO)),
-			"delay": float(od.get("delay", -1.0))}
-		# ★ 第三十三轮（用户口径）：「QTE 上方显示的提示文字可以编辑」。
-		#   题目自己写了就用它，留空则回落到全局那句（interrogation.qte_prompt）。
-		qte_prompt_used = str(od.get("prompt", ""))
-	elif typeof(own) == TYPE_STRING and str(own) != "":
-		plan = {"qte": str(own), "delay": -1.0}
-	var pk := str(plan.get("qte", OutfitData.QTE_AUTO))
+	#   每道题自己说了算（编辑器里逐题填类型与延迟）。
+	#   ★ 第八十轮：解析统一挪进 OutfitData.question_qte_plan() ——
+	#     老数据把类型写在 `qte.qte`（现行是 `qte.kind`），这里两个键都认。
+	var plan := OutfitData.question_qte_plan(_current_question(), index)
+	# ★ 第三十三轮（用户口径）：「QTE 上方显示的提示文字可以编辑」。
+	#   题目自己写了就用它，留空则回落到全局那句（interrogation.qte_prompt）。
+	qte_prompt_used = str(plan.get("prompt", ""))
+	var pk := str(plan.get("qte", OutfitData.QTE_NONE))
 	var pd := float(plan.get("delay", -1.0))
 	qte_plan_kind = pk
 	qte_plan_delay = pd
@@ -1642,6 +1641,7 @@ func _apply_qte_plan(index: int, kind: String, opts: Array) -> void:
 	_intf_kind_forced = ""
 	_intf_delay_left = 0.0
 	_intf_planned_used = false
+	_intf_suppressed = false
 	interference_timer = interference_interval()
 
 	match pk:
@@ -1649,6 +1649,9 @@ func _apply_qte_plan(index: int, kind: String, opts: Array) -> void:
 			qte_needed = false
 			qte_done = true
 			qte_delay_left = 0.0
+			# ★ 第八十轮：递话也一起关掉 ——「这道题什么都不出」就该什么都不出，
+			#   否则计时器照样会在几秒后弹一条「他凑到耳边」的条子。
+			_intf_suppressed = true
 		OutfitData.QTE_EXPRESSION:
 			qte_needed = true
 			qte_done = false
@@ -2114,6 +2117,7 @@ func _cancel_qte() -> void:
 	_intf_delay_left = 0.0
 	_intf_kind_forced = ""
 	_intf_planned_used = false
+	_intf_suppressed = false
 	if qte_container != null:
 		qte_container.hide()
 	_set_body_preview_visible(false)

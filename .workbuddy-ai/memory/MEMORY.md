@@ -9,11 +9,11 @@
 1. `CHANGELOG.md` 追加一节 → **git 提交一次**，提交信息 = 那节第一行。「测试」行必须是真跑过的数字；
    同轮第二块工作写「第 N 轮（续）」。
 2. `README.md` 写「为什么这么改 / 机制 / 数值表 / 踩坑」；被作废的旧句**加 ★ 说明**。
-3. `memory/` 写明细 —— 分文件，进版本库（`.workbuddy-ai/tmp/` **不进**）；`MEMORY.md` **控在 17KB 内**。
+3. `memory/` 写明细 —— 分文件，进版本库（`.workbuddy-ai/tmp/` **不进**）。
 
-★ **memory 权威目录 = `D:\workbuddy\2026-10-11-09-19-59\.workbuddy-ai\memory\`（进版本库）**；
-系统注入读的是 `C:\Users\...\WorkBuddy AI\2026-10-11-09-19-59\.workbuddy-ai\memory\MEMORY.md`
-—— **改完必须同步这一份到 C:**（明细仍只在 D:）。C: 那份**超过约 17KB 会被截断**。
+★★ **memory 只维护 D: 这一份**：`D:\workbuddy\2026-10-11-09-19-59\.workbuddy-ai\memory\`
+—— 用户 2026-10-19 明确要求：**不再压缩 `MEMORY.md`**、**不再同步到 C 盘**。
+（以前那套「控在 17KB 内 + 改完 cp 到 C:」已作废；写长了就写长了，别再为字节数删内容。）
 
 ### 四套验证（只在动了 `scripts/` `data/` `tests/` `tools/*editor.html` 时跑）
 

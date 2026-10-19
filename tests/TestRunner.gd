@@ -715,6 +715,8 @@ func _test_option_echo() -> void:
 	interro._load_question(0)
 	_check("第 1 题题面里没有上一题的回应",
 		not interro.dialogue_label.text.begins_with("你："))
+	_check("新题上来时题面是显示着的（上一题答完会收起）",
+		interro.dialogue_label.visible == true)
 
 	# 挑一个「照实答」的选项 —— 它不会当场收场，最能看清下一题的样子。
 	var pick := -1
@@ -758,6 +760,9 @@ func _test_option_echo() -> void:
 		!= interro.dialogue_label.get_theme_color("font_color"))
 	_check("反馈区不再重复显示回应（它只放判定解释）",
 		not interro.feedback_label.text.contains(echo))
+	# ★★ 第八十二轮（用户口径）：「点击选项后题面要消失」—— 上面只留回应与判定解释。
+	_check("★ 点完选项 → 题面立刻收起（不用等下一题）",
+		interro.dialogue_label.visible == false)
 
 	interro._ended = false
 	interro._running = true

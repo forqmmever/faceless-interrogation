@@ -2866,6 +2866,88 @@ echo 索引 0 / 题面索引 1（回应在题面之前）
 覆盖层全空 → 标题可见=false 正文可见=false 按钮=[➔]
 ```
 
+## 第八十二轮：点完选项收起题面 · 长题面自动换行
+
+用户三句话：
+
+1. 「点击选项后题面要消失」
+2. 「第三个背景有题面显示不全的现象」
+3. 「回应显示也出现了问题」
+另外补一句口径：「过长就自动换行，保持原来字体样式」。
+
+### ① 题面显示不全 —— 不是裁字，是整块溢出屏幕
+
+先量了一遍才动手（探针打印布局链高度）：
+
+```
+VBoxContainer=490 → MarginContainer=518 → PanelContainer=518
+→ HBoxContainer=518 → VBoxContainer=688 → MarginContainer=720
+```
+
+可用只有 **490**，而 `PanelContainer` 被撑到 **518 / 536 / 629**（内容越长越大）。
+`PanelContainer` 是 `main` 的子项、`main` 在 `root` 这个 VBox 里 —— 它一长高，
+就把后面的东西推出 720 的可视区。第三个背景（`scene_1`）的题面最长（110 字 / 7 行），
+正好越过那条线，所以只有它「显示不全」。
+
+> 为什么 `custom_minimum_size` 和 `autowrap` 都救不了：`autowrap` 只负责**换行**，
+> 换行之后 Label 的**高度**照样按行数长，而 `PanelContainer` 会把这个高度当自己的最小高度，
+> 于是「行数 → 高度 → 撑高父容器 → 溢出」这条链一直在。
+
+改法（字号与样式一个字没动）：
+
+```gdscript
+var top_clip := Control.new()          # ★ 必须是普通 Control，不是 Container
+top_clip.clip_contents = true          #   Control 的 get_minimum_size() 只认
+top_clip.size_flags_vertical = EXPAND_FILL   # custom_minimum_size，不会把子项文本高度传上去
+
+var scroll := ScrollContainer.new()    # 横向关掉 → 子项宽 = 容器宽 → 自动换行
+scroll.horizontal_scroll_mode = SCROLL_MODE_DISABLED
+scroll.vertical_scroll_mode = SCROLL_MODE_AUTO   # 纵向超出才出滚动条
+```
+
+- 回应 / 题面 / 反馈三块搬进这个滚动区；
+- 选项区从 `EXPAND_FILL` 改成 **`SHRINK_END`**（原来两个都 EXPAND，各分一半高度，
+  文字区只剩两百来像素）；
+- 换题时 `top_scroll.scroll_vertical = 0` —— 上一题长到出了滚动条，不重置会停在中段。
+
+实测（1280×720）：文字区宽 1204、可用高 323～378；
+把题面复制到 10 倍（600 字）→ 11 行 / 5 行，字号仍是 **15**，内容超出才出现滚动条。
+
+### ② 点完选项题面消失
+
+```gdscript
+# _select_option()：这句话已经问完了
+_show_choice_echo()        # 贴回应（并清空上一题的判定解释）
+_set_dialogue_visible(false)
+```
+
+之后 1.8 秒屏幕上只有「你说的那句（回应）」+ 判定解释，下一题上来时
+`_load_question()` 里 `_set_dialogue()` 自动恢复显示。
+
+收场类台词（认出 / 暴露 / 被捕 / 潜伏成功 / 怀疑度满）全部改走 `_set_dialogue()` ——
+它会顺手把题面重新显示出来，所以不会出现「题面收起了，结局那句话跟着看不见」。
+
+### ③ 「回应显示出现了问题」—— 真凶是判定解释只活 1.8 秒
+
+`_load_question()` 原来调 `_show_choice_echo()`，而这个函数会顺手把 `feedback_label` 清空。
+第 81 轮把回应搬出去之后，反馈区里只剩判定解释 —— 于是「怀疑度 +12」「前后矛盾说明」
+这类提示在**下一题加载时（1.8 秒后）被抹掉**，玩家根本来不及读。
+
+现在换题**不碰**反馈区：回应在 `echo_label`（自己会留着），判定解释留在 `feedback_label`，
+两者一起留到下一次选择（那一次才清）。
+
+### 验证（一次性探针，跑完即删）
+
+```
+答题前：题面可见=true 60字 | 回应可见=false
+答完后：题面可见=false | 回应可见=true [空太郎不理解为什么会有这样的女孩…]
+1.8 秒后：题面可见=true 34字 | 回应仍可见=true | 滚动位=0
+长题面 10 倍：5 行 / 字号 15 / 内容 414 > 滚动区 378 → 可滚动
+```
+
+`TestRunner` 的「选项回应」一节 15 条断言全 PASS，新增两条：
+「点完选项 → 题面立刻收起」「新题上来时题面是显示着的」。
+
 ## 美术资产（小人 · AU 图包）
 
 用户口径：「小人形象和服装也要改成一样」。

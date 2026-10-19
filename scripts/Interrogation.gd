@@ -228,6 +228,7 @@ var _phone_open: bool = false
 
 # --- UI 引用（全部代码构建）---
 var echo_label: Label                   # ★ 第八十一轮：上一题那句回应（在题面**上方**）
+var top_scroll: ScrollContainer         # ★ 第八十二轮：回应 / 题面 / 判定解释的滚动区
 var dialogue_label: Label
 var feedback_label: Label
 var suspicion_bar: ProgressBar
@@ -844,9 +845,42 @@ func _build_left(parent: HBoxContainer) -> void:
 	vb.add_theme_constant_override("separation", 10)
 	m.add_child(vb)
 
+	# ★★ 第八十二轮（用户口径）：「第三个背景有题面显示不全的现象」。
+	#   原因不是文字被裁，而是**整块把左栏撑高、溢出屏幕**：
+	#   回应 + 题面 + 反馈都是按内容长高的 Label，内容一多，
+	#   PanelContainer 的**最小高度**跟着涨（实测 518 → 536 → 629，而可用只有 490），
+	#   VBox 就一路往下溢出，底部（选项 / 题面末尾）被切在可视区外。
+	#
+	#   修法：这三块放进**有界的滚动区**。
+	#   `top_clip` 必须是普通 `Control`（不是 Container）—— Control 的
+	#   `get_minimum_size()` 只认 `custom_minimum_size`，不会把子项的文本高度
+	#   传上去，这是「不让内容撑高父容器」的关键一步；ScrollContainer 再用
+	#   anchor 充满它，超出的部分改成可滚动。
+	var top_clip := Control.new()
+	top_clip.name = "TopClip"
+	top_clip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top_clip.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	top_clip.clip_contents = true
+	top_clip.mouse_filter = Control.MOUSE_FILTER_PASS
+	vb.add_child(top_clip)
+
+	var scroll := ScrollContainer.new()
+	scroll.name = "TopScroll"
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	top_clip.add_child(scroll)
+	# 成员也留一份 —— 换题时要把滚动位置拨回顶部。
+	top_scroll = scroll
+
+	var top_box := VBoxContainer.new()
+	top_box.add_theme_constant_override("separation", 10)
+	top_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(top_box)
+
 	# ★ 第八十一轮（用户口径）：「接在下一题题面前的回应……大小字体与题面一致、
 	#   颜色用淡蓝色；下一题的题面应该出现在回应后面」。
-	#   → 回应从「反馈区」搬到题面**上方**，字号与题面一致（15），淡蓝色。
+	#   → 回应在题面**上方**，字号与题面一致（15），淡蓝色。
 	#   没写回应（或本局第一题）时整块收起来，不留空行。
 	echo_label = Label.new()
 	echo_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -854,14 +888,14 @@ func _build_left(parent: HBoxContainer) -> void:
 	echo_label.add_theme_color_override("font_color", ECHO_COLOR)
 	echo_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	echo_label.visible = false
-	vb.add_child(echo_label)
+	top_box.add_child(echo_label)
 
 	dialogue_label = Label.new()
 	dialogue_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	dialogue_label.add_theme_font_size_override("font_size", 15)
 	dialogue_label.custom_minimum_size = Vector2(0, 96)
 	dialogue_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	vb.add_child(dialogue_label)
+	top_box.add_child(dialogue_label)
 
 	feedback_label = Label.new()
 	feedback_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -869,14 +903,17 @@ func _build_left(parent: HBoxContainer) -> void:
 	feedback_label.add_theme_color_override("font_color", Color(0.66, 0.70, 0.76))
 	feedback_label.custom_minimum_size = Vector2(0, 64)
 	feedback_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	vb.add_child(feedback_label)
+	top_box.add_child(feedback_label)
 
 	# ---- 底部：左边「掏出手机」，右边选项（2 ~ 4 个）----
 	#  掏手机按钮放在左下角、选项左边 —— 一手能同时够到，
 	#  「掏出来瞄一眼 → 顺手选个答案 → 手机自动收回」这条动线才顺。
 	var bottom := HBoxContainer.new()
 	bottom.add_theme_constant_override("separation", 12)
-	bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# ★ 第八十二轮：这里从 EXPAND_FILL 改成 SHRINK_END —— 上面那块滚动区
+	#   EXPAND 吃满剩余高度之后，选项区自然落在最下方；两个都 EXPAND 会各分一半，
+	#   题面区就只剩两百来像素了。
+	bottom.size_flags_vertical = Control.SIZE_SHRINK_END
 	vb.add_child(bottom)
 
 	phone_btn = Button.new()
@@ -1054,8 +1091,8 @@ func _recognized_on_sight() -> void:
 	for r in GameData.outfit_fail_reasons:
 		reasons.append("· " + str(r))
 
-	dialogue_label.text = _etf("recognized_line",
-		[RunData.interrogator(), true_name, "\n".join(reasons)])
+	_set_dialogue(_etf("recognized_line",
+		[RunData.interrogator(), true_name, "\n".join(reasons)]))
 
 	feedback_label.add_theme_color_override("font_color", Color(0.94, 0.48, 0.42))
 	feedback_label.text = _et("recognized_note")
@@ -1102,7 +1139,7 @@ func _instant_exposure(why: String) -> void:
 	if why == "前后矛盾":
 		_add_reason(reasons, _et("exposure_reason_contradiction"))
 
-	dialogue_label.text = _etf("exposure_line", [RunData.interrogator(), "\n\n".join(reasons)])
+	_set_dialogue(_etf("exposure_line", [RunData.interrogator(), "\n\n".join(reasons)]))
 
 	for b in option_btns:
 		b.disabled = true
@@ -1560,13 +1597,19 @@ func _load_question(index: int) -> void:
 	_auto_retract_phone()
 	_cancel_qte()
 
-	# ★★ 第七十八轮：反馈区不再「换题就清空」—— 它常驻显示**上一题选项的回应**
-	#   （作者写的那段），直到下一次选择把它换掉。原来回应是拼在题面前面的，
-	#   换题就等于把它带进来了；现在位置换到题面下方，得自己留着。
-	_show_choice_echo()
+	# ★★ 第八十一轮起回应有自己的控件（`echo_label`，在题面之上），换题时**不用重贴** ——
+	#   它本来就不会被换题清掉。
+	# ★★ 第八十二轮修正：这里原来调 `_show_choice_echo()`，而它会顺手清空反馈区 ——
+	#   于是「怀疑度 +N / 前后矛盾说明」这类判定解释只显示 1.8 秒就被下一题抹掉了
+	#   （用户反馈「回应显示也出现了问题」就包括这个）。现在换题**不碰**反馈区，
+	#   判定解释跟回应一起留到下一次选择。
 	# ★ 第七十一轮：换题时把还没写出去的「怀疑度 +N」丢掉 ——
 	#   它是上一题的事，不能贴到新题的反馈区上。
 	_pending_delta = 0.0
+
+	# 新题从顶部开始读 —— 上一题要是长到出了滚动条，不重置就会接着停在中段。
+	if top_scroll != null:
+		top_scroll.scroll_vertical = 0
 
 	# ★ 第二十九轮：新格式的题目没有 `kind`，改看 `speaker` 字段（见 _q_is_companion）。
 	var is_comp := _q_is_companion(q)
@@ -1576,7 +1619,9 @@ func _load_question(index: int) -> void:
 	var manual := RunData.questions_are_manual()
 	var speaker := _ut("interrogation.speaker_companion", "同行者") if is_comp \
 		else _ut("interrogation.speaker_interrogator", "审讯官")
-	dialogue_label.text = _dialogue_text(manual, speaker, _q_text(q))
+	_set_dialogue(_dialogue_text(manual, speaker, _q_text(q)))
+	# ★ 第八十二轮：新题上来时把题面放回去（上一题的题面在选完那一刻就收起来了）。
+	_set_dialogue_visible(true)
 
 	if is_comp:
 		GameData.companion_asked += 1
@@ -1592,10 +1637,25 @@ func _load_question(index: int) -> void:
 	_apply_qte_plan(index, str(q.get("kind", "")), current_options)
 
 # 拼题面：auto 背景保留「说话人：」名牌；manual 背景按原文。
-# ★ 第七十八轮：题面里**不再接上一题的回应** —— 它挪到下方反馈区了。
+# ★ 第七十八轮：题面里**不再接上一题的回应** —— 它有自己的位置（第八十一轮起在题面上方）。
 func _dialogue_text(manual: bool, speaker: String, qtext: String) -> String:
 	var speaker_head := "" if manual else speaker + "："
 	return speaker_head + qtext
+
+# ★★ 第八十二轮（用户口径）：「点击选项后题面要消失」。
+#   选完一个选项 = 这句话已经问完了 —— 那道题不该继续占着屏幕，
+#   上面只留「你刚才说了什么（回应）」和判定解释，1.8 秒后下一题自己带新题面上来。
+func _set_dialogue_visible(on: bool) -> void:
+	if dialogue_label != null:
+		dialogue_label.visible = on
+
+# 写题面（并保证它是显示着的）—— 结局台词 / 新题都走它，
+# 免得「选完收起题面」之后结局那句话跟着一起看不见。
+func _set_dialogue(txt: String) -> void:
+	if dialogue_label == null:
+		return
+	dialogue_label.text = txt
+	dialogue_label.visible = not txt.strip_edges().is_empty()
 
 # ------------------------------------------------------------
 #  选项的「回应」—— 选完那句话之后，反馈区里显示的那段
@@ -1811,6 +1871,12 @@ func _select_option(opt_index: int) -> void:
 	last_choice_text = _choice_echo(opt)
 	last_choice_is_custom = bool(opt.get("echo_custom", false))
 	_show_choice_echo()
+	# ★★ 第八十二轮（用户口径）：「点击选项后题面要消失」。
+	#   这句话已经问完了 —— 题面立刻收起来，上面只留「你说的那句（回应）」与判定解释；
+	#   1.8 秒后下一题自己带新题面上来（见 _next_question_delay / _load_question）。
+	#   ★ 收场类（说漏嘴 / 认出来 / 被捕）的台词走 _set_dialogue，会把题面重新显示出来，
+	#     所以不会出现「结局台词看不见」。
+	_set_dialogue_visible(false)
 	var kind := str(opt["kind"])
 
 	# ★ 第二十九轮：`ending` 是**选项自己指定**的收场方式 ——
@@ -2383,10 +2449,10 @@ func _finish_interrogation() -> void:
 	# 这一轮结束时的怀疑度留给下一轮 —— 轮次之间按比例衰减（见 GameData.reset_level_state）
 	GameData.suspicion_carry = GameData.suspicion_level
 	if passed:
-		dialogue_label.text = _etf("success_line", [who, RunData.cover_role()])
+		_set_dialogue(_etf("success_line", [who, RunData.cover_role()]))
 	else:
 		_end_reason = "suspicion"
-		dialogue_label.text = _etf("arrested_line", [who])
+		_set_dialogue(_etf("arrested_line", [who]))
 
 	feedback_label.add_theme_color_override("font_color", Color(0.66, 0.70, 0.76))
 	feedback_label.text = _ut("feedback.summary",
@@ -2446,7 +2512,7 @@ func _game_over() -> void:
 	_auto_retract_phone()
 	phone_btn.disabled = true
 	shake(_rf("shake_hit", SHAKE_HIT), 0.8)
-	dialogue_label.text = _et("caught_line")
+	_set_dialogue(_et("caught_line"))
 	for b in option_btns:
 		b.disabled = true
 		b.text = "——"

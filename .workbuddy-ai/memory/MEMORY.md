@@ -92,13 +92,25 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 **完全不读你写的选项**）；② `is_blind` 加 `and not questions_are_manual()`；③ 未知 / 空 `tone` 取 `correct_delta`。
 ★★ **代价只认选项上的 `suspicion`**（第 77 轮）——「说漏嘴」也不例外。**每个选项都必须写它**（有守卫）。
 
-### ★★ 盘问界面四块（第 78 轮改位置、第 81 轮定稿）
+### ★★ 盘问左栏四块（第 78 / 81 轮定稿 · 第 82 轮改布局）
 
-`echo` → **题面之上**（`echo_label`，淡蓝 #9ECCFA、字号 15）→ 题面 → 反馈区（只放判定解释）→ 手机 + 选项。
+`echo_label`（回应，淡蓝 #9ECCFA、字号 15）→ `dialogue_label`（题面，15 / 白）→
+`feedback_label`（反馈区，12 / 灰，只放判定解释）→ 掏出手机 + 选项。
+没写回应 / 第一题 → `echo_label.visible = false`。
+
 - 回应**不能换题就清空**：`_load_question` 每次重新贴 `last_choice_text`；开新轮清空。
 - 取法 `_choice_echo()`：写了 `echo` 原样；没写 → manual 留空、auto 加「你：」。
 - 判定解释（口径不符 / 矛盾 / 带偏 / 盲区）用 `_append_feedback()` 写进反馈区。
-- 模板反馈句已删（`ui.feedback` 24 → 11 条）。**盲区题的「选对 / 选错 + 备忘录」必须留**。
+  模板反馈句已删（`ui.feedback` 24 → 11 条）。**盲区题的「选对 / 选错 + 备忘录」必须留**。
+
+★★ **这三块必须放在「有界滚动区」里**（第 82 轮）：`Control(clip_contents)` +
+`ScrollContainer(横向 DISABLED / 纵向 AUTO)`。Label 换行后高度按行数长，
+`PanelContainer` 会把它当最小高度 → 撑高父容器 → 整块溢出 720 的屏。
+★ 普通 `Control.get_minimum_size()` 只认 `custom_minimum_size`，这是「不传给父容器」的关键。
+★ 选项区用 `SHRINK_END`，别和文字区都 `EXPAND_FILL`。
+★ `_set_dialogue(txt)` 写题面并显示；`_set_dialogue_visible(false)` 收起 ——
+**点完选项就收起题面**，收场台词必须走 `_set_dialogue` 才会重新显示。
+★★ **换题不要调 `_show_choice_echo()`** —— 它顺手清空反馈区，判定解释会只剩 1.8 秒。
 
 ### ★★ QTE 与强制穿着的默认语义（第 80 轮起 · 第 83 轮修正）
 
@@ -112,11 +124,16 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 
 ### ★★ 缺陷（defects）只有背景一层（第 83 轮续 2 定稿）
 
-- **全局 defects 层已彻底删掉**（编辑器那页、`story.json` 顶层段、`defects_override()` 全移除）。
+- **全局 defects 层已彻底删掉**（编辑器那页、`story.json` 顶层段、`defects_override()`）。
   ★ 判据：**没有编辑入口的数据不许留**（会变成「改不了却偷偷生效」的隐形脏数据）。
-- 只有两级：本套写过 `defects`（哪怕 `[]`）→ **用它，空就是没有**；
-  没写 / 没有当前背景 → 代码里的 `DEFAULT_DEFECTS`。门面 `bg_has_defects(id)`。
-- ★ `levels` / `forced_rules` / `qte_plan` 的全局段**还在**（回落用），只有 `defects` 拆掉了。
+- 只有两级：本套写过 `defects`（哪怕 `[]`）→ 用它，空就是没有；没写 → `DEFAULT_DEFECTS`。
+  门面 `bg_has_defects(id)`。★ `levels` / `forced_rules` / `qte_plan` 的全局段**还在**。
+
+### ★ 选关面板与通关按钮（第 86 轮）
+
+- `_levels_for_panel()` 只返回轮次名（`Array[String]`）。**别再把 `derived_profile` 拼上去** ——
+  背景没写时兜上来的是全局表默认值（「一个不起眼的路人」），玩家看着就是脏数据。
+- 一局通关后 `_pending_action = "home"`（回标题）；`"new_run"` 只留给测试 / 截图脚本显式设。
 
 ### ★★ 反差公式（第 85 轮定稿）
 
@@ -147,21 +164,6 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
   否则 `endings_of()` 会判成内置常量、又退回模板。
 - 界面：标题 / 正文 / 提示空 → `visible = false` 整块收起；**按钮空 → 只显示箭头（➔ / ↺）**。
 - 调用点一律 `_et(key)` / `_etf(key, args)`，**不要再写兜底长句**。
-
-### ★★ 盘问左栏四块（第 81 轮定稿 · 第 82 轮改布局）
-
-`echo_label`（回应，淡蓝 #9ECCFA、字号 15）→ `dialogue_label`（题面，15 / 白）→
-`feedback_label`（反馈区，12 / 灰，只放判定解释）→ 掏出手机 + 选项。
-没写回应 / 第一题 → `echo_label.visible = false`。
-
-★★ **这三块必须放在「有界滚动区」里**（第 82 轮）：`Control(clip_contents)` +
-`ScrollContainer(横向 DISABLED / 纵向 AUTO)`。Label 换行后高度按行数长，
-`PanelContainer` 会把它当最小高度 → 撑高父容器 → 整块溢出 720 的屏。
-★ 普通 `Control.get_minimum_size()` 只认 `custom_minimum_size`，这是「不传给父容器」的关键。
-★ 选项区用 `SHRINK_END`，别和文字区都 `EXPAND_FILL`。
-★ `_set_dialogue(txt)` 写题面并显示；`_set_dialogue_visible(false)` 收起 ——
-**点完选项就收起题面**，收场台词必须走 `_set_dialogue` 才会重新显示。
-★★ **换题不要调 `_show_choice_echo()`** —— 它顺手清空反馈区，判定解释会只剩 1.8 秒。
 
 ## 三、测试怎么写（细则见 `REFERENCE.md` 五章）
 

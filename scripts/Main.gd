@@ -330,7 +330,14 @@ func _on_bg_choice(bid: String) -> void:
 #   所以这里照 `_ensure_levels()` + `RunData.levels()` 的叠加口径**重算一份**：
 #     基线 = 全局轮次表（`story.levels`，为空才用出厂 DEFAULT_LEVELS）
 #     轮数 = 这套背景自己的 levels 条数（没写才跟全局一样多）
-#     名字 / 推导形象 = 这套背景写了的优先，否则用基线那份。
+#     名字 = 这套背景写了的优先，否则用基线那份。
+#
+# ★★ 第八十六轮（用户口径）：「选关界面在正常关卡名后多出现了一个不起眼的路人 /
+#   有点来头的商贩」。以前这里连 `derived_profile` 一起拼进按钮文字，而绝大多数背景
+#   **根本没写这一项** —— 拼上去的是全局表的兜底值（`OutfitData.DEFAULT_LEVELS[0]`），
+#   于是每个关卡名后面都多出一句和这套背景毫无关系的话。
+#   ★ 结论：选关面板的按钮**只显示轮次名**。`derived_profile` 是玩法内的东西
+#     （`RunData.levels()` 照旧叠它），不属于「挑哪一轮」这件事。
 func _levels_for_panel(bg_id: String) -> Array:
 	var base: Array = OutfitData.global_levels()
 	var own: Array = ScenarioData.bg_levels(bg_id)
@@ -340,19 +347,15 @@ func _levels_for_panel(bg_id: String) -> Array:
 	var out := []
 	for i in n:
 		var name := ""
-		var prof := ""
 		if i < base.size() and typeof(base[i]) == TYPE_DICTIONARY:
 			name = str((base[i] as Dictionary).get("name", ""))
-			prof = str((base[i] as Dictionary).get("derived_profile", ""))
 		if name == "":
 			name = "第 %d 轮" % (i + 1)
 		if i < own.size() and typeof(own[i]) == TYPE_DICTIONARY:
-			var o: Dictionary = own[i]
-			if str(o.get("name", "")) != "":
-				name = str(o.get("name", ""))
-			if str(o.get("derived_profile", "")) != "":
-				prof = str(o.get("derived_profile", ""))
-		out.append({"name": name, "derived_profile": prof})
+			var own_name := str((own[i] as Dictionary).get("name", ""))
+			if own_name != "":
+				name = own_name
+		out.append(name)
 	return out
 
 # 按当前选中的背景重建轮次那几行
@@ -366,16 +369,14 @@ func _rebuild_level_rows() -> void:
 
 	var lvs := _levels_for_panel(_pending_bg_id)
 	for li in lvs.size():
-		var lv: Dictionary = lvs[li]
 		var unlocked: bool = OutfitData.level_unlocked(li)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
 		level_rows_box.add_child(row)
 
 		var btn := Button.new()
-		var lv_name := str(lv.get("name", "第 %d 轮" % (li + 1)))
-		var prof := str(lv.get("derived_profile", ""))
-		btn.text = lv_name if prof == "" else "%s   ·   %s" % [lv_name, prof]
+		var lv_name := str(lvs[li])
+		btn.text = lv_name
 		btn.custom_minimum_size = Vector2(0, 48)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.focus_mode = Control.FOCUS_NONE
@@ -574,7 +575,11 @@ func _on_interrogation_finished(success: bool) -> void:
 		RunData.advance_level()
 		ProfileData.note_run_finished(RunData.cleared_levels, true)
 		RunSave.clear()
-		_pending_action = "new_run"
+		# ★★ 第八十六轮（用户口径）：「一局通关后点击按钮返回主界面」。
+		#   以前这颗按钮是「再来一局」—— 直接开下一局，想换背景 / 换轮次得自己退出。
+		#   现在按下它就回标题界面：RunSave 上一步已经清掉了，
+		#   「继续游戏」会自动变灰，玩家从「开始游戏」重新挑背景与轮次。
+		_pending_action = "home"
 		_show_overlay(_et("overlay_win_title"),
 			_win_body(), _et("overlay_win_btn"), Color(0.42, 0.90, 0.62), "➔")
 		return
@@ -592,9 +597,15 @@ func _on_overlay_pressed() -> void:
 		_start_level()
 	elif _pending_action == "retry_level":
 		_retry_level()
+	elif _pending_action == "home":
+		# ★ 第八十六轮：通关后的按钮回标题界面（不直接开新局）
+		_pending_action = ""
+		_show_title()
 	else:
 		# ★ 第七十三轮：「再来一局」沿用**这一局用的那套背景**（以前是换一套新的）。
 		#   玩家在选关面板里挑过背景之后，不该每打完一局就被换掉。
+		# ★ 第八十六轮：通关流程不再走这里（改回标题界面），这条留着给
+		#   测试 / 截图脚本显式把 `_pending_action` 设成 "new_run" 时用。
 		_start_new_run(-1, 0, _pending_bg_id)
 
 # ---------------- 覆盖层文案 ----------------

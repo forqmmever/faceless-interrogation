@@ -2288,7 +2288,7 @@ const DEFAULT_ENDINGS := {
 	"overlay_fail_btn": "重来本轮  ↺",
 	"overlay_fail_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]进度[/color]  已通过 [b]%d[/b] / %d 轮\n\n这一轮到此为止 —— 回到[color=#f0a83c]这一轮的准备室[/color]重来。\n背景不变、他记忆里的那张脸不变、你已经查到的情报也都还在。\n要改的是[color=#f0a83c]这一轮的打扮[/color]，不是身份。",
 	"overlay_win_title": "🏁 本局通关",
-	"overlay_win_btn": "再来一局（同一套背景 · 新原貌）  ↺",
+	"overlay_win_btn": "返回主界面  ➔",
 	"overlay_win_body": "[color=#8a919c]这一局[/color]  第 %d 局 ｜ %s\n[color=#8a919c]身份[/color]  %s → 以「%s」的身份走完全程\n[color=#8a919c]成绩[/color]  %d / %d 轮全部通过 ｜ 前后矛盾 [b]%d[/b] 次\n\n你把 A 藏进了 B 的皮里，一路没有露馅。\n同行者从头到尾没有揭穿你 —— 他只是把你留在了原地。",
 	"overlay_level_title": "✅ 第 %d 轮通过",
 	"overlay_level_btn": "进入第 %d 轮  ➔",

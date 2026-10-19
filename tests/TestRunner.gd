@@ -196,6 +196,16 @@ func _test_boot() -> void:
 	_check("两轮的名字都还在",
 		main.level_select_rows[1]["btn"].text.contains(
 			str(OutfitData.LEVELS[1].get("name", ""))))
+	# ★★ 第八十六轮（用户口径）：按钮上**只有轮次名** —— 以前这里还拼了一句
+	#   `derived_profile`（「第一轮   ·   一个不起眼的路人」），而大多数背景根本没写它，
+	#   拼上去的是全局表的兜底值，等于给每个关卡名后面挂了一句无关的话。
+	var panel_names: Array = main._levels_for_panel(main._pending_bg_id)
+	_check("★ 选关按钮的文字 = 轮次名（没有多余后缀）",
+		main.level_select_rows[0]["btn"].text == str(panel_names[0])
+		and main.level_select_rows[1]["btn"].text == str(panel_names[1]))
+	_check("★ 选关按钮上没有「   ·   」拼出来的推导形象",
+		not main.level_select_rows[0]["btn"].text.contains("   ·   ")
+		and not main.level_select_rows[1]["btn"].text.contains("   ·   "))
 	_check("选关时还没开局（准备室仍藏着）", wardrobe.visible == false)
 
 	# ★★ 第五十三轮：选关面板新增「本局背景」一组按钮，按
@@ -3911,28 +3921,24 @@ func _test_multi_level_flow() -> void:
 			_check("第 2 轮通过 → 整局已通关", RunData.is_run_complete() == true)
 			_check("已通过 2 轮", RunData.cleared_levels == 2)
 			_check("第 2 轮通过 → 通关覆盖层出现", main.overlay.visible == true)
-			_check("通关 → 按钮指向新的一局", main._pending_action == "new_run")
+			# ★★ 第八十六轮（用户口径）：「一局通关后点击按钮返回主界面」——
+			#   以前这颗按钮是「再来一局」，按下就开新的一局。
+			_check("通关 → 按钮指向「返回主界面」", main._pending_action == "home")
+			_check("通关 → 按钮写着「返回主界面」",
+				main.overlay_btn.text.contains("返回主界面"))
+			_check("账号里的累计仍在（只作战绩，不回流）", ProfileData.bonus() > 0)
 
-			var old_bg := RunData.background_id
-			var old_app := RunData.true_appearance().duplicate()
 			var old_run := RunData.run_index
 			main._on_overlay_pressed()
-			_check("重开后局号 +1", RunData.run_index == old_run + 1)
-			_check("重开后回到第 1 轮", RunData.level_number() == 1)
-			# ★ 第七十五轮：不再跨局累计 —— 重开一局，接受度回到第 1 轮的手写值
-			_check("重开后接受度回到第 1 轮手写值（不带上一局收益）",
-				RunData.acceptance == int(OutfitData.LEVELS[0]["acceptance"]))
-			_check("账号里的累计仍在（只作战绩，不回流）", ProfileData.bonus() > 0)
-			_check("重开后已通过关数归零", RunData.cleared_levels == 0)
-			_check("重开后情报台按新背景重填",
-				intel.clues_done_count() == OutfitData.auto_slots().size() and intel.unassigned_count() == 0)
-			var changed := 0
-			if RunData.background_id != old_bg:
-				changed += 1
-			if not _dict_eq(RunData.true_appearance(), old_app):
-				changed += 1
-			_check("重开后背景或原貌至少有一项变了", changed >= 1)
-			_check("重开后准备室可见", wardrobe.visible == true)
+			_check("点通关按钮 → 回到主界面", main.title_screen.visible == true)
+			_check("点通关按钮 → 结果覆盖层收起", main.overlay.visible == false)
+			_check("点通关按钮 → 准备室与盘问都收起来",
+				wardrobe.visible == false and interro.visible == false)
+			_check("点通关按钮 → 没有偷偷开新局（局号仍是 %d）" % old_run,
+				RunData.run_index == old_run)
+			# 通关时 RunSave 已清 → 标题界面不该再出现「继续游戏」
+			_check("点通关按钮 → 存档已清、继续游戏变灰",
+				RunSave.has_run == false and main.title_continue_btn.disabled == true)
 
 # ------------------------------------------------------------
 # 核心：说漏嘴 → 本局失败 → 从头开始

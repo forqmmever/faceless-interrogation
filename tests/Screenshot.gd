@@ -1084,7 +1084,9 @@ func _run() -> void:
 
 	_plog("--- 25: 结果覆盖层 · 失败 → 回到本轮开始（同一局 · 同一关）---")
 	_plog("     第二十一轮：失败只作废这一轮 —— 背景 / 原貌 / 情报 / 接受度全都不变")
-	main._on_overlay_pressed()
+	# ★ 第八十六轮：通关那颗按钮现在回主界面（不是开新局），
+	#   所以这一屏直接重开一局来拍失败画面。
+	main._start_new_run(SHOT_SEED)
 	await _wait(12)
 	_prepare_and_enter()
 	await _wait(12)

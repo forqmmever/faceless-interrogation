@@ -72,6 +72,8 @@ func _ready() -> void:
 	RenderingServer.frame_post_draw.connect(_on_frame_drawn)
 	main = load("res://scenes/Main.tscn").instantiate()
 	add_child(main)
+	# ★ 第八十七轮：启动声明会盖住前 3 秒 —— 截图不等它，直接收掉
+	main._skip_splash()
 	await get_tree().process_frame
 
 	wardrobe = main.get_node("Wardrobe")

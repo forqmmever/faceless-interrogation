@@ -2122,6 +2122,9 @@ const DEFAULT_UI := {
 		"help_tip": "用方框和编号把这一屏的每一处圈出来讲一遍。",
 		"help_close_btn": "知道了  ✕",
 		"intro_ok_btn": "知道了  ➔",
+		# ★ 第八十七轮（用户口径）：「进入游戏界面前显示这段文字 3 秒」。
+		#   启动声明 —— 盖在标题界面之上，3 秒后自动收起（见 Main._build_splash）。
+		"splash_text": "本作品无色情内容，无不良引导，完全免费。",
 		"option_letters": ["A. ", "B. ", "C. ", "D. "],
 	},
 	"title": {

@@ -102,6 +102,16 @@ var intro_reopen_btn: Button       # 准备室里的「本局背景」按钮
 var help_overlay: HelpOverlay      # 教练式标注（两个阶段共用）
 var _intro_shown_this_run: bool = false
 
+# ---- 启动声明（第八十七轮）----
+#   用户口径：「进入游戏界面前显示这段文字 3 秒：本作品无色情内容，无不良引导，完全免费。」
+#   ★ 实现方式是**盖在标题界面之上的一层**，不是「先不显示标题」：
+#     标题照常在 `_ready()` 里就绪（测试与截图脚本在启动后一帧就会读
+#     `title_screen.visible`），这层只负责挡住视线与鼠标，3 秒后自己收起。
+#   ★ 文案在 `ui.common.splash_text`，编辑器「界面文案 → ① 通用」里可改。
+var splash_layer: Control
+var splash_label: Label
+const SPLASH_SECONDS := 3.0
+
 func _ready() -> void:
 	# 顺序有讲究：开始界面先建（在下面），选关面板压在它上面，
 	# 结果覆盖层最后建（盖在最上面）
@@ -111,6 +121,8 @@ func _ready() -> void:
 	_build_intro()
 	help_overlay = HelpOverlay.new()
 	add_child(help_overlay)
+	# ★ 第八十七轮：启动声明 —— 放在最后建，保证盖在所有层之上
+	_build_splash()
 
 	wardrobe.wardrobe_confirmed.connect(_on_wardrobe_confirmed)
 	interrogation.interrogation_finished.connect(_on_interrogation_finished)
@@ -129,6 +141,64 @@ func _ready() -> void:
 		wardrobe.intel.phone_help_btn.pressed.connect(_show_stage_help)
 
 	_show_title()
+	_show_splash()
+
+# ============================================================
+#  启动声明（第八十七轮）
+#
+#  用户口径：「进入游戏界面前显示这段文字 3 秒 本作品无色情内容，无不良引导，完全免费。」
+#
+#  ★ 为什么是「盖一层」而不是「延后建标题」：标题必须在第一帧就就绪 ——
+#    测试与截图脚本启动后一帧就会读 `title_screen.visible`、读按钮文案。
+#    所以这层只做两件事：挡住视线、吃掉鼠标；3 秒后自己 hide。
+#  ★ 文案为空（编辑器里清空）→ 这一层仍然挡住 3 秒，但屏幕上一片纯色。
+#    界面文案的规矩是「留空 = 不显示」，这里不例外 —— 只是声明类文案清空没有意义。
+# ============================================================
+func _build_splash() -> void:
+	splash_layer = Control.new()
+	splash_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# 挡住鼠标：这 3 秒里点不到标题界面上的任何按钮
+	splash_layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(splash_layer)
+
+	var bg := ColorRect.new()
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color(0.045, 0.050, 0.062)
+	splash_layer.add_child(bg)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	splash_layer.add_child(center)
+
+	var lab := Label.new()
+	splash_label = lab
+	lab.text = _ut("common.splash_text", "本作品无色情内容，无不良引导，完全免费。")
+	lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lab.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lab.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lab.custom_minimum_size = Vector2(620, 0)
+	lab.add_theme_font_size_override("font_size", 18)
+	lab.add_theme_color_override("font_color", Color(0.88, 0.91, 0.95))
+	center.add_child(lab)
+
+	splash_layer.hide()
+
+func _show_splash() -> void:
+	if splash_layer == null:
+		return
+	splash_layer.show()
+	# ★ 计时器用 `create_timer`：不受 `set_process(false)` 影响（这一点测试里踩过），
+	#   到点无条件收起 —— 哪怕这中间已经有人用 `_skip_splash()` 提前关掉了。
+	await get_tree().create_timer(SPLASH_SECONDS).timeout
+	_hide_splash()
+
+func _hide_splash() -> void:
+	if splash_layer != null:
+		splash_layer.hide()
+
+# 测试 / 截图脚本用：不真等那 3 秒
+func _skip_splash() -> void:
+	_hide_splash()
 
 # ============================================================
 #  开始界面

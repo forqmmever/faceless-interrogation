@@ -773,7 +773,8 @@ try {
     // ★ 第七十三轮：删掉 select_bg_random（面板上不再有「随机」那颗按钮）→ 87 → 86
     // ★ 第七十八轮：删掉 13 条「回答反馈句」（card_* / fact_correct_* / companion_no_value 等，
     //   用户口径「原来的反馈句删除」）→ 86 → 73
-  ok(P.uiLeafCount() === 73, "story.ui 共 73 条文案，实际 " + P.uiLeafCount());
+    // ★ 第八十七轮：新增启动声明 splash_text → 73 → 74
+  ok(P.uiLeafCount() === 74, "story.ui 共 74 条文案，实际 " + P.uiLeafCount());
     const rs = P.rulesSections(), us = P.uiSections(), es = P.endingsSections();
     // ★ 第三十三轮：删 3 项（exposure_qte_threshold / interference_min / interference_per_exposure）
     //   加 2 项（exposure_qte_min / exposure_qte_full）→ 31 − 3 + 2 = 30
@@ -789,7 +790,8 @@ try {
     ok(qFieldKeys.includes("kind") && qFieldKeys.includes("delay"),
       "每题仍能改 QTE 类型与出现时间");
     // ★ 第八十三轮：新增 wardrobe/interrogation 两个 home_btn + home_tip → 72 + 4 = 76
-    ok(us.reduce((a, s) => a + (s.fields || []).length, 0) === 76, "文案页覆盖 76 条");
+    // ★ 第八十七轮：新增启动声明 splash_text → 76 + 1 = 77
+    ok(us.reduce((a, s) => a + (s.fields || []).length, 0) === 77, "文案页覆盖 77 条");
     ok(es.reduce((a, s) => a + (s.fields || []).length, 0) === 27, "结局页覆盖 27 条");
     ok(rs.every(s => s.host && s.host() === P.story.rules), "全部数值区块都写在 story.rules 上（全局一套）");
     ok(us.every(s => s.host && s.host() === P.story.ui[s.seg]), "每个文案区块挂在对应的 ui 子段上");

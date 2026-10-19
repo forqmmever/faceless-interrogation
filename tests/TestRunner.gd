@@ -87,6 +87,7 @@ func _ready() -> void:
 
 	_t_prev = Time.get_ticks_msec()
 	_test_boot()
+	await _test_splash_autohide()
 	_test_clue_reveal()
 	_test_identity_assign()
 	_test_outfit()
@@ -163,6 +164,28 @@ func _test_boot() -> void:
 	_check("「开始游戏」可点", main.title_start_btn.disabled == false)
 	_check("没有存档时「继续游戏」点不动", main.title_continue_btn.disabled == true)
 	_check("开始界面写着本局/账号进度", main.title_info.text.length() > 6)
+
+	# ★★ 第八十七轮（用户口径）：「进入游戏界面前显示这段文字 3 秒」。
+	#   ★ 这层是**盖在标题之上**的，不是「先不建标题」——
+	#     所以上面那条「开局先出开始界面」在它挡着的时候仍然成立。
+	print("\n-- 启动声明（进游戏前 3 秒）--")
+	_check("启动声明层建出来了", main.splash_layer != null and main.splash_label != null)
+	_check("启动那一刻声明是亮着的（标题在它下面已经就绪）",
+		main.splash_layer.visible == true and main.title_screen.visible == true)
+	_check("声明层吃掉鼠标（这 3 秒点不到标题按钮）",
+		main.splash_layer.mouse_filter == Control.MOUSE_FILTER_STOP)
+	_check("声明写着「无色情内容 / 无不良引导 / 完全免费」（实际：%s）"
+			% main.splash_label.text,
+		main.splash_label.text.contains("无色情内容")
+		and main.splash_label.text.contains("无不良引导")
+		and main.splash_label.text.contains("完全免费"))
+	_check("声明文案来自 story.json 的 ui.common.splash_text",
+		main.splash_label.text == ScenarioData.ui_t("common.splash_text"))
+	_check("停留时长 = 3 秒", float(main.SPLASH_SECONDS) == 3.0)
+	# 后面的用例不等这 3 秒 —— 提前收掉，并确认标题没被连带关掉
+	main._skip_splash()
+	_check("跳过声明 → 层收起、标题仍然在",
+		main.splash_layer.visible == false and main.title_screen.visible == true)
 
 	# ★ 第六十四轮：制作人名单
 	_check("制作人名单层一开始是收起的",
@@ -379,6 +402,24 @@ func _test_boot() -> void:
 # ------------------------------------------------------------
 # 外貌情报栏已删：原貌开局即全部可见
 # ------------------------------------------------------------
+# ★ 第八十七轮：启动声明「3 秒后自己收起」—— 上面 _test_boot 里是手动跳过的，
+#   这里真的等一次，验证计时器确实会把它收掉（否则玩家会永远卡在声明页）。
+#   ★ 代价：这一段固定花掉 3 秒多，是这套测试里唯一一处「真的等真实时间」的断言。
+func _test_splash_autohide() -> void:
+	print("\n-- 启动声明：到点自己收起（真实计时）--")
+	# ★ 这里标题可能是收着的 —— `_test_boot` 末尾已经真的开了一局。
+	#   所以要断言的是「声明收起没有连带改动标题的可见性」，不是「标题可见」。
+	var title_before: bool = main.title_screen.visible
+	main._show_splash()
+	_check("重新亮起", main.splash_layer.visible == true)
+	var t0 := Time.get_ticks_msec()
+	await get_tree().create_timer(float(main.SPLASH_SECONDS) + 0.2).timeout
+	var waited := (Time.get_ticks_msec() - t0) / 1000.0
+	_check("等了 %.1f 秒后自己收起（要求 ≥ %.0f 秒）" % [waited, main.SPLASH_SECONDS],
+		main.splash_layer.visible == false and waited >= float(main.SPLASH_SECONDS))
+	_check("收起后没有连带改动标题界面的可见性",
+		main.title_screen.visible == title_before)
+
 func _test_clue_reveal() -> void:
 	print("\n-- 外貌情报栏已删：原貌开局即全部可见 --")
 	_check("外貌情报共 %d 条" % OutfitData.auto_slots().size(),

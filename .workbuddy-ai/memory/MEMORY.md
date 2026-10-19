@@ -134,6 +134,8 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 - `_levels_for_panel()` 只返回轮次名（`Array[String]`）。**别再把 `derived_profile` 拼上去** ——
   背景没写时兜上来的是全局表默认值（「一个不起眼的路人」），玩家看着就是脏数据。
 - 一局通关后 `_pending_action = "home"`（回标题）；`"new_run"` 只留给测试 / 截图脚本显式设。
+- 启动声明（第 87 轮）：`splash_layer` 盖在标题**之上** 3 秒（`SPLASH_SECONDS`），
+  文案 `ui.common.splash_text`；测试 / 截图调 `_skip_splash()` 别真等。
 
 ### ★★ 反差公式（第 85 轮定稿）
 
@@ -142,7 +144,7 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
        + (暴露值相同 且 不是原貌那件) ? 「换了件」分 : 0
 ```
 「换了件」分：基础 2 / **发型 12** / 妆容 10（三键都在 `DEFAULT_RULES` 与编辑器「⑥ 反差」）。
-★ 两个条件缺一不可：暴露值不同时前半截已在给分（否则重复算）；穿回原貌仍须 0。
+★ 两个条件缺一不可（暴露值不同时前半截已在给分）；穿回原貌仍须 0。
 ★ `base_id == ""`（原貌该栏没穿）**不加分** —— 没有「原貌那件」可比。
 ★ 发型 7 件全暴露 0 / 眼镜 3 / 妆 6 里 5 件 / 鞋 3 件全是 0 —— 这几栏以前怎么换都白换。
 
@@ -181,7 +183,6 @@ godot --path . res://tests/Screenshot.tscn                 # 43 张截图 ★ �
 - ★ **改全局数值 / 删文案键时** `tests/` 与 `editor_smoke.js` 里写死的计数会成片挂 —— 改用常量或 `>=`。
 - ★★ **删代码前 grep 它定义的局部变量**（第 83 轮删全局校验带走 `knownTags` → 冒烟 `ReferenceError`）；
   ★ 删局部变量要搜**整个函数体**（续 2 漏了 `declared`，整个 autoload 起不来）。
-- ★ **断言文案会跟着代码文案一起变**（「比上一关」→「比上一轮」）。
 
 ### ★★ 截图「变了」怎么判（细则见 `REFERENCE.md`）
 

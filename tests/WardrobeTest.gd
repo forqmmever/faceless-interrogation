@@ -1199,10 +1199,57 @@ func _test_photos_v2() -> void:
 		ScenarioData.PHOTO_COUNT_START == 3 and ScenarioData.PHOTO_COUNT_PER_LEVEL == 2)
 
 	# ---- 开局张数 ----
+	# ★ 第九十四轮：「玩玩的关系」开局多拍一张上半身 —— 期望张数必须走
+	#   `photos_expected_for_level()`，自己按常量算会漏掉那个固定偏移。
 	ProfileData.reset_all()
 	RunData.start_new_run(31415)
-	_check("★ 开局正好 3 张（实际 %d）" % RunData.photos.size(),
+	_check("★ 开局张数 = 门面算出来的期望值（实际 %d / 期望 %d）" % [
+			RunData.photos.size(), RunData.photos_expected_for_level(0)],
+		RunData.photos.size() == RunData.photos_expected_for_level(0))
+
+	# ---- ★ 第九十四轮：聊聊的关系开局多一张「强制上半身」----
+	print("\n-- 「玩玩的关系」开局多一张上半身 --")
+	const UPPER_EXTRA_CASES := [7, 20261011, 1234, 1, 2]
+	var up_bad := []
+	var up_not_tail := []
+	for sd in UPPER_EXTRA_CASES:
+		ProfileData.reset_all()
+		RunData.start_new_run(sd, 0, RunData.EXTRA_UPPER_BG)
+		if RunData.photos.size() != ScenarioData.PHOTO_COUNT_START + 1:
+			up_bad.append("种子 %d 开局 %d 张（应 %d）" % [
+				sd, RunData.photos.size(), ScenarioData.PHOTO_COUNT_START + 1])
+			continue
+		# 多出来的那张必须在**批尾**（前 3 张的随机流没被推歪）
+		var last: Dictionary = RunData.photos[RunData.photos.size() - 1]
+		if str(last.get("half", "")) != ScenarioData.PHOTO_HALF_UPPER:
+			up_not_tail.append("种子 %d 最后一张不是上半身（%s）" % [
+				sd, str(last.get("half", "?"))])
+	_check("★ %d 个种子：「玩玩的关系」开局 = 3 + 1 张（问题 %d 条）" % [
+			UPPER_EXTRA_CASES.size(), up_bad.size()],
+		up_bad.is_empty())
+	_check("★ 多出来的那张就是上半身（问题 %d 条）" % up_not_tail.size(),
+		up_not_tail.is_empty())
+
+	# 对照：别的背景**不加**
+	ProfileData.reset_all()
+	RunData.start_new_run(7, 0, "scene_2")
+	_check("★ 对照：别的背景开局仍是 %d 张（实际 %d）" % [
+			ScenarioData.PHOTO_COUNT_START, RunData.photos.size()],
 		RunData.photos.size() == ScenarioData.PHOTO_COUNT_START)
+
+	# 强制只作用于**末尾那一张**，不是整批
+	#   ★ 用种子 20261011：这个种子不加强制时前 3 张是「下 / 下 / 下」，
+	#     加了之后前 3 张仍是「下 / 下 / 下」、只有第 4 张变上 ——
+	#     说明 `_make_photo(force)` 里那条强制分支**没有吃掉随机数**，
+	#     前面几张照旧按原随机流生成。
+	ProfileData.reset_all()
+	RunData.start_new_run(20261011, 0, RunData.EXTRA_UPPER_BG)
+	var got_heads := []
+	for i in mini(4, RunData.photos.size()):
+		got_heads.append("上" if str((RunData.photos[i] as Dictionary).get("half", "")) \
+			== ScenarioData.PHOTO_HALF_UPPER else "下")
+	_check("★ 强制只作用于末尾一张（这个种子实际 %s；期望前 3 张仍全是「下」）" % str(got_heads),
+		got_heads == ["下", "下", "下", "上"])
 
 	# ---- 逐种子核对每张照片的合法性 ----
 	var bad := []
@@ -1382,12 +1429,15 @@ func _test_photos_v2() -> void:
 	for k in PHOTO_SEEDS:
 		ProfileData.reset_all()
 		RunData.start_new_run(420000 + k * 7013)
-		var d0 := _dead_count(0, ScenarioData.PHOTO_COUNT_START)
+		# ★ 第九十四轮：开局批的张数走门面 —— 「玩玩的关系」多一张上半身，
+		#   那一张也在同一批里，废片预算照旧只允许 2 张。
+		var first_n: int = RunData.photos_expected_for_level(0)
+		var d0 := _dead_count(0, first_n)
 		first_dead_max = maxi(first_dead_max, d0)
 		dead_total += d0
 		if d0 > ScenarioData.PHOTO_DEAD_START:
 			dead_bad.append("开局 %d 张废片（种子 %d）" % [d0, 420000 + k * 7013])
-		var prev: int = ScenarioData.PHOTO_COUNT_START
+		var prev: int = first_n
 		for li in range(1, OutfitData.level_count()):
 			RunData.advance_level()
 			var dn := _dead_count(prev, RunData.photos.size())
@@ -1412,7 +1462,8 @@ func _test_photos_v2() -> void:
 	var first_ids := []
 	for p in RunData.photos:
 		first_ids.append(str(p.get("start_clarity", "")) + str(p.get("half", "")))
-	var expect := ScenarioData.PHOTO_COUNT_START
+	# ★ 第九十四轮：起点用门面（「玩玩的关系」开局多一张），之后每轮 +2 不变。
+	var expect := RunData.photos_expected_for_level(0)
 	var count_ok := true
 	var kept_ok := true
 	for li in range(1, OutfitData.level_count()):
@@ -1425,11 +1476,12 @@ func _test_photos_v2() -> void:
 			var now: Dictionary = RunData.photos[i]
 			if str(now.get("start_clarity", "")) + str(now.get("half", "")) != first_ids[i]:
 				kept_ok = false
-	_check("★ 每轮 +2 张：3 → %d（逐轮核对）" % expect, count_ok)
+	_check("★ 每轮 +2 张：%d → %d（逐轮核对）" % [
+			RunData.photos_expected_for_level(0), expect], count_ok)
 	_check("★ 旧照片原样保留（累加，不是重抽）", kept_ok)
 	_check("推进到最后一轮后共 %d 张（实际 %d）" % [
-		3 + 2 * (OutfitData.level_count() - 1), RunData.photos.size()],
-		RunData.photos.size() == 3 + 2 * (OutfitData.level_count() - 1))
+		RunData.photos_expected_for_level(OutfitData.level_count() - 1), RunData.photos.size()],
+		RunData.photos.size() == RunData.photos_expected_for_level(OutfitData.level_count() - 1))
 
 	# ---- 取景框：半身框的比例要与照片视口接近（否则画面留黑边）----
 	var vp_ratio := 108.0 / 158.0

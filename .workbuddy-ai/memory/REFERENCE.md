@@ -831,3 +831,43 @@ func fmt_args(t: String, args: Array) -> String:
 
 ★ 想恢复「信息不全」这条体验，别照抄旧实现 —— 见 README「下一步」那条：
 应该让**相册成为唯一的原貌来源**，而不是重新引入一套没人读的文案。
+
+## 十二、相册张数与「额外上半身」（第 94 轮）
+
+### 门面
+
+```gdscript
+const EXTRA_UPPER_BG := "scene_1"
+
+func _photo_extra() -> int:              # 整局固定偏移：这套背景多几张
+	return 1 if str(background().get("id", "")) == EXTRA_UPPER_BG else 0
+
+func photos_expected_for_level(li: int) -> int:
+	return ScenarioData.PHOTO_COUNT_START \
+		+ ScenarioData.PHOTO_COUNT_PER_LEVEL * li + _photo_extra()
+```
+
+- `resume_run()` 补照片用 `need = photos_expected_for_level(level_index)`。
+- 测试里凡是「期望几张」都调它 —— 各自套公式必漏（这就是它存在的理由）。
+- 每套背景**各自一套**：scene_1 开局 4 张、一局 6 张；其余开局 3 张、一局 5 张。
+
+### 生成
+
+`_roll_photos()` → `_append_photos(START + extra, extra)`；
+`_append_photos(n, force_upper_tail)` 让**批尾** `force_upper_tail` 张强制上半身；
+`_make_photo(force_half)` 在 `force_half != ""` 时跳过 `_rng.randi()`。
+
+### 三个约束（改动时别破坏）
+
+1. **额外张必须并进开局同一批** —— 另调一次 `_append_photos()` 会让
+   `photos.is_empty()` 为 false，废片预算从「开局 2」切成「每批 1」。
+2. **强制分支不能消耗随机数** —— 否则同一颗种子的前 3 张会变，
+   截图、相册单测、`PHOTO_SEEDS` 那批断言全部要重录。
+3. **批尾而不是批首** —— 批首会让前几张全部错位；批尾只多一张，前面的逐张不变。
+
+### 验证
+
+- 换装测试新增 4 条：5 个种子「= 3+1 张」/ 多出来的是上半身 / 别的背景仍 3 张 /
+  `["下","下","下","上"]`（证明强制只作用于末尾）。
+- 废片预算那段的「开局批张数」也改成 `photos_expected_for_level(0)` —— 第 4 张计入预算。
+- 截图 `SHOT_SEED = 20261011` 正好抽到 scene_1，相册 3 → 4 张可见。

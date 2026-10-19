@@ -171,8 +171,9 @@ func resume_run(seed_in: int, run_index_in: int, li: int, cleared: int) -> void:
 	# ★ 第四十三轮：照片是「开局 3 张 + 每轮 2 张」——
 	#   而 start_new_run 只生成了开局那 3 张，存档停在第 N 轮时要把缺的补上。
 	#   （照片不存盘：它完全由种子 + 轮次决定，重算即可复现。）
-	var need: int = ScenarioData.PHOTO_COUNT_START \
-		+ ScenarioData.PHOTO_COUNT_PER_LEVEL * level_index
+	# ★ 第九十四轮：改成走 `photos_expected_for_level()` ——
+	#   「开局多一张上半身」是整局固定偏移，自己再算一遍公式就会漏掉它。
+	var need: int = photos_expected_for_level(level_index)
 	if photos.size() < need:
 		_append_photos(need - photos.size())
 
@@ -487,22 +488,47 @@ func _roll_photos() -> void:
 	photos = []
 	# ★ 第四十四轮：点缀名额（眼镜 / 发型 / 鞋子）每局重新开一份
 	_photo_used_one_of = {}
-	_append_photos(ScenarioData.PHOTO_COUNT_START)
+	# ★★ 第九十四轮（用户口径）：「把玩玩的关系第一轮相册里加一个上半身」——
+	#   开局这一批**多拍 `_photo_extra()` 张，且这几张强制上半身**（排在批尾）。
+	#   ★ 为什么并进**同一批**而不是再调一次 `_append_photos()`：那样会走到
+	#     「相册非空 → 废片预算变成每批 1」那条分支，开局的废片上限就从 2 变成 3 ——
+	#     第 88 轮的口径是「开局最多 2 张救不回来」，不该被这轮改动悄悄放宽。
+	var extra := _photo_extra()
+	_append_photos(ScenarioData.PHOTO_COUNT_START + extra, extra)
 
 # 追加 n 张照片（开局与每轮推进都走它）
 #   ★ 每张照片基于**当前**的原貌生成 —— 所以「按背景逐轮换原貌」时，
 #     新一轮追加的照片拍的就是新的样子；旧照片保留（累加）。
-func _append_photos(n: int) -> void:
+func _append_photos(n: int, force_upper_tail: int = 0) -> void:
 	# ★ 第八十八轮：这一批允许几张「救不回来」——
 	#   开局那批（相册本来是空的）= 2 张，之后每轮新增的那批 = 1 张。
 	_photo_dead_budget = ScenarioData.PHOTO_DEAD_START if photos.is_empty() \
 		else ScenarioData.PHOTO_DEAD_PER_LEVEL
+	# ★ 第九十四轮：批尾 `force_upper_tail` 张强制拍上半身（「玩玩的关系」开局用）。
 	for i in n:
-		photos.append(_make_photo())
+		var force := ScenarioData.PHOTO_HALF_UPPER if i >= n - force_upper_tail else ""
+		photos.append(_make_photo(force))
 
-func _make_photo() -> Dictionary:
-	var half: String = ScenarioData.PHOTO_HALF_UPPER if _rng.randi() % 2 == 0 \
-		else ScenarioData.PHOTO_HALF_LOWER
+# 这一局相册比「开局 N 张 + 每轮 M 张」多几张（★ 第九十四轮）
+#   「玩玩的关系」开局多拍一张上半身 —— 它是**整局固定的偏移**，
+#   所以任何一轮的期望张数都要加上它（续玩补照片那条路也要用同一个数）。
+const EXTRA_UPPER_BG := "scene_1"
+
+func _photo_extra() -> int:
+	return 1 if str(background().get("id", "")) == EXTRA_UPPER_BG else 0
+
+# 打到第 li 轮时相册**应该**有几张。测试与 `resume_run()` 都走这里，别各算一处。
+func photos_expected_for_level(li: int) -> int:
+	return ScenarioData.PHOTO_COUNT_START \
+		+ ScenarioData.PHOTO_COUNT_PER_LEVEL * li + _photo_extra()
+
+func _make_photo(force_half: String = "") -> Dictionary:
+	# ★ 第九十四轮：`force_half` 非空就跳过随机（「玩玩的关系」开局那张上半身用）。
+	#   ★ 注意：即使强制，**仍然不抽那一次 `_rng.randi()`** —— 强制的那张不吃随机数，
+	#     所以它不会把后面的随机流推歪（同一颗种子的原貌 / 随后的照片都不变）。
+	var half: String = force_half if force_half != "" \
+		else (ScenarioData.PHOTO_HALF_UPPER if _rng.randi() % 2 == 0 \
+			else ScenarioData.PHOTO_HALF_LOWER)
 	var group: Array = ScenarioData.PHOTO_UPPER if half == ScenarioData.PHOTO_HALF_UPPER \
 		else ScenarioData.PHOTO_LOWER
 

@@ -2,6 +2,9 @@
 
 A single-player text AVG with dress-up, built in Godot 4.3. One run is two rounds: one dress-up, one interrogation.
 
+> Data formats, the editor, the art pipeline and tests: [`DESIGN.en.md`](DESIGN.en.md).
+> 中文版: [`README.md`](README.md)
+
 ---
 
 ## Quick start
@@ -9,7 +12,6 @@ A single-player text AVG with dress-up, built in Godot 4.3. One run is two round
 | Goal | Double-click |
 |---|---|
 | Play | `run_game.bat` |
-| Run all tests | `run_tests.bat` |
 | Edit story / numbers / copy | `open_story_editor.bat` |
 
 Requires **Godot 4.3**. `run_game.bat` looks for a Godot binary in this order:
@@ -37,17 +39,39 @@ In the game text the interrogator is called **男主** ("male lead") and the com
 ("second male lead"); in the "Qiuqiu's New Toy" background the companion is a dog, written 男二（狗）.
 Those strings live in `data/story.json` and can be edited at will. The A / B / C markers in code never change.
 
-### Backgrounds
+### The two scenarios
 
-| Background | A's true identity | Interrogator | You play (B) | Companion (C) |
-|---|---|---|---|---|
-| Border outpost | Ring courier (Shen Tang) | Veteran of the post | Northern spice trader | Carter, Old Cui |
-| Town waystation | Assassins' guild courier (Su Wan) | Waystation clerk | Wandering musician | Musician, A-Wu |
-| Ducal residence | Court agent (Lu Qingwu) | House steward | Newly hired copyist | Copyist, Cheng Jiu |
-| Harbour customs | Smuggler navigator (A-Yuan) | Customs inspector | Fishmonger from the west wharf | Sailor, A-Jiao |
+The repo ships two scenarios written by the author. Both share the same skeleton — **he knows *you*,
+you are playing someone else, and someone who knows the truth is standing right beside you** —
+and differ only in who those three people are:
 
-Two backgrounds ship enabled — **Border outpost** and **Town waystation**. The other two are
-marked as drafts (`enabled: false`): they are never rolled and never listed on the level select screen.
+| | Playful Ties (`scene_1`) | Daughter of the Cuckoo (`scene_2`) |
+|---|---|---|
+| **You** | **Yano**, a private-school student | **Miu** |
+| **You play** | Chen Hu's **girlfriend** | **Aiko** — Miu's twin sister |
+| **He (male lead)** | **Kotaro**, your boyfriend | **Chikara**, your boyfriend |
+| **Beside you (male two)** | **Chen Hu**, a classmate holding leverage over you | **Father**, the man who raised you — and whom you have been seeing behind your boyfriend's back |
+| **The two rounds** | board-game shop encounter → Chen Hu's birthday party | fitting-room doorway → a rendezvous spot |
+| **Questions** | 6 + 6 | 5 + 6 |
+
+**Playful Ties** — Chen Hu holds footage that makes you look like you schemed to split Kotaro from
+his childhood friend, and uses it to force you into posing as his girlfriend. He drags you to a
+board-game shop to "run into" Kotaro: you have to be a stranger to **your own boyfriend**, while he
+spends the evening talking about "my girlfriend Yano". Round two is his birthday party, and the same
+lie has to hold a second time, word for word.
+
+**Daughter of the Cuckoo** — outside a fitting room you walk straight into your boyfriend Chikara.
+Startled, you say his name — the disguise collapses on the spot, so you improvise: "I'm Aiko,
+Miu's twin sister." Round two, he runs into "Aiko" again and asks deeper: where is your sister,
+what was that voice from inside, why does your perfume smell like the one he gave Miu.
+
+**The tension is the same in both**: he is not interrogating you, he is **making conversation**.
+But every line of small talk stands on "the person I know" — you have to steer it back without
+letting him see you steer.
+
+> Four more factory templates (Border outpost / Town waystation / Ducal residence / Harbour customs)
+> live in `scripts/ScenarioData.gd`. The repo's `data/story.json` overrides them; delete the
+> background entries in the editor and it falls back to those four.
 
 ---
 
@@ -73,6 +97,11 @@ Title screen → Level select (pick a background) → Wardrobe (dress up + check
 - Acceptance earned each round is banked immediately (`user://profile.json`) and **kept globally**,
   even across retries.
 
+The level select screen can jump straight to either round (the wardrobe check is not recomputed;
+only that round's interrogation is played):
+
+<img src="screenshots/00a_level_select.png" width="620" alt="Level select">
+
 ---
 
 ## Round structure: the wardrobe
@@ -81,24 +110,11 @@ The screen has only two things: **dressing up** and **the phone**. Left side is 
 plus two gauges; right side is 12 visible slots, each with a section header and that body part's
 garment cards. The phone is a floating panel opened from a button in the bottom-left corner.
 
-```
-┌──────────────┬──────────────────────────────────────────────────────┐
-│ Outfit / True│  ▍Hair                        Current: Neat short    │
-│  ┌────────┐  │  ┌───────────────┐ ┌───────────────┐ ┌─────────────┐ │
-│  │  doll  │  │  │[img] Neat     │ │[img] Side braid│ │[img] Long  │ │
-│  └────────┘  │  │ E ●○○○○○○     │ │ E ●○○○○○○     │ │      …      │ │
-│  current …   │  └───────────────┘ └───────────────┘ └─────────────┘ │
-│ ───────────  │  ▍Headwear                    Current: Wide hat     │
-│ Exposure ●○○…│  … (12 slots, scroll down)                           │
-│ ▓▓▓▓▓▼░░│░░  │                                                      │
-│ 4 / 30       │                                                      │
-│ Contrast ●○○…│                                                      │
-│ ▓▓▓▼░░░░│░░  │                                                      │
-│ 0 / 125      │                                                      │
-├──────────────┴──────────────────────────────────────────────────────┤
-│                                    [Phone]  [Auto-solve] [Enter >]   │
-└─────────────────────────────────────────────────────────────────────┘
-```
+<img src="screenshots/01_briefing_start.png" width="820" alt="Wardrobe">
+
+Left column, top to bottom: the paper-doll preview (with a small "true appearance" inset for
+comparison), the exposure gauge, the contrast gauge, acceptance, and then the **forced equipment**
+and **defect cover** checklists — anything missing turns red on the spot.
 
 **This phase does not judge you.** It lays out the numbers and nothing else — no pass/fail.
 The verdict happens the moment the door opens in phase two.
@@ -230,30 +246,63 @@ The interrogator is an old acquaintance of A, probing throughout.
 
 ### Recognised on sight
 
-The door opens, he looks up — and sees A, not B.
+The door opens, he looks up — and sees you, not the person you are playing.
 
 If the wardrobe check failed (contrast too low / defect uncovered / over exposure cap / forced
-equipment missing), he puts down the notebook and says the name you had hoped never to hear again:
+equipment missing), a layer drops over the screen reading **"Disguise failed · recognised on sight"**,
+with one line telling you what gave you away — *"He called your name at once — dressed like this you
+no longer look like anyone else."* The result button reads "Restart this round".
 
-```
-The veteran at the post raises his head. His gaze stops on your face.
-He looks for a long time — long enough that everyone nearby goes quiet.
-Then he sets down the notebook and says the name you had hoped never to hear again —
+<img src="screenshots/13_interrogation.png" width="760" alt="Recognised on sight">
 
-"So it's you, Shen Tang."
+The round ends there. Messages you read, photos you cleared and acceptance are all kept —
+only the outfit has to be redone.
 
-· Contrast 7 < required 125
-```
+### Questions per round
 
-The round ends there. The result button reads "Restart this round".
+Each round has **6 questions**; the question text is one line spoken by the interrogator (or by the
+companion). The author sorts questions into rounds with the `level` field:
 
-### Six questions
+| | Round 1 | Round 2 |
+|---|---|---|
+| Playful Ties | 6 | 6 |
+| Daughter of the Cuckoo | 5 | 6 |
 
-Each round has **6 questions** (`rules.questions_per_level`, editable; a single round can override it
-via `levels[].questions_per_level`).
+### How options work
 
-Play order **is the order in the question bank** — drag to reorder in the editor's question tab.
-The shipped set:
+Each question has **2–4 options**, and every option carries its own **suspicion cost** — that cost
+is the only thing judgement looks at.
+
+| Cost | Meaning |
+|---|---|
+| **0** | The right answer for this question |
+| 6 / 10 / 20 | Slightly off; survivable |
+| 30 / 40 | An obvious slip; two of these and you are in trouble |
+| **100** | Recognised on the spot; the round ends immediately |
+
+Each option also carries a `tone` describing what kind of line it is: `correct` (truthful) /
+`evade` (deflect) / `bluff` (lie) / `leak` (slip up) / `silence` (say nothing).
+**`tone` does not take part in judgement** — one `bluff` can cost 0 while another costs 30,
+and that difference is the actual design work.
+
+A few recurring patterns:
+
+| Pattern | Example |
+|---|---|
+| **Self-exposure trap** | "I'm Yano" — 100. "Ch–Chikara, what are you doing here" — 100 |
+| **Two lies, one safer** | "Sister has a fever" — 30 vs "we were up too late last night" — 0, the latter turning the slip into a family shame the sister would also know |
+| **Memory test** | Four plausible times; only the one written in the messages costs 0, the rest 40 |
+| **Talking over him** | Jumping in to explain halfway through — 30. Answering before you have heard him out costs more than answering wrong |
+| **Everyone lies** | Three `bluff` options; what you compare is which lie is hardest to follow up on |
+
+QTE are attached per question: `none` (nothing) / `expression` (the expression bar) /
+`auto` (fires on its own timer) / `interference` (the companion cuts in).
+
+### The other mode: the four factory templates
+
+The four factory backgrounds use **auto-assembled questions** (`questions_source` is not `manual`):
+no hand-written options; the questions are built on the fly from dossier cards, claims and blind
+spots, in a fixed order:
 
 | Position | What | Source |
 |---|---|---|
@@ -267,54 +316,6 @@ Round 1 has no previous round, so no recall is scheduled and that slot becomes a
 
 **No contradiction can occur within a round** — each fact is asked at most once per round.
 Contradictions only come from cross-round recall.
-
-### Question data shape
-
-Each background has a single `questions[]`; **every question is an object carrying all its own
-attributes**. Judgement does not look at "what kind of question this is" — **it only looks at each
-option's `tone`**.
-
-| Field | Meaning |
-|---|---|
-| `id` | Question id, unique within a background |
-| `level` | `-1` = shared pool, `0..N` = pinned to round N+1 |
-| `speaker` | Who asks. If present in existing data it still applies; absent means the interrogator |
-| `text` | The question text |
-| `setup` | Optional context line (blind-spot questions use it to say "this is not in the dossier") |
-| `card` | Optional dossier card. **If set, judgement follows the card's owner** |
-| `fact` | Optional fact link, participates in cross-round consistency checks |
-| `recall` | Optional: marks this as the question used for cross-round recall |
-| `qte` | `{kind, delay}` — which QTE this question triggers, and after how many seconds |
-| `options[]` | Candidate answers |
-
-Each entry in `options[]`:
-
-| Field | Meaning |
-|---|---|
-| `text` | Option text (may be empty when `tone: silence`, falling back to the generic line) |
-| `echo` | Optional: the line shown above the *next* question. Empty = show `text`; filled = shown verbatim. The button label never changes |
-| `tone` | **Semantic tag**; judgement reads only this (seven kinds) |
-| `suspicion` | Suspicion added if chosen. **Empty = global default** (this is what makes temperament matter) |
-| `value` | Only for `version` — which variant this is; cross-round comparison uses it |
-| `ending` | Optional: `leak` ends the round immediately. Separate from `tone` |
-| `shake` | Optional: screen shake strength when chosen |
-
-The seven `tone` values:
-
-| tone | Meaning | Cost |
-|---|---|---|
-| `correct` | Answer truthfully (B-card dossier, checks out) | `rules.correct_delta` (**0**) |
-| `leak` | Slip up (something only A knows) | `rules.leak_delta` (**100** — immediate loss) |
-| `version` | One variant of a factual question | Decided by the consistency check |
-| `bluff` | Lie | Computed from the interrogator's temperament |
-| `evade` | Deflect | Computed from the interrogator's temperament |
-| `silence` | Say nothing | `rules.silence_delta` (**12**, temperament-independent) |
-| `made_up` | Invent a detail (blind-spot question) | `rules.blind_made_up_delta` (**48**) |
-
-**Manually authored backgrounds** (`questions_source = "manual"`) get no speaker nameplate and no
-"You:" prefix — question text and echo display verbatim. Auto-generated backgrounds keep the nameplate.
-
-### The four question types
 
 **Dossier question** — tests "would B know this?". Judged by the card's owner (`card.owner`):
 
@@ -349,7 +350,8 @@ and his wrong variant **never** becomes your stated position.
 
 ### Interrogator temperament
 
-Randomised per run. It sets how expensive "lie" and "deflect" are:
+Randomised per run. In the **four factory templates** it directly sets how expensive "lie" and
+"deflect" are:
 
 | Temperament | Description | Lie | Deflect |
 |---|---|---|---|
@@ -359,14 +361,21 @@ Randomised per run. It sets how expensive "lie" and "deflect" are:
 | **Impatient** | Hates circling; every dodge makes him tap his pen | +10 | **+32** |
 | **Soft-hearted** | Years on the job, tired, does not want to press | +18 | **+6** |
 
+In the author's two scenarios the costs are written on the options, so temperament does not enter
+the arithmetic — but it still drives two things: the "how to answer him" line in the memo, and
+**whether the dangerous option gets a ⚠**.
+
 **This information is registered by opening the memo app.** Once you have opened it, you are
-considered to have "noted his temperament", and from then on the **dangerous option is marked red
-with a ⚠**. If you never opened it, there is no hint at all.
+considered to have "noted his temperament", and from then on the dangerous option carries a ⚠ prefix.
+If you never opened it, there is no hint at all — the cost still applies, you simply do not know it
+in advance.
 
 ### Expression QTE
 
 A blue bar appears at the bottom of the screen for a **4-second window**. **Hold space** to push it
 past the **80%** line.
+
+<img src="screenshots/19_expression_qte.png" width="760" alt="Expression QTE">
 
 ```
 trigger chance = (exposure − 10) / (60 − 10)     clamped to 0..1
@@ -458,6 +467,9 @@ Failing any round sends you **back to the start of that round** (its wardrobe), 
 
 The wardrobe and the interrogation share one phone. Four apps:
 
+<img src="screenshots/04_phone_messages.png" width="760" alt="Phone: messages">
+<img src="screenshots/06_phone_album.png" width="760" alt="Phone: album">
+
 | App | Content | Mechanic |
 |---|---|---|
 | **Messages** | Three threads: the interrogator / companion C / friends | **Only what you read counts**; unlocked per round (one new message each round) |
@@ -481,204 +493,13 @@ Each round can also tick "append the how-to-answer line" — that line comes fro
 temperament. The memo may be entirely empty, and **blind-spot feedback does not depend on it**
 (feedback reads the temperament table directly).
 
-**Album**: photos are captured live by putting this run's true-appearance layers into a `SubViewport`,
-so they always match the current true appearance. The glare effect is computed in a canvas_item
-shader (blur + radial bloom + diagonal glare band + wash-out + grain).
+**Album photo count**: 3 in round 1, 5 by round 2; `scene_1` gets one extra upper-body close-up at
+the start. At most **2** (opening batch) / **1** (each later batch) of them are **duds that never
+become clear** — even wiping every glare cannot reach the 70% line. Duds are never re-rolled: if you
+cannot make it out, you cannot make it out.
+
+Photos are captured live: this run's true-appearance layers are put into a `SubViewport` and shot,
+so they always match the current true appearance. Blur, glare, wash-out and grain all come from one
+canvas_item shader.
 
 ---
-
-## Data and files
-
-### Layout
-
-```
-project.godot             Godot 4 config (7 autoloads)
-run_game.bat              Launch the game
-run_tests.bat             Run all tests
-open_story_editor.bat     Open the editor (starts a local server)
-data/
-  story.json              All data: backgrounds / questions / options / numbers / copy / endings
-  doll_au.json            Doll layer table (produced by tools/dol_prepare.py)
-assets/dol_au/            Doll art (base / clothes / icons)
-scenes/Main.tscn          Main scene (all UI built in code)
-scripts/                  16 GDScript files
-shaders/photo_blur.gdshader  Album photo blur / glare / wash-out / grain
-tools/
-  story_editor.html       Visual editor (single-file web page)
-  story_server.py         Local server so the editor can read/write story.json (8765)
-  build_story_editor.py   Embeds story.json into the editor as a built-in snapshot
-  dol_map.py              Mapping of 156 garments onto the AU pack
-  dol_prepare.py          Extract / tint / crop layers into assets/dol_au/
-  DumpStory.tscn/.gd      Exports built-in constants to story.json (★ overwrites real data — use with care)
-  editor_smoke.js         Editor smoke test
-tests/
-  WardrobeTest.tscn/.gd   Wardrobe + data-layer unit tests
-  TestRunner.tscn/.gd     End-to-end tests
-  Screenshot.tscn/.gd     Real-render screenshot script
-screenshots/              Rendered screenshots + flow overview
-CHANGELOG.md              Per-round change log
-```
-
-### Top-level structure of `data/story.json`
-
-| Key | Contents | Merge semantics |
-|---|---|---|
-| `rules` | All numbers (question count, suspicion, QTE, interference, phone pulls …) | Per-key override |
-| `ui` | UI copy | Per-key override |
-| `phone` | Phone copy (shell / messages / memo / album / notes) | Per-key override |
-| `levels` | Acceptance and contrast requirement per round | Whole-section replace |
-| `forced_rules` | Forced equipment | Whole-section replace |
-| `qte_plan` | QTE kind and delay by question index | Whole-section replace |
-| `item_overrides` | Per-item stat overrides | Per-key override |
-| `true_presets` | True-appearance pool (progressive per round) | Whole-section replace |
-| `catalog` | Read-only catalogue for the editor (the game never reads it) | Whole-section replace |
-| `backgrounds` | Four backgrounds (cards / facts / questions / messages / rounds / forced / QTE / defects) | Whole-section replace |
-| `traits` | Interrogator temperament table | Whole-section replace |
-| `endings` | Ending copy | Per-key override |
-
-**Whole-section replace** means the section you write replaces the entire block; an empty dictionary
-is ignored. **Per-key override** replaces only the keys you write.
-
-If the file is missing, everything falls back to the `DEFAULT_*` constants in GDScript and the game
-still runs.
-
-### Garment data
-
-`scripts/OutfitData.gd` is the **single source of truth**: slot definitions, all 156 item stats,
-tags, true-appearance pools. Everything else is a derived snapshot:
-
-| Derived artefact | When to regenerate |
-|---|---|
-| Layer z in `data/doll_au.json` | Re-run `tools/dol_prepare.py` after changing slots or items |
-| `catalog` in `story.json` | Same, re-export |
-| `TRUE_POOL` in `tools/story_editor.html` | **Edit by hand** (JS constant block) |
-| `screenshots/_flow_overview.png` | Re-run `tools/flow_overview.py` |
-
----
-
-## Story editor
-
-`open_story_editor.bat` starts a local server (8765) and the editor **reads and writes**
-`data/story.json` directly. Opening it over `file://` only reads the built-in snapshot and cannot save.
-
-Left-hand navigation:
-
-| Group | What you can edit |
-|---|---|
-| **Basics** | Numeric rules (question count / suspicion / contrast / QTE / interference …), UI copy, ending copy |
-| **Background** | Per background: cards / facts / questions / messages / rounds / forced equipment / QTE plan / defects |
-| **Question bank** | Every question's text, options, `tone`, cost, QTE; drag to reorder |
-| **Phone** | Shell, message copy, memo format, album copy, notes copy |
-| **Garments** | Item stats, true-appearance pool |
-| **Validation** | Full check; **problems only, no explanations** |
-
-**Manually authored mode** (`questions_source = "manual"`) collapses sections that are not used
-(the data is untouched). Judgement switches to suspicion-only, no dossier cards or facts are built,
-and blind-spot logic is skipped.
-
-**The validation panel only lists problems.** Shipped data must be **0 errors, 0 warnings**.
-A field with placeholders left empty is flagged red (`"" % args` would error). A field without
-placeholders left empty is **not** a problem — it falls back to shipped copy.
-
-After editing `story.json`, rebuild the editor's built-in snapshot (`build_story_editor.py`);
-the smoke test reads that copy.
-
----
-
-## Art assets
-
-The doll is **not hand-drawn**. It is mapped garment-by-garment from an existing layered pack.
-Only the **AUfemale** pack is used (a community redraw: taller figure, full legs).
-
-### Layered canvas
-
-Every layer is cropped to the **same 68×203 viewport** so the doll does not jump when you change
-outfits. Tinting happens at build time, not at runtime (tinting is a per-pixel multiply and colours
-are fixed).
-
-### Pipeline
-
-```
-tools/dol_map.py (mapping table)
-      ↓
-tools/dol_prepare.py (extract / tint / crop)
-      ↓
-assets/dol_au/*.png  +  data/doll_au.json
-      ↓
-godot --headless --path . --import      ← skip this and Godot will not see the new images
-```
-
-### Texture resolution rules
-
-Files in the pack are not always named `full.png`. Tried in this order, skipping fully transparent
-candidates:
-
-1. Filter out `-acc` / `_acc` variants (those are decoration layers, not the body of the garment)
-2. `full.png`
-3. `full*` (many items only ship `full-alt` / `full_gray` / `full-long`)
-4. Anything containing `idle` (the doll always uses the standing arm pose)
-5. Numeric names (`1.png`, `2.png` …)
-6. Otherwise the first by name
-
-### Hair
-
-Hair (sides / fringe / back) ships as a **pure greyscale mask**. Recolouring must go through
-`tint()`: result = hair colour × mask luminance, with a `gain` boost.
-
-**Only name the redrawn AU geometry styles explicitly.** Never write a "candidate list" — the pack
-still contains old styles with the same names (256×128, still red), and a candidate list hits those
-first. Hard conditions: **geometry 512×256** and **saturation 0.00**. Both are required.
-
-### Dresses
-
-`dress` is a **two-layer composite** (`upper/<style>` + `lower/<style>`, upper drawn first).
-Using only one layer yields a half-body garment. First thing to check when adding a dress:
-are both layers present?
-
----
-
-## Tests
-
-Four suites. `run_tests.bat` runs them all.
-
-| Suite | Coverage | Command |
-|---|---|---|
-| `WardrobeTest` | Wardrobe + data-layer unit tests | `godot --headless --path . res://tests/WardrobeTest.tscn` |
-| `TestRunner` | End-to-end (full run flow) | `godot --headless --path . res://tests/TestRunner.tscn` |
-| `editor_smoke.js` | Editor (including the 8 phone pages) | `node tools/editor_smoke.js` |
-| `Screenshot` | Real-render screenshots | `godot --path . res://tests/Screenshot.tscn` (**not headless**) |
-
-The first two print total elapsed time and the eight slowest sections — look at that when tuning
-instead of guessing.
-
-**Assertion counts change every round, so this file does not state them.** Run the suites, or check
-the "test scale over time" table at the end of `CHANGELOG.md`.
-
-**After a run, check three things:**
-
-1. `Failures: 0`
-2. Whether there is any `SCRIPT ERROR` — an error does not fail the suite, it silently removes that assertion
-3. **Whether the total assertion count dropped unexpectedly**
-
----
-
-## Screenshots
-
-`screenshots/` is produced by `tests/Screenshot.tscn` with real rendering (not headless).
-Files are numbered by flow (`00_title_screen` → `22_contradiction`); files prefixed with `_` are
-tool output (flow overview, selection comparison sheets).
-
----
-
-## Known limitations
-
-- **Manual mode still obeys "6 questions per round."** Wanting "2 questions per run" requires
-  changing the numeric rules or distributing questions per round.
-- **`relation` / `desc` / `speaker` are no longer exposed in the editor but are still read at runtime.**
-  Editing them currently means editing `story.json` directly.
-- **No phone appearance preview.** To see it, run the game or look at the screenshots.
-- **`index.html` is an early HTML5 prototype**, long out of sync with the Godot build. Neither
-  deleted nor cleaned up.
-- **`border_post` still carries 12 `cards`** (both enabled backgrounds are manually authored and
-  have empty `cards`). Whether to clear them on export is undecided — they are kept so switching
-  back to auto-generation still works.

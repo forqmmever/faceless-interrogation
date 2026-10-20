@@ -31,11 +31,14 @@ CHANGELOG = os.path.join(ROOT, "CHANGELOG.md")
 SECTION_BUDGET = 250       # 单节行数预算
 GROWTH_LIMIT = 0.10        # 涨过基线的 10% 就报
 
-# ★ 每份文档独立的基线（第 97 轮重写后的实测行数）。
+# ★ 每份文档独立的基线（第 98 轮拆分后的实测行数）。
 #   不设「理想值」—— 设了只会每轮都报错，报多了就没人看。改成**盯增长**。
+#   前两份只讲玩法，后两份只讲设计；改一份就改同语言那一份，别只改一半。
 TARGETS = [
-    ("README.md", 642),
-    ("README.en.md", 685),
+    ("README.md", 421),
+    ("README.en.md", 505),
+    ("DESIGN.md", 250),
+    ("DESIGN.en.md", 251),
 ]
 
 CN_NUM = "一二三四五六七八九十零百"
@@ -154,6 +157,8 @@ def check_one(rel_path, baseline, full):
 
     txt = read(path)
     lines = txt.split("\n")
+    if lines and lines[-1] == "":   # 末尾换行会多出一个空元素，去掉后与 `wc -l` 对齐
+        lines.pop()
     secs = sections(lines)
     problems = 0
 
@@ -236,7 +241,9 @@ def main():
     strict = "--strict" in sys.argv
     total = 0
     for rel_path, baseline in TARGETS:
-        total += check_one(rel_path, baseline, full=(rel_path == "README.md"))
+        # ★ 中文两份跑全部五项；英文两份只跑适用的三项（第 4 项靠中文版比对就够，
+        #   英文版的数字必须与中文版一致，多查一遍只会重复报同一个错）。
+        total += check_one(rel_path, baseline, full=not rel_path.endswith(".en.md"))
 
     print("\n" + "=" * 66)
     if total:

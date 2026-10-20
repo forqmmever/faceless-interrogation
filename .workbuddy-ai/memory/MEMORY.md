@@ -245,3 +245,16 @@ shaders / data 两个 json / assets/dol_au / tools 两个 / icon / 使用说明.
 ★ Bandizip CLI：`bz c -p:密码 -fmt:zip -l:9 -r -y 输出.zip <显式顶层项>` ——
   **别用 `.`**（条目会带 `./` 前缀）；包名里的冒号必须是**全角**（半角在 Windows 非法）。
 ★ 交付前在**解压出来的那一份**里实跑：`--import`、`--quit-after 300`、编辑器服务 `GET /` 200。
+
+## 七、已知未处理的事（别当成已解决）
+
+★ 这一节是**当前状态**，不是历史。逐条核实过（2026-10-20）；做掉一条就删一条，别在这里记「第几轮想做的」。
+
+- **自行编辑（manual）仍受「每轮 6 道题」约束** —— `rules.questions_per_level`，`Interrogation.gd` 两处读
+  （907 / 1499 行）。想「一局只问 2 道」得改数值规则，或把题按轮分配。
+- **`relation` / `desc` / `speaker` 已从编辑器下线，运行时仍在读**（`ScenarioData` 的 `DEFAULT_*`）。
+  现在只能直接改 `story.json`；要彻底去掉得先改准备室顶栏、手机备忘录第二条、`_q_is_companion()`。
+- **手机外观预览没有**（第 55 轮合并编辑器时按用户选择不做）。想看效果只能跑游戏或看截图。
+- **`index.html` 是早期 HTML5 原型**，规则与数值早和 Godot 版不同步，未删未清。
+- **`border_post` 还留着 12 条 `cards`**（`scene_*` 已是 `manual`、`cards` 为空数组）。
+  要不要在导出时清掉未定 —— 保留的理由是切回「自动生成」还能用。

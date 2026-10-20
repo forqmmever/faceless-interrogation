@@ -33,7 +33,8 @@ Godot 4.3 单机文字 AVG + 换装。一局 = 2 轮（一次换装 + 一次盘�
 ## 一轮的收尾
 
 `CHANGELOG.md` 追加一节 → git 提交一次（提交信息 = 该节第一行，测试数字必须真跑过）→
-`README.md` 写「为什么这么改」→ memory 写本轮明细。
+`README.md` **只同步「现在是什么 / 怎么用」**（不写「为什么这么改」）→ 跑
+`python tools/readme_check.py` → memory 写本轮明细。
 
 验证（`WardrobeTest` / `TestRunner` / `editor_smoke.js` / `Screenshot`）**只在动了
 `scripts/` `data/` `tests/` `tools/*_editor.html` 时跑**；纯文档 / 清点 / 出图跳过。

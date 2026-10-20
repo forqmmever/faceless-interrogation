@@ -276,9 +276,9 @@ is the only thing judgement looks at.
 | Cost | Meaning |
 |---|---|
 | **0** | The right answer for this question |
-| 6 / 10 / 20 | Slightly off; survivable |
-| 30 / 40 | An obvious slip; two of these and you are in trouble |
-| **100** | Recognised on the spot; the round ends immediately |
+| 4 – 20 | Slightly off; survivable |
+| 30 – 40 | An obvious slip; two of these and you are in trouble |
+| **99 / 100** | One line maxes out suspicion; recognised on the spot |
 
 Each option also carries a `tone` describing what kind of line it is: `correct` (truthful) /
 `evade` (deflect) / `bluff` (lie) / `leak` (slip up) / `silence` (say nothing).
@@ -289,7 +289,7 @@ A few recurring patterns:
 
 | Pattern | Example |
 |---|---|
-| **Self-exposure trap** | "I'm Yano" — 100. "Ch–Chikara, what are you doing here" — 100 |
+| **Self-exposure trap** | "I'm Yano — he's got something on me" — 100. "Ch–Chikara, what are you doing here" — 100 |
 | **Two lies, one safer** | "Sister has a fever" — 30 vs "we were up too late last night" — 0, the latter turning the slip into a family shame the sister would also know |
 | **Memory test** | Four plausible times; only the one written in the messages costs 0, the rest 40 |
 | **Talking over him** | Jumping in to explain halfway through — 30. Answering before you have heard him out costs more than answering wrong |

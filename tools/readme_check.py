@@ -3,19 +3,19 @@
 
 为什么要有这个脚本（第 96 轮）：
     `交接.md` 烂掉 37 轮没人发现的根因不是写得差，是**写完就没有第二次写入**。
-    README 正在走同一条路（6253 行 / 434 KB）。解法不是「以后小心点」，
+    README 正在走同一条路（一度 6253 行 / 434 KB）。解法不是「以后小心点」，
     是给它一个**每轮能跑、跑完给结论**的检查节点。
 
 用法：
     python tools/readme_check.py            # 出报告
-    python tools/readme_check.py --strict   # 有问题就退出码 1（给 CI / 收尾流程用）
+    python tools/readme_check.py --strict   # 有问题就退出码 1（给收尾流程用）
 
-检查五件事：
+检查五件事（英文版只查后三项里适用的）：
     1. 带「第 N 轮」字样的小节  —— 逐轮历史属于 CHANGELOG，不属于 README
     2. 单节行数超预算           —— 一节超过 250 行说明它没被组织过
-    3. 假标题                   —— 代码块围栏坏了，`# 注释` 会被当成一级标题
+    3. 假标题                   —— 代码块围栏坏了，`# 注释` 会被当成标题
     4. 断言数字过期             —— 与 CHANGELOG 末尾测试表的最后一行比对
-    5. 总量                     —— 行数 / 字符数 / 各段占比
+    5. 总量                     —— 涨过基线的 10% 就报
 """
 
 import os
@@ -26,15 +26,18 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-README = os.path.join(ROOT, "README.md")
 CHANGELOG = os.path.join(ROOT, "CHANGELOG.md")
 
 SECTION_BUDGET = 250       # 单节行数预算
-# ★ 全文基线：第 96 轮瘦身后实测 2576 行（原来 6253 行）。
-#   不设「理想值」—— 设了只会每轮都报错，报多了就没人看。改成**盯增长**：
-#   涨过基线的 10% 才报警，这时候通常又有人往里追加历史了。
-BASELINE = 2576
-GROWTH_LIMIT = 0.10
+GROWTH_LIMIT = 0.10        # 涨过基线的 10% 就报
+
+# ★ 每份文档独立的基线（第 97 轮重写后的实测行数）。
+#   不设「理想值」—— 设了只会每轮都报错，报多了就没人看。改成**盯增长**。
+TARGETS = [
+    ("README.md", 642),
+    ("README.en.md", 685),
+]
+
 CN_NUM = "一二三四五六七八九十零百"
 
 
@@ -142,42 +145,46 @@ def readme_numbers(txt):
     return out
 
 
-def main():
-    strict = "--strict" in sys.argv
-    txt = read(README)
+def check_one(rel_path, baseline, full):
+    """检查一份文档。full=True 时跑全部五项（中文版），否则只跑适用的三项。"""
+    path = os.path.join(ROOT, rel_path)
+    if not os.path.exists(path):
+        print("\n%s\n%s\n  跳过（文件不存在）" % ("=" * 66, rel_path))
+        return 0
+
+    txt = read(path)
     lines = txt.split("\n")
     secs = sections(lines)
     problems = 0
 
-    print("=" * 66)
-    print("README 体检")
-    print("=" * 66)
+    print("\n%s\n%s\n%s" % ("=" * 66, rel_path, "=" * 66))
 
     print("\n[总量]")
     print("  行数 %d   字符 %d   大小 %.1f KB" % (len(lines), len(txt), len(txt.encode("utf-8")) / 1024.0))
-    cap = int(BASELINE * (1 + GROWTH_LIMIT))
-    print("  基线 %d 行，涨过 %d 行（+%d%%）就报" % (BASELINE, cap, int(GROWTH_LIMIT * 100)))
+    cap = int(baseline * (1 + GROWTH_LIMIT))
+    print("  基线 %d 行，涨过 %d 行（+%d%%）就报" % (baseline, cap, int(GROWTH_LIMIT * 100)))
     if len(lines) > cap:
-        print("  !! 比基线涨了 %.1f%% —— 先查是不是又追加了逐轮记录" % (100.0 * len(lines) / BASELINE - 100))
+        print("  !! 比基线涨了 %.1f%% —— 先查是不是又追加了逐轮记录" % (100.0 * len(lines) / baseline - 100))
         problems += 1
     else:
-        print("  在基线附近（%+.1f%%）" % (100.0 * len(lines) / BASELINE - 100))
+        print("  在基线附近（%+.1f%%）" % (100.0 * len(lines) / baseline - 100))
 
-    print("\n[1] 带「第 N 轮」字样的小节（属于 CHANGELOG）")
-    hits = check_round_headers(lines)
-    if hits:
-        span = 0
-        for no, t in hits:
-            for s_no, s_n, s_t in secs:
-                if s_no == no:
-                    span += s_n
-                    break
-        print("  !! %d 个，合计 %d 行（占全文 %.1f%%）" % (len(hits), span, 100.0 * span / len(lines)))
-        for no, t in hits:
-            print("     %5d  %s" % (no, t[:56]))
-        problems += 1
-    else:
-        print("  无")
+    if full:
+        print("\n[1] 带「第 N 轮」字样的小节（属于 CHANGELOG）")
+        hits = check_round_headers(lines)
+        if hits:
+            span = 0
+            for no, t in hits:
+                for s_no, s_n, s_t in secs:
+                    if s_no == no:
+                        span += s_n
+                        break
+            print("  !! %d 个，合计 %d 行（占全文 %.1f%%）" % (len(hits), span, 100.0 * span / len(lines)))
+            for no, t in hits:
+                print("     %5d  %s" % (no, t[:56]))
+            problems += 1
+        else:
+            print("  无")
 
     print("\n[2] 单节超 %d 行（有子标题的按最大子节算）" % SECTION_BUDGET)
     big = check_big_sections(secs, lines)
@@ -199,35 +206,45 @@ def main():
     else:
         print("  无")
 
-    print("\n[4] 断言数字是否过期")
-    ch = changelog_numbers()
-    rd = readme_numbers(txt)
-    if not ch:
-        print("  ?? CHANGELOG 里没找到测试规模表，跳过")
-    elif not rd:
-        print("  README 里没有「N 项断言」，无需比对")
-    else:
-        print("  CHANGELOG 最新一行（权威）：%s / %s / %s" % ch)
-        stale = [(no, n) for no, n in rd if n not in ch]
-        uniq = sorted(set(n for _, n in rd))
-        print("  README 里手写了 %d 处，共 %d 个不同数字：%s" % (len(rd), len(uniq), " / ".join(uniq)))
-        if stale:
-            print("  !! 其中 %d 处是过期数字（不在权威集合里）" % len(stale))
-            for no, n in stale[:12]:
-                print("     %5d  %s" % (no, n))
-            if len(stale) > 12:
-                print("     …还有 %d 处" % (len(stale) - 12))
-            problems += 1
+    if full:
+        print("\n[4] 断言数字是否过期")
+        ch = changelog_numbers()
+        rd = readme_numbers(txt)
+        if not ch:
+            print("  ?? CHANGELOG 里没找到测试规模表，跳过")
+        elif not rd:
+            print("  README 里没有「N 项断言」，无需比对")
         else:
-            print("  全部与权威值一致")
+            print("  CHANGELOG 最新一行（权威）：%s / %s / %s" % ch)
+            stale = [(no, n) for no, n in rd if n not in ch]
+            uniq = sorted(set(n for _, n in rd))
+            print("  README 里手写了 %d 处，共 %d 个不同数字：%s" % (len(rd), len(uniq), " / ".join(uniq)))
+            if stale:
+                print("  !! 其中 %d 处是过期数字（不在权威集合里）" % len(stale))
+                for no, n in stale[:12]:
+                    print("     %5d  %s" % (no, n))
+                if len(stale) > 12:
+                    print("     …还有 %d 处" % (len(stale) - 12))
+                problems += 1
+            else:
+                print("  全部与权威值一致")
+
+    return problems
+
+
+def main():
+    strict = "--strict" in sys.argv
+    total = 0
+    for rel_path, baseline in TARGETS:
+        total += check_one(rel_path, baseline, full=(rel_path == "README.md"))
 
     print("\n" + "=" * 66)
-    if problems:
-        print("结论：%d 类问题。README 正在变成第二份 CHANGELOG。" % problems)
+    if total:
+        print("结论：%d 类问题。" % total)
     else:
         print("结论：干净。")
     print("=" * 66)
-    return 1 if (strict and problems) else 0
+    return 1 if (strict and total) else 0
 
 
 if __name__ == "__main__":
